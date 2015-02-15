@@ -604,3 +604,14 @@ define(`dquote', ``$@'')
 define(`dquote_elt', `ifelse(`$#', `0', `', `$#', `1', ```$1''',
                              ```$1'',$0(shift($@))')')
 divert`'dnl
+__! 045 shift - composite argn: input( { shift->include(['inc']) }) !__
+define(`argn', `ifelse(`$1', 1, ``$2'',
+  `argn(decr(`$1'), shift(shift($@)))')')
+argn(`1', `a')
+define(`foo', `argn(`11', $@)')
+foo(`a', `b', `c', `d', `e', `f', `g', `h', `i', `j', `k', `l')
+__! 045 shift - composite argn: output !__
+
+a
+
+k
