@@ -621,11 +621,11 @@ forloop(`i', `1', `8', `i ')
 __! 046 composite forloop: output !__
 
 1 2 3 4 5 6 7 8 
-__! 046 composite forloop - nested: input( { shift->include(['inc']) }) !__
+__! 047 composite forloop - nested: input( { shift->include(['inc']) }) !__
 include(`forloop.m4')
 forloop(`i', `1', `4', `forloop(`j', `1', `8', ` (i, j)')
 ')
-__! 046 composite forloop - nested: output !__
+__! 047 composite forloop - nested: output !__
 
  (1, 1) (1, 2) (1, 3) (1, 4) (1, 5) (1, 6) (1, 7) (1, 8)
  (2, 1) (2, 2) (2, 3) (2, 4) (2, 5) (2, 6) (2, 7) (2, 8)
