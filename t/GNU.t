@@ -641,3 +641,19 @@ define(`forloop', `pushdef(`$1', `$2')_forloop($@)popdef(`$1')')
 define(`_forloop',
        `$4`'ifelse($1, `$3', `', `define(`$1', incr($1))$0($@)')')
 divert`'dnl
+__! 049 composites foreach/foreachq: input( { shift->include(['inc']) }) !__
+include(`foreach.m4')
+foreach(`x', (foo, bar, foobar), `Word was: x
+')dnl
+include(`foreachq.m4')
+foreachq(`x', `foo, bar, foobar', `Word was: x
+')dnl
+__! 049 composites foreach/foreachq: output !__
+
+Word was: foo
+Word was: bar
+Word was: foobar
+
+Word was: foo
+Word was: bar
+Word was: foobar
