@@ -615,3 +615,9 @@ __! 045 shift - composite argn: output !__
 a
 
 k
+__! 046 composite forloop: input( { shift->include(['inc']) }) !__
+include(`forloop.m4')
+forloop(`i', `1', `8', `i ')
+__! 046 composite forloop: output !__
+
+1 2 3 4 5 6 7 8 
