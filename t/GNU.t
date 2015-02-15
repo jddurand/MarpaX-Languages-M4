@@ -632,3 +632,12 @@ __! 047 composite forloop - nested: output !__
  (3, 1) (3, 2) (3, 3) (3, 4) (3, 5) (3, 6) (3, 7) (3, 8)
  (4, 1) (4, 2) (4, 3) (4, 4) (4, 5) (4, 6) (4, 7) (4, 8)
 
+__! 048 composite forloop - source: input( { shift->include(['inc']) }) !__
+undivert(`forloop.m4')dnl
+__! 048 composite forloop - source: output !__
+divert(`-1')
+# forloop(var, from, to, stmt) - simple version
+define(`forloop', `pushdef(`$1', `$2')_forloop($@)popdef(`$1')')
+define(`_forloop',
+       `$4`'ifelse($1, `$3', `', `define(`$1', incr($1))$0($@)')')
+divert`'dnl
