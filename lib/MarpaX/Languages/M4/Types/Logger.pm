@@ -1,3 +1,5 @@
+# PODNAME: MarpaX::Languages::M4::Roles::Logger
+
 use Moops;
 
 library MarpaX::Languages::M4::Types::Logger declares M4Logger {

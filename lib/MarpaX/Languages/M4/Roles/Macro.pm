@@ -1,3 +1,5 @@
+# PODNAME: MarpaX::Languages::M4::Roles::Macro
+
 use Moops;
 
 role MarpaX::Languages::M4::Roles::Macro {

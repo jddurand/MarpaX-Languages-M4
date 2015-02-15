@@ -1,3 +1,5 @@
+# PODNAME: MarpaX::Languages::M4::Impl::Macro
+
 use Moops;
 
 class MarpaX::Languages::M4::Impl::Macro {
