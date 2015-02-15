@@ -2282,6 +2282,11 @@ EVAL_GRAMMAR
                     }
                     else {
                         $fh = File::Temp->new;
+                        #
+                        # We do not want to be exposed to any wide-character
+                        # warning
+                        #
+                        binmode($fh);
                     }
                 }
                 catch {
