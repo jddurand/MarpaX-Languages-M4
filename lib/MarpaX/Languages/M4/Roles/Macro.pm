@@ -1,6 +1,6 @@
-# PODNAME: MarpaX::Languages::M4::Roles::Macro
-
 use Moops;
+
+# PODCLASSNAME
 
 role MarpaX::Languages::M4::Roles::Macro {
     requires 'name';

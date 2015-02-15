@@ -1,6 +1,6 @@
-# PODNAME: MarpaX::Languages::M4::Roles::Parser
-
 use Moops;
+
+# PODCLASSNAME
 
 role MarpaX::Languages::M4::Roles::Parser {
   requires 'parse_isWord';

@@ -1,6 +1,6 @@
-# PODNAME: MarpaX::Languages::M4::Impl::Value
-
 use Moops;
+
+# PODCLASSNAME
 
 class MarpaX::Languages::M4::Impl::Value {
   use MarpaX::Languages::M4::Roles::Value;

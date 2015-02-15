@@ -1,6 +1,6 @@
-# PODNAME: MarpaX::Languages::M4::Impl::Macros
-
 use Moops;
+
+# PODCLASSNAME
 
 class MarpaX::Languages::M4::Impl::Macros {
     use MarpaX::Languages::M4::Types::Macro -all;

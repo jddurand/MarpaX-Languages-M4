@@ -1,5 +1,3 @@
-# PODNAME: MarpaX::Languages::M4::Impl::GNU
-
 use Moops;
 use MarpaX::Languages::M4::Impl::Parser;
 
@@ -17,6 +15,8 @@ use MarpaX::Languages::M4::Impl::Parser;
 # This is achieved in the parser implementation, that is maintaining itself
 # the next position for scanning.
 #
+
+# PODCLASSNAME
 
 class MarpaX::Languages::M4::Impl::GNU::BaseConversion {
         #
@@ -79,6 +79,8 @@ class MarpaX::Languages::M4::Impl::GNU::BaseConversion {
         return $number;
     }
 }
+
+# PODCLASSNAME
 
 class MarpaX::Languages::M4::Impl::GNU::Eval::Actions {
     use Bit::Vector;
@@ -358,6 +360,8 @@ class MarpaX::Languages::M4::Impl::GNU::Eval::Actions {
     }
 
 }
+
+# PODCLASSNAME
 
 class MarpaX::Languages::M4::Impl::GNU {
     extends 'MarpaX::Languages::M4::Impl::Parser';

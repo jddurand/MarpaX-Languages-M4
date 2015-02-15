@@ -1,6 +1,6 @@
-# PODNAME: MarpaX::Languages::M4::Roles::Logger
-
 use Moops;
+
+# PODCLASSNAME
 
 role MarpaX::Languages::M4::Roles::Logger {
     requires 'logger_error';

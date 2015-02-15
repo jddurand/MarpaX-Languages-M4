@@ -1,6 +1,6 @@
-# PODNAME: MarpaX::Languages::M4::Roles::Value
-
 use Moops;
+
+# PODCLASSNAME
 
 role MarpaX::Languages::M4::Roles::Value {
     requires 'concat';

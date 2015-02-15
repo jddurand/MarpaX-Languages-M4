@@ -1,6 +1,6 @@
-# PODNAME: MarpaX::Languages::M4::Roles::Builtins
-
 use Moops;
+
+# PODCLASSNAME
 
 role MarpaX::Languages::M4::Roles::Builtins {
     #
