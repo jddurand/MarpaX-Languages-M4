@@ -573,3 +573,22 @@ define(`joinall', ``$2'_$0(`$1', shift($@))')
 define(`_joinall',
 `ifelse(`$#', `2', `', ``$1$3'$0(`$1', shift(shift($@)))')')
 divert`'dnl
+__! 043 shift - composites quote/dquote/dquote_elt: input( { shift->include(['inc']) }) !__
+include(`quote.m4')
+-quote-dquote-dquote_elt-
+-quote()-dquote()-dquote_elt()-
+-quote(`1')-dquote(`1')-dquote_elt(`1')-
+-quote(`1', `2')-dquote(`1', `2')-dquote_elt(`1', `2')-
+define(`n', `$#')dnl
+-n(quote(`1', `2'))-n(dquote(`1', `2'))-n(dquote_elt(`1', `2'))-
+dquote(dquote_elt(`1', `2'))
+dquote_elt(dquote(`1', `2'))
+__! 043 shift - composites quote/dquote/dquote_elt: output !__
+
+----
+--`'-`'-
+-1-`1'-`1'-
+-1,2-`1',`2'-`1',`2'-
+-1-1-2-
+``1'',``2''
+``1',`2''
