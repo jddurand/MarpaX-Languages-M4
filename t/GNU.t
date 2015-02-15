@@ -592,3 +592,15 @@ __! 043 shift - composites quote/dquote/dquote_elt: output !__
 -1-1-2-
 ``1'',``2''
 ``1',`2''
+__! 044 shift - composites quote/dquote/dquote_elt v2: input( { shift->include(['inc']) }) !__
+undivert(`quote.m4')dnl
+__! 044 shift - composites quote/dquote/dquote_elt v2: output !__
+divert(`-1')
+# quote(args) - convert args to single-quoted string
+define(`quote', `ifelse(`$#', `0', `', ``$*'')')
+# dquote(args) - convert args to quoted list of quoted strings
+define(`dquote', ``$@'')
+# dquote_elt(args) - convert args to list of double-quoted strings
+define(`dquote_elt', `ifelse(`$#', `0', `', `$#', `1', ```$1''',
+                             ```$1'',$0(shift($@))')')
+divert`'dnl
