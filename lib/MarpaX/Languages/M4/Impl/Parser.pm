@@ -20,6 +20,14 @@ class MarpaX::Languages::M4::Impl::Parser::Actions  {
                    isa => PositiveOrZeroInt,
                    default => 0);
 
+  method groupedArguments(Str $lparen, Undef|ConsumerOf[M4Value] $tokens, Str $rparen) {
+    my $groupedArguments = MarpaX::Languages::M4::Impl::Value->new($lparen);
+    if (! Undef->check($tokens)) {
+      $groupedArguments->push($tokens->_value_elements);
+    }
+    return $groupedArguments->push($rparen);
+  }
+
   method create(Str|M4Macro @lexemes --> ConsumerOf[M4Value]) {
     return MarpaX::Languages::M4::Impl::Value->new(@lexemes);
   }
@@ -72,7 +80,7 @@ inaccessible is ok by default
 lexeme default = latm => 1
 
 argumentsGroup ::= tokens                             action => ::first
-                 | (LPAREN) argumentsGroup (RPAREN)   action => ::first
+                 | LPAREN tokens RPAREN               action => groupedArguments
 
 arguments ::= argumentsGroup                   action => firstArg
             | arguments (COMMA) argumentsGroup action => nextArg
