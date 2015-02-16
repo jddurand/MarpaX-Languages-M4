@@ -220,7 +220,7 @@ Expression ::=
     | '!' Expression                            action => MarpaX::Languages::M4::Impl::GNU::Eval::_lneg
    || Expression '**' Expression assoc => right action => MarpaX::Languages::M4::Impl::GNU::Eval::_exp
    || Expression '*' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_mul
-    | Expression ('/') Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_div
+    | Expression ('/') Expression               action => MarpaX::Languages::M4::Impl::GNU::Eval::_div
     | Expression '%' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_mod
    || Expression '+' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_add
     | Expression '-' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_sub
