@@ -3,6 +3,9 @@ use Moops;
 # PODCLASSNAME
 
 role MarpaX::Languages::M4::Roles::Builtins {
+
+    # VERSION
+
     #
     # Only the POSIX builtins are explicitely listed
     # here. Extensions per implementation are

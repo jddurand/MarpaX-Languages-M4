@@ -3,6 +3,9 @@ use Moops;
 # PODCLASSNAME
 
 role MarpaX::Languages::M4::Roles::Impl {
+
+    # VERSION
+
     use MarpaX::Languages::M4::Roles::Builtins;
     use MarpaX::Languages::M4::Roles::Logger;
     use MarpaX::Languages::M4::Roles::Parser;

@@ -3,6 +3,9 @@ use Moops;
 # PODCLASSNAME
 
 class MarpaX::Languages::M4::Impl::Macro {
+
+    # VERSION
+
     use MarpaX::Languages::M4::Roles::Macro;
     use MarpaX::Languages::M4::Types::Macro -all;
     use MooX::HandlesVia;
@@ -22,7 +25,7 @@ class MarpaX::Languages::M4::Impl::Macro {
     );
     has expansion => (
         is       => 'rw',
-        isa      => Str|M4Macro,
+        isa      => Str | M4Macro,
         required => 1
     );
     has needParams => (
@@ -32,7 +35,7 @@ class MarpaX::Languages::M4::Impl::Macro {
     );
     has paramCanBeMacro => (
         is      => 'rw',
-        isa     => HashRef [PositiveOrZeroInt|Enum[qw/*/]],
+        isa     => HashRef [ PositiveOrZeroInt | Enum [qw/*/] ],
         default => sub {
             {};
         },
@@ -52,19 +55,23 @@ class MarpaX::Languages::M4::Impl::Macro {
         handles     => { postMatchLength_execute => 'execute' }
     );
 
-    method is_builtin(--> Bool) {
-      return ($self->expansion == $self) ? true : false;
+    method is_builtin (--> Bool) {
+        return ( $self->expansion == $self ) ? true : false;
     }
 
-    method paramCanBeMacro_check(PositiveOrZeroInt $paramPos --> Bool) {
-      if (($self->paramCanBeMacro_exists($paramPos) && $self->paramCanBeMacro_get($paramPos))
-          ||
-          ($self->paramCanBeMacro_exists('*') &&  $self->paramCanBeMacro_get('*'))
-         ) {
-        return true;
-      } else {
-        return false;
-      }
+    method paramCanBeMacro_check (PositiveOrZeroInt $paramPos --> Bool) {
+        if ((      $self->paramCanBeMacro_exists($paramPos)
+                && $self->paramCanBeMacro_get($paramPos)
+            )
+            || (   $self->paramCanBeMacro_exists('*')
+                && $self->paramCanBeMacro_get('*') )
+            )
+        {
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     with 'MarpaX::Languages::M4::Roles::Macro';

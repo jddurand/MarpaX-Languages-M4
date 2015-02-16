@@ -6,6 +6,8 @@ class MarpaX::Languages::M4::Impl::Macros {
     use MarpaX::Languages::M4::Types::Macro -all;
     use MooX::HandlesVia;
 
+    # VERSION
+
     has _macrosList => (
         is          => 'rwp',
         isa         => ArrayRef [M4Macro],

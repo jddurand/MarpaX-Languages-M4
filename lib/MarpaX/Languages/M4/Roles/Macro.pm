@@ -3,6 +3,9 @@ use Moops;
 # PODCLASSNAME
 
 role MarpaX::Languages::M4::Roles::Macro {
+
+    # VERSION
+
     requires 'name';
     requires 'execute';
     requires 'expansion';
