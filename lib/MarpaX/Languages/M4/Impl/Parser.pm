@@ -20,12 +20,30 @@ class MarpaX::Languages::M4::Impl::Parser::Actions  {
                    isa => PositiveOrZeroInt,
                    default => 0);
 
-  method groupedArguments(Str $lparen, Undef|ConsumerOf[M4Value] $tokens, Str $rparen) {
-    my $groupedArguments = MarpaX::Languages::M4::Impl::Value->new($lparen);
+  method groupedArgumentsBefore(Str $lparen, Undef|ConsumerOf[M4Value] $tokens, Str $rparen, Undef|ConsumerOf[M4Value] $argumentsGroup) {
+    my $groupedArguments = MarpaX::Languages::M4::Impl::Value->new();
+    $groupedArguments->push($lparen);
     if (! Undef->check($tokens)) {
       $groupedArguments->push($tokens->_value_elements);
     }
-    return $groupedArguments->push($rparen);
+    $groupedArguments->push($rparen);
+    if (! Undef->check($argumentsGroup)) {
+      $groupedArguments->push($argumentsGroup->_value_elements);
+    }
+    return $groupedArguments;
+  }
+
+  method groupedArgumentsAfter(Undef|ConsumerOf[M4Value] $argumentsGroup, Str $lparen, Undef|ConsumerOf[M4Value] $tokens, Str $rparen) {
+    my $groupedArguments = MarpaX::Languages::M4::Impl::Value->new();
+    if (! Undef->check($argumentsGroup)) {
+      $groupedArguments->push($argumentsGroup->_value_elements);
+    }
+    $groupedArguments->push($lparen);
+    if (! Undef->check($tokens)) {
+      $groupedArguments->push($tokens->_value_elements);
+    }
+    $groupedArguments->push($rparen);
+    return $groupedArguments;
   }
 
   method create(Str|M4Macro @lexemes --> ConsumerOf[M4Value]) {
@@ -47,7 +65,7 @@ class MarpaX::Languages::M4::Impl::Parser::Actions  {
     }
   }
 
-  method nextArg(ConsumerOf[M4Value] $arguments, Undef|ConsumerOf[M4Value] $argumentsGroup?) {
+  method nextArg(ConsumerOf[M4Value] $arguments, Undef|ConsumerOf[M4Value] $argumentsGroup) {
     $self->paramPos($self->paramPos + 1);
     #
     # $argumentsGroup is nullable
@@ -79,8 +97,9 @@ inaccessible is ok by default
 :default ::= action => ::first
 lexeme default = latm => 1
 
-argumentsGroup ::= tokens                             action => ::first
-                 | LPAREN tokens RPAREN               action => groupedArguments
+argumentsGroup ::= tokens                              action => ::first
+                 | LPAREN tokens RPAREN argumentsGroup action => groupedArgumentsBefore
+                 | argumentsGroup LPAREN tokens RPAREN action => groupedArgumentsAfter
 
 arguments ::= argumentsGroup                   action => firstArg
             | arguments (COMMA) argumentsGroup action => nextArg
@@ -421,6 +440,9 @@ COMMA ~ ',' _WS_any
       # a macro that called us.
       local $MarpaX::Languages::M4::Impl::Parser::macro = $macro;
       $rc{value} = ${$r->value};
+      #if (defined($r->value)) {
+      #  die "Oups, parse tree is ambiguous\n";
+      #}
     } else {
       #
       # We are at the top level: the output has already been "flushed" to whatever

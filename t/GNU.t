@@ -555,25 +555,7 @@ __! 041 shift - composites join/joinall: output !__
 -1---2-
 1,2,3
 1
-__! 042 shift - composites join/joinall v2: input( { shift->include(['inc']) }) !__
-undivert(`join.m4')dnl
-__! 042 shift - composites join/joinall v2: output !__
-divert(`-1')
-# join(sep, args) - join each non-empty ARG into a single
-# string, with each element separated by SEP
-define(`join',
-`ifelse(`$#', `2', ``$2'',
-  `ifelse(`$2', `', `', ``$2'_')$0(`$1', shift(shift($@)))')')
-define(`_join',
-`ifelse(`$#$2', `2', `',
-  `ifelse(`$2', `', `', ``$1$2'')$0(`$1', shift(shift($@)))')')
-# joinall(sep, args) - join each ARG, including empty ones,
-# into a single string, with each element separated by SEP
-define(`joinall', ``$2'_$0(`$1', shift($@))')
-define(`_joinall',
-`ifelse(`$#', `2', `', ``$1$3'$0(`$1', shift(shift($@)))')')
-divert`'dnl
-__! 043 shift - composites quote/dquote/dquote_elt: input( { shift->include(['inc']) }) !__
+__! 042 shift - composites quote/dquote/dquote_elt: input( { shift->include(['inc']) }) !__
 include(`quote.m4')
 -quote-dquote-dquote_elt-
 -quote()-dquote()-dquote_elt()-
@@ -583,7 +565,7 @@ define(`n', `$#')dnl
 -n(quote(`1', `2'))-n(dquote(`1', `2'))-n(dquote_elt(`1', `2'))-
 dquote(dquote_elt(`1', `2'))
 dquote_elt(dquote(`1', `2'))
-__! 043 shift - composites quote/dquote/dquote_elt: output !__
+__! 042 shift - composites quote/dquote/dquote_elt: output !__
 
 ----
 --`'-`'-
@@ -592,63 +574,42 @@ __! 043 shift - composites quote/dquote/dquote_elt: output !__
 -1-1-2-
 ``1'',``2''
 ``1',`2''
-__! 044 shift - composites quote/dquote/dquote_elt v2: input( { shift->include(['inc']) }) !__
-undivert(`quote.m4')dnl
-__! 044 shift - composites quote/dquote/dquote_elt v2: output !__
-divert(`-1')
-# quote(args) - convert args to single-quoted string
-define(`quote', `ifelse(`$#', `0', `', ``$*'')')
-# dquote(args) - convert args to quoted list of quoted strings
-define(`dquote', ``$@'')
-# dquote_elt(args) - convert args to list of double-quoted strings
-define(`dquote_elt', `ifelse(`$#', `0', `', `$#', `1', ```$1''',
-                             ```$1'',$0(shift($@))')')
-divert`'dnl
-__! 045 shift - composite argn: input( { shift->include(['inc']) }) !__
+__! 043 shift - composite argn: input( { shift->include(['inc']) }) !__
 define(`argn', `ifelse(`$1', 1, ``$2'',
   `argn(decr(`$1'), shift(shift($@)))')')
 argn(`1', `a')
 define(`foo', `argn(`11', $@)')
 foo(`a', `b', `c', `d', `e', `f', `g', `h', `i', `j', `k', `l')
-__! 045 shift - composite argn: output !__
+__! 043 shift - composite argn: output !__
 
 a
 
 k
-__! 046 composite forloop: input( { shift->include(['inc']) }) !__
+__! 044 composite forloop: input( { shift->include(['inc']) }) !__
 include(`forloop.m4')
 forloop(`i', `1', `8', `i ')
-__! 046 composite forloop: output !__
+__! 044 composite forloop: output !__
 
 1 2 3 4 5 6 7 8 
-__! 047 composite forloop - nested: input( { shift->include(['inc']) }) !__
+__! 045 composite forloop - nested: input( { shift->include(['inc']) }) !__
 include(`forloop.m4')
 forloop(`i', `1', `4', `forloop(`j', `1', `8', ` (i, j)')
 ')
-__! 047 composite forloop - nested: output !__
+__! 045 composite forloop - nested: output !__
 
  (1, 1) (1, 2) (1, 3) (1, 4) (1, 5) (1, 6) (1, 7) (1, 8)
  (2, 1) (2, 2) (2, 3) (2, 4) (2, 5) (2, 6) (2, 7) (2, 8)
  (3, 1) (3, 2) (3, 3) (3, 4) (3, 5) (3, 6) (3, 7) (3, 8)
  (4, 1) (4, 2) (4, 3) (4, 4) (4, 5) (4, 6) (4, 7) (4, 8)
 
-__! 048 composite forloop - source: input( { shift->include(['inc']) }) !__
-undivert(`forloop.m4')dnl
-__! 048 composite forloop - source: output !__
-divert(`-1')
-# forloop(var, from, to, stmt) - simple version
-define(`forloop', `pushdef(`$1', `$2')_forloop($@)popdef(`$1')')
-define(`_forloop',
-       `$4`'ifelse($1, `$3', `', `define(`$1', incr($1))$0($@)')')
-divert`'dnl
-__! 049 composites foreach/foreachq: input( { shift->include(['inc']) }) !__
+__! 046 composites foreach/foreachq: input( { shift->include(['inc']) }) !__
 include(`foreach.m4')
 foreach(`x', (foo, bar, foobar), `Word was: x
 ')dnl
 include(`foreachq.m4')
 foreachq(`x', `foo, bar, foobar', `Word was: x
 ')dnl
-__! 049 composites foreach/foreachq: output !__
+__! 046 composites foreach/foreachq: output !__
 
 Word was: foo
 Word was: bar
@@ -657,3 +618,43 @@ Word was: foobar
 Word was: foo
 Word was: bar
 Word was: foobar
+__! 047 composites foreach/foreachq - generate a shell case statement: input( { shift->include(['inc']) }) !__
+include(`foreach.m4')
+define(`_case', `  $1)
+    $2=" $1";;
+')dnl
+define(`_cat', `$1$2')dnl
+case $`'1 in
+foreach(`x', `(`(`a', `vara')', `(`b', `varb')', `(`c', `varc')')',
+        `_cat(`_case', x)')dnl
+esac
+__! 047 composites foreach/foreachq - generate a shell case statement: output !__
+
+case $1 in
+  a)
+    vara=" a";;
+  b)
+    varb=" b";;
+  c)
+    varc=" c";;
+esac
+__! 048 composites foreach/foreachq - comparison: input( { shift->include(['inc']) }) !__
+define(`a', `1')define(`b', `2')define(`c', `3')
+include(`foreach.m4')
+include(`foreachq.m4')
+foreach(`x', `(``a'', ``(b'', ``c)'')', `x
+')
+foreachq(`x', ```a'', ``(b'', ``c)''', `x
+')dnl
+__! 048 composites foreach/foreachq - comparison: output !__
+
+
+
+1
+(2)1
+
+, x
+)
+a
+(b
+c)
