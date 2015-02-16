@@ -1097,9 +1097,13 @@ EVAL_GRAMMAR
         return false;
     }
 
+    method _getMacro (Str $word --> M4Macro) {
+      return $self->_macros_get($word)->get(-1);
+    }
+
     method parse_isMacro (Str $word, Ref $macroRef? --> Bool) {
         if ( $self->_macros_exists($word) ) {
-            ${$macroRef} = $self->_macros_get($word)->get(-1);
+            ${$macroRef} = $self->_getMacro($word);
             return true;
         }
         return false,;
@@ -1762,7 +1766,7 @@ EVAL_GRAMMAR
         my $nbStr   = 0;
         foreach (@names) {
             if ( $self->_macros_exists($_) ) {
-                push( @rc, $self->_macros_get($_)->get(-1)->expansion );
+                push( @rc, $self->_getMacro($_)->expansion );
             }
         }
         my $rc = '';
@@ -1860,7 +1864,7 @@ EVAL_GRAMMAR
             return '';
         }
         if ( $self->_macros_exists($name) ) {
-            my $macro = $self->_macros_get($name)->get(-1);
+            my $macro = $self->_getMacro($name);
             #
             # Check the args
             #
@@ -1996,7 +2000,7 @@ EVAL_GRAMMAR
             }
             else {
                 $self->logger_debug( '%s: %s', $_,
-                    $self->_macros_get($_)->get(-1)->expansion );
+                    $self->_getMacro($_)->is_builtin ? "<$_>" : $self->_getMacro($_)->expansion );
             }
         }
 
@@ -2137,6 +2141,17 @@ EVAL_GRAMMAR
             use filetest 'access';
             @candidates = grep { -r $_ }
                 map { File::Spec->catfile( $_, $file ) } @includes;
+        }
+
+        if (! @candidates) {
+          #
+          # It is guaranteed that #includes have at least one element.
+          # Therefore, $! should be setted
+          #
+          if ( !$silent ) {
+            $self->logger_error( 'cannot open %s: %s', $self->quote($file), $! );
+          }
+          return '';
         }
 
         foreach my $file (@candidates) {

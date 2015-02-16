@@ -658,3 +658,101 @@ __! 048 composites foreach/foreachq - comparison: output !__
 a
 (b
 c)
+__! 049 composite foreachq limitation: input( { shift->include(['inc']) }) !__
+include(`foreach.m4')include(`foreachq.m4')
+foreach(`name', `(`a', `b')', ` defn(`name')')
+foreachq(`name', ``a', `b'', ` defn(`name')')
+__! 049 composite foreachq limitation: output !__
+
+ a b
+ _arg1(`a', `b') _arg1(shift(`a', `b'))
+__! 050 composite stack: input( { shift->include(['inc']) }) !__
+include(`stack.m4')
+pushdef(`a', `1')pushdef(`a', `2')pushdef(`a', `3')
+define(`show', ``$1'
+')
+stack_foreach(`a', `show')dnl
+stack_foreach_lifo(`a', `show')dnl
+__! 050 composite stack: output !__
+
+
+
+1
+2
+3
+3
+2
+1
+__! 050 composite define_blind: input( { shift->include(['inc']) }) !__
+define(`define_blind', `ifelse(`$#', `0', ``$0'',
+`_$0(`$1', `$2', `$'`#', `$'`0')')')
+define(`_define_blind', `define(`$1',
+`ifelse(`$3', `0', ``$4'', `$2')')')
+define_blind
+define_blind(`foo', `arguments were $*')
+foo
+foo(`bar')
+define(`blah', defn(`foo'))
+blah
+blah(`a', `b')
+defn(`blah')
+__! 050 composite define_blind: output !__
+
+
+define_blind
+
+foo
+arguments were bar
+
+blah
+arguments were a,b
+ifelse(`$#', `0', ``$0'', `arguments were $*')
+__! 051 composite curry: input( { shift->include(['inc']) }) !__
+include(`curry.m4')include(`stack.m4')
+define(`reverse', `ifelse(`$#', `0', , `$#', `1', ``$1'',
+                          `reverse(shift($@)), `$1'')')
+pushdef(`a', `1')pushdef(`a', `2')pushdef(`a', `3')
+stack_foreach(`a', `:curry(`reverse', `4')')
+curry(`curry', `reverse', `1')(`2')(`3')
+__! 051 composite curry: output !__
+
+
+
+:1, 4:2, 4:3, 4
+3, 2, 1
+__! 052 composites copy/rename: input( { shift->include(['inc']) }) !__
+include(`curry.m4')include(`stack.m4')
+define(`rename', `copy($@)undefine(`$1')')dnl
+define(`copy', `ifdef(`$2', `errprint(`$2 already defined
+')m4exit(`1')',
+   `stack_foreach(`$1', `curry(`pushdef', `$2')')')')dnl
+pushdef(`a', `1')pushdef(`a', defn(`divnum'))pushdef(`a', `2')
+copy(`a', `b')
+rename(`b', `c')
+a b c
+popdef(`a', `c')c a
+popdef(`a', `c')a c
+__! 052 composites copy/rename: output !__
+
+
+
+
+2 b 2
+ 0
+1 1
+__! 053 dumpdef: input( { shift->include(['inc']) }) !__
+define(`foo', `Hello world.')
+dumpdef(`foo')
+dumpdef(`define')
+__! 053 dumpdef: output !__
+
+
+
+__! 054 dumpdef 2: input( { shift->include(['inc']) }) !__
+pushdef(`f', ``$0'1')pushdef(`f', ``$0'2')
+f(popdef(`f')dumpdef(`f'))
+f(popdef(`f')dumpdef(`f'))
+__! 054 dumpdef 2: output !__
+
+f2
+f1
