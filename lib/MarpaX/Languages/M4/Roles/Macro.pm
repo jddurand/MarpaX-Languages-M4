@@ -2,6 +2,8 @@ use Moops;
 
 # PODCLASSNAME
 
+# ABSTRACT: M4 Macro role
+
 role MarpaX::Languages::M4::Roles::Macro {
 
     # VERSION

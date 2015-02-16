@@ -3,6 +3,8 @@ use MarpaX::Languages::M4::Impl::Value;
 
 # PODCLASSNAME
 
+# ABSTRACT: M4 Macro Parser Marpa actions
+
 class MarpaX::Languages::M4::Impl::Parser::Actions {
     use MarpaX::Languages::M4::Impl::Value;
     use MarpaX::Languages::M4::Types::Value -all;

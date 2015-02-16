@@ -3,6 +3,8 @@ use MarpaX::Languages::M4::Impl::Parser;
 
 # PODCLASSNAME
 
+# ABSTRACT: M4 pre-processor GNU implementation
+
 #
 # General note: having API'sed M4 introduce a difficulty when dealing
 # with diversions: M4 is primilarly designed to act as a command-line
@@ -20,8 +22,6 @@ use MarpaX::Languages::M4::Impl::Parser;
 
 class MarpaX::Languages::M4::Impl::GNU {
     extends 'MarpaX::Languages::M4::Impl::Parser';
-
-    # ABSTRACT: M4 pre-processor perl implementation
 
     # VERSION
 

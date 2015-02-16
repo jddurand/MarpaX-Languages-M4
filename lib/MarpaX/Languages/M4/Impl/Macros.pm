@@ -2,6 +2,8 @@ use Moops;
 
 # PODCLASSNAME
 
+# ABSTRACT: M4 Macro generic implementation
+
 class MarpaX::Languages::M4::Impl::Macros {
     use MarpaX::Languages::M4::Types::Macro -all;
     use MooX::HandlesVia;

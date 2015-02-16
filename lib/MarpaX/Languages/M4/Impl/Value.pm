@@ -2,6 +2,8 @@ use Moops;
 
 # PODCLASSNAME
 
+# ABSTRACT: M4 Macro Parse Value generic implementation
+
 class MarpaX::Languages::M4::Impl::Value {
     use MarpaX::Languages::M4::Roles::Value;
     use MarpaX::Languages::M4::Types::Macro -all;

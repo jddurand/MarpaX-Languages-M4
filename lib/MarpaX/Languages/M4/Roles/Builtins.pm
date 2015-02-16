@@ -2,6 +2,8 @@ use Moops;
 
 # PODCLASSNAME
 
+# ABSTRACT: Builtins role
+
 role MarpaX::Languages::M4::Roles::Builtins {
 
     # VERSION

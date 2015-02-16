@@ -2,10 +2,15 @@ use Moops;
 
 # PODCLASSNAME
 
+# ABSTRACT: Base conversion util class
+
 class MarpaX::Languages::M4::Impl::GNU::BaseConversion {
-        #
-        # Eval: constants for radix and the grammar
-        #
+
+    # VERSION
+
+    #
+    # Eval: constants for radix and the grammar
+    #
     our @nums = ( 0 .. 9, 'a' .. 'z', 'A' .. 'Z' );
     our %nums = map { $nums[$_] => $_ } 0 .. $#nums;
 

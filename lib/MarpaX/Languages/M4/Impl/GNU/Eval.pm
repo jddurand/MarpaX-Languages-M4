@@ -2,10 +2,14 @@ use Moops;
 
 # PODCLASSNAME
 
+# ABSTRACT: GNU M4 Eval Marpa actions
+
 class MarpaX::Languages::M4::Impl::GNU::Eval {
     use Bit::Vector;
     use Types::Common::Numeric -all;
     use MarpaX::Languages::M4::Impl::GNU::BaseConversion;
+
+    # VERSION
 
     #
     # Marpa dislike exceptions throws as objects, because of wanted
