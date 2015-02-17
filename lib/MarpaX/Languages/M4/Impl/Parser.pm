@@ -333,7 +333,7 @@ COMMA ~ ',' _WS_any
                   }
                 }
               } else {
-                if ($_ eq 'QUOTEDSTRING' && $g == $BYMACROARGUMENTS_G) {
+                if ($g == $BYMACROARGUMENTS_G && $_ eq 'QUOTEDSTRING') {
                   #
                   # Already done in the context of macro arguments grammar
                   #
@@ -343,7 +343,7 @@ COMMA ~ ',' _WS_any
                     $lexemeLength = $QuotedstringLength;
                     last;
                   }
-                } elsif ($_ eq 'COMMENT' && $g == $BYMACROARGUMENTS_G) {
+                } elsif ($g == $BYMACROARGUMENTS_G && $_ eq 'COMMENT') {
                   #
                   # Already done in the context of macro arguments grammar
                   #
