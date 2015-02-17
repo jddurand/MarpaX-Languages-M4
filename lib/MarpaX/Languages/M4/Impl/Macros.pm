@@ -2,7 +2,7 @@ use Moops;
 
 # PODCLASSNAME
 
-# ABSTRACT: M4 Macro generic implementation
+# ABSTRACT: M4 Macro list generic implementation
 
 class MarpaX::Languages::M4::Impl::Macros {
     use MarpaX::Languages::M4::Role::Macros;
