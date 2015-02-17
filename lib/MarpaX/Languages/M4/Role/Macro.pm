@@ -8,11 +8,11 @@ role MarpaX::Languages::M4::Role::Macro {
 
     # VERSION
 
-    requires 'name';
-    requires 'execute';
-    requires 'expansion';
-    requires 'needParams';
-    requires 'paramCanBeMacro_check';
-    requires 'postMatchLength_execute';
-    requires 'is_builtin';
+    requires 'macro_name';
+    requires 'macro_execute';
+    requires 'macro_expansion';
+    requires 'macro_needParams';
+    requires 'macro_paramCanBeMacro';
+    requires 'macro_postMatchLengthExecute';
+    requires 'macro_isBuiltin';
 }

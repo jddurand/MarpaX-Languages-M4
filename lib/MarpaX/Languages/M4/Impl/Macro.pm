@@ -23,7 +23,7 @@ class MarpaX::Languages::M4::Impl::Macro {
         isa         => CodeRef,
         required    => 1,
         handles_via => 'Code',
-        handles     => { execute => 'execute' }
+        handles     => { macro_execute => 'execute' }
     );
     has expansion => (
         is       => 'rw',
@@ -54,14 +54,26 @@ class MarpaX::Languages::M4::Impl::Macro {
             sub { return 0; }
         },
         handles_via => 'Code',
-        handles     => { postMatchLength_execute => 'execute' }
+        handles     => { macro_postMatchLengthExecute => 'execute' }
     );
 
-    method is_builtin (--> Bool) {
+    method macro_name(--> Str) {
+        return  $self->name;
+    }
+
+    method macro_expansion(--> Str | M4Macro) {
+        return  $self->expansion;
+    }
+
+    method macro_needParams(--> Bool ) {
+        return  $self->needParams;
+    }
+
+    method macro_isBuiltin (--> Bool) {
         return ( $self->expansion == $self ) ? true : false;
     }
 
-    method paramCanBeMacro_check (PositiveOrZeroInt $paramPos --> Bool) {
+    method macro_paramCanBeMacro (PositiveOrZeroInt $paramPos --> Bool) {
         if ((      $self->_paramCanBeMacro_exists($paramPos)
                 && $self->_paramCanBeMacro_get($paramPos)
             )

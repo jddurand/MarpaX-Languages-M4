@@ -72,7 +72,7 @@ class MarpaX::Languages::M4::Impl::Value {
             my $firstElement = $self->_value_get(0);
             $paramPos //= 0;
             if ( M4Macro->check($firstElement)
-                && $macro->paramCanBeMacro_check($paramPos) )
+                && $macro->macro_paramCanBeMacro($paramPos) )
             {
                 #
                 # Return first M4Macro element

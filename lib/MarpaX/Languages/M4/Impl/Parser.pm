@@ -360,7 +360,7 @@ COMMA ~ ',' _WS_any
                         = ( $lparenPos <= $maxPos )
                         ? substr( ${$inputRef}, $lparenPos, 1 )
                         : '';
-                    if ( !$thisMacro->needParams || $lparen eq '(' ) {
+                    if ( !$thisMacro->macro_needParams || $lparen eq '(' ) {
 
                         my $macroName = $lexemeValue;
                         my $printableMacroName
@@ -378,7 +378,7 @@ COMMA ~ ',' _WS_any
                             $self->logger_debug( '[%d..%d/%d] %s -> ???',
                                 $rc{pos}, $rc{pos}, $maxPos,
                                 $printableMacroName );
-                            $lexemeValue = $thisMacro->execute($self);
+                            $lexemeValue = $thisMacro->macro_execute($self);
                             if ( length($lexemeValue) > 0 ) {
                                 $self->logger_debug(
                                     '[%d..%d/%d] %s -> %s',
@@ -428,7 +428,7 @@ COMMA ~ ',' _WS_any
                                 $printableMacroName,
                                 $printableArguments
                             );
-                            $lexemeValue = $thisMacro->execute( $self,
+                            $lexemeValue = $thisMacro->macro_execute( $self,
                                 $parametersValue->elements );
                             if ( length($lexemeValue) > 0 ) {
                                 $self->logger_debug(
@@ -451,7 +451,7 @@ COMMA ~ ',' _WS_any
                         # Eventual postmatch length
                         #
                         $lexemeLength
-                            += $thisMacro->postMatchLength_execute( $self,
+                            += $thisMacro->macro_postMatchLengthExecute( $self,
                             ${$inputRef}, $rc{pos} + $lexemeLength );
                         #
                         # Input is changing

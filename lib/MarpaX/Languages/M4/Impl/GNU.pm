@@ -1430,19 +1430,19 @@ EVAL_GRAMMAR
         my $nbStr   = 0;
         foreach (@names) {
             if ( $self->_macros_exists($_) ) {
-                push( @rc, $self->_getMacro($_)->expansion );
+                push( @rc, $self->_getMacro($_)->macro_expansion );
             }
         }
         my $rc = '';
         foreach ( 0 .. $#rc ) {
             if ( M4Macro->check( $rc[$_] ) ) {
-                if ( $rc[$_]->is_builtin ) {
+                if ( $rc[$_]->macro_isBuiltin ) {
                     if (   ( $_ == 0 && $#rc > 0 )
                         || ( $_ > 0 ) )
                     {
                         $self->logger_warn(
                             '%s: cannot concatenate builtin %s',
-                            'defn', $self->quote( $rc[$_]->name ) );
+                            'defn', $self->quote( $rc[$_]->macro_name ) );
                     }
                     else {
            #
@@ -1452,7 +1452,7 @@ EVAL_GRAMMAR
                     }
                 }
                 else {
-                    $rc .= $self->quote( $rc[$_]->expansion );
+                    $rc .= $self->quote( $rc[$_]->macro_expansion );
                 }
             }
             else {
@@ -1523,7 +1523,7 @@ EVAL_GRAMMAR
         if ( M4Macro->check($name) ) {
             $self->logger_warn(
                 'indir: invalid macro name ignored',
-                $self->quote( $name->name )
+                $self->quote( $name->macro_name )
             );
             return '';
         }
@@ -1534,7 +1534,7 @@ EVAL_GRAMMAR
             #
             foreach ( 0 .. $#args ) {
                 if ( M4Macro->check( $args[$_] )
-                    && !$macro->paramCanBeMacro_check($_) )
+                    && !$macro->macro_paramCanBeMacro($_) )
                 {
                     #
                     # Macro not authorized: flattened to the empty string
@@ -1542,7 +1542,7 @@ EVAL_GRAMMAR
                     $args[$_] = '';
                 }
             }
-            return $macro->execute( $self, @args );
+            return $macro->macro_execute( $self, @args );
         }
         else {
             $self->logger_error( 'indir: undefined macro %s',
@@ -1572,7 +1572,7 @@ EVAL_GRAMMAR
             #
             my $rc = '';
             try {
-                $rc = $self->_builtins_get($name)->execute( $self, @args );
+                $rc = $self->_builtins_get($name)->macro_execute( $self, @args );
             }
             catch {
                 $self->logger_error( '%s', $_ );
@@ -1664,7 +1664,7 @@ EVAL_GRAMMAR
             }
             else {
                 $self->logger_debug( '%s: %s', $_,
-                    $self->_getMacro($_)->is_builtin ? "<$_>" : $self->_getMacro($_)->expansion );
+                    $self->_getMacro($_)->macro_isBuiltin ? "<$_>" : $self->_getMacro($_)->macro_expansion );
             }
         }
 
