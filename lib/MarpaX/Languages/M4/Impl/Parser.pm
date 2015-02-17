@@ -356,6 +356,7 @@ COMMA ~ ',' _WS_any
                 } else {
                   #
                   # QUOTEDSTRING not already done if not in the context of macro arguments grammar
+                  # Ditto for COMMENT.
                   #
                   my $method = 'parser_is' . ucfirst( lc($_) );
                   if ($self->$method(
