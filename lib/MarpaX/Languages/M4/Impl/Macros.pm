@@ -5,6 +5,7 @@ use Moops;
 # ABSTRACT: M4 Macro generic implementation
 
 class MarpaX::Languages::M4::Impl::Macros {
+    use MarpaX::Languages::M4::Role::Macros;
     use MarpaX::Languages::M4::Type::Macro -all;
     use MooX::HandlesVia;
 
@@ -16,11 +17,13 @@ class MarpaX::Languages::M4::Impl::Macros {
         default     => sub { [] },
         handles_via => 'Array',
         handles     => {
-            is_empty => 'is_empty',
-            push     => 'push',
-            pop      => 'pop',
-            set      => 'set',
-            get      => 'get'
+            macros_is_empty => 'is_empty',
+            macros_push     => 'push',
+            macros_pop      => 'pop',
+            macros_set      => 'set',
+            macros_get      => 'get'
         }
     );
+
+    with 'MarpaX::Languages::M4::Role::Macros';
 }

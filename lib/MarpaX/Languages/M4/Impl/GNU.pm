@@ -753,7 +753,7 @@ EVAL_GRAMMAR
     }
 
     method _getMacro (Str $word --> M4Macro) {
-      return $self->_macros_get($word)->get(-1);
+      return $self->_macros_get($word)->macros_get(-1);
     }
 
     method parse_isMacro (Str $word, Ref $macroRef? --> Bool) {
@@ -971,7 +971,7 @@ EVAL_GRAMMAR
         my %ref = ();
         foreach ( $self->_builtins_keys ) {
             my $macros = MarpaX::Languages::M4::Impl::Macros->new();
-            $macros->push( $self->_builtins_get($_) );
+            $macros->macros_push( $self->_builtins_get($_) );
             $ref{ $self->prefix_builtins . $_ } = $macros;
         }
         return \%ref;
@@ -1407,11 +1407,11 @@ EVAL_GRAMMAR
         }
         if ( !$self->_macros_exists($name) ) {
             my $macros = MarpaX::Languages::M4::Impl::Macros->new();
-            $macros->push($macro);
+            $macros->macros_push($macro);
             $self->_macros_set( $name, $macros );
         }
         else {
-            $self->_macros_get($name)->set( -1, $macro );
+            $self->_macros_get($name)->macros_set( -1, $macro );
         }
         return '';
     }
@@ -1489,11 +1489,11 @@ EVAL_GRAMMAR
         }
         if ( !$self->_macros_exists($name) ) {
             my $macros = MarpaX::Languages::M4::Impl::Macros->new();
-            $macros->push($macro);
+            $macros->macros_push($macro);
             $self->_macros_set( $name, $macros );
         }
         else {
-            $self->_macros_get($name)->push($macro);
+            $self->_macros_get($name)->macros_push($macro);
         }
         return '';
     }
@@ -1502,8 +1502,8 @@ EVAL_GRAMMAR
 
         foreach (@names) {
             if ( $self->_macros_exists($_) ) {
-                $self->_macros_get($_)->pop();
-                if ( $self->_macros_get($_)->is_empty ) {
+                $self->_macros_get($_)->macros_pop();
+                if ( $self->_macros_get($_)->macros_is_empty ) {
                     $self->_macros_delete($_);
                 }
             }
