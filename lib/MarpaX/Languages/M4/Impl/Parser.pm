@@ -209,10 +209,10 @@ COMMA ~ ',' _WS_any
         # Get the lexemes ordering
         #
         my @lexemeNames = $self->parser_tokensPriority();
-#
-# In the context of a macroArguments, unquoted parenthesis have higher priorities
-# over everything
-#
+        #
+        # In the context of a macroArguments, unquoted parenthesis have higher priorities
+        # over everything, except quoted string
+        #
         if ( $g == $BYMACROARGUMENTS_G ) {
             unshift( @lexemeNames, 'NOPARAM', 'LPAREN', 'RPAREN', 'COMMA' );
         }
@@ -271,73 +271,86 @@ COMMA ~ ',' _WS_any
                 last;
             }
 
-            #if (! exists($events{'^token'}) &&
-            #    ! exists($events{'^ANYTHING'}) &&
-            #    ! exists($events{'^LPAREN'}) &&
-            #    ! exists($events{'^RPAREN'})) {
-            #  last;
-            #}
-
             my $lexemeValue;
             my $lexemeLength;
             my $lexeme;
+            my $QuotedstringValue;
+            my $QuotedstringLength;
+            my $isQuotedString = false;
+            if ( $g == $BYMACROARGUMENTS_G ) {
+              $isQuotedString = $self->parser_isQuotedstring(${$inputRef},  $rc{pos}, \$QuotedstringValue, \$QuotedstringLength);
+            }
             foreach (@lexemeNames) {
-                if ( $_ eq 'NOPARAM' ) {
-                    if ( exists( $expected{NOPARAM} ) ) {
-                        pos( ${$inputRef} ) = $rc{pos};
-                        if ( ${$inputRef} =~ /\G\(\s*\)/s ) {
-                            $lexeme = 'NOPARAM';
-                            $lexemeValue = substr( ${$inputRef}, $-[0],
-                                $+[0] - $-[0] );
-                            $lexemeLength = $+[0] - $-[0];
-                            last;
-                        }
-                    }
+              if ( $_ eq 'NOPARAM' ) {
+                if ( exists( $expected{NOPARAM} ) && ! $isQuotedString) {
+                  pos( ${$inputRef} ) = $rc{pos};
+                  if ( ${$inputRef} =~ /\G\(\s*\)/s ) {
+                    $lexeme = 'NOPARAM';
+                    $lexemeValue = substr( ${$inputRef}, $-[0],
+                                           $+[0] - $-[0] );
+                    $lexemeLength = $+[0] - $-[0];
+                    last;
+                  }
                 }
-                elsif ( $_ eq 'LPAREN' ) {
-                    if ( exists( $expected{LPAREN} )
-                        && substr( ${$inputRef}, $rc{pos}, 1 ) eq '(' )
+              }
+              elsif ( $_ eq 'LPAREN' ) {
+                if ( exists( $expected{LPAREN} ) && ! $isQuotedString &&
+                     substr( ${$inputRef}, $rc{pos}, 1 ) eq '(' )
+                  {
+                    $lexeme       = 'LPAREN';
+                    $lexemeValue  = '(';
+                    $lexemeLength = 1;
+                    last;
+                  }
+              }
+              elsif ( $_ eq 'RPAREN' ) {
+                if ( exists( $expected{RPAREN} )  && ! $isQuotedString &&
+                     substr( ${$inputRef}, $rc{pos}, 1 ) eq ')' )
+                  {
+                    $lexeme       = 'RPAREN';
+                    $lexemeValue  = ')';
+                    $lexemeLength = 1;
+                    last;
+                  }
+              }
+              elsif ( $_ eq 'COMMA' ) {
+                if ( exists( $expected{COMMA} )  && ! $isQuotedString) {
+                  pos( ${$inputRef} ) = $rc{pos};
+                  if ( ${$inputRef} =~ /\G,\s*/s ) {
+                    $lexeme = 'COMMA';
+                    $lexemeValue = substr( ${$inputRef}, $-[0],
+                                           $+[0] - $-[0] );
+                    $lexemeLength = $+[0] - $-[0];
+                    last;
+                  }
+                }
+              } else {
+                if ($_ eq 'QUOTEDSTRING' && $g == $BYMACROARGUMENTS_G) {
+                  #
+                  # Already done in the context of macro arguments grammar
+                  #
+                  if ($isQuotedString) {
+                    $lexeme = $_;
+                    $lexemeValue = $QuotedstringValue;
+                    $lexemeLength = $QuotedstringLength;
+                    last;
+                  }
+                } else {
+                  #
+                  # QUOTEDSTRING not already done if not in the context of macro arguments grammar
+                  #
+                  my $method = 'parser_is' . ucfirst( lc($_) );
+                  if ($self->$method(
+                                     ${$inputRef},  $rc{pos},
+                                     \$lexemeValue, \$lexemeLength
+                                    )
+                     )
                     {
-                        $lexeme       = 'LPAREN';
-                        $lexemeValue  = '(';
-                        $lexemeLength = 1;
-                        last;
+                      $lexeme = $_;
+                      last;
                     }
                 }
-                elsif ( $_ eq 'RPAREN' ) {
-                    if ( exists( $expected{RPAREN} )
-                        && substr( ${$inputRef}, $rc{pos}, 1 ) eq ')' )
-                    {
-                        $lexeme       = 'RPAREN';
-                        $lexemeValue  = ')';
-                        $lexemeLength = 1;
-                        last;
-                    }
-                }
-                elsif ( $_ eq 'COMMA' ) {
-                    if ( exists( $expected{COMMA} ) ) {
-                        pos( ${$inputRef} ) = $rc{pos};
-                        if ( ${$inputRef} =~ /\G,\s*/s ) {
-                            $lexeme = 'COMMA';
-                            $lexemeValue = substr( ${$inputRef}, $-[0],
-                                $+[0] - $-[0] );
-                            $lexemeLength = $+[0] - $-[0];
-                            last;
-                        }
-                    }
-                }
-                else {
-                    my $method = 'parser_is' . ucfirst( lc($_) );
-                    if ($self->$method(
-                            ${$inputRef},  $rc{pos},
-                            \$lexemeValue, \$lexemeLength
-                        )
-                        )
-                    {
-                        $lexeme = $_;
-                        last;
-                    }
-                }
+              }
             }
             #
             # Nothing: then eat the character
@@ -357,8 +370,9 @@ COMMA ~ ',' _WS_any
                     # Is the macro recognized only with arguments ?
                     #
                     my $lparenPos = $rc{pos} + $lexemeLength;
-                    my $lparen
-                        = ( $lparenPos <= $maxPos )
+                    my $dummy;
+                    my $lparen = $self->parser_isQuotedstring(${$inputRef},  $lparenPos, \$dummy, \$dummy) ? '' :
+                      ( $lparenPos <= $maxPos )
                         ? substr( ${$inputRef}, $lparenPos, 1 )
                         : '';
                     if ( !$thisMacro->macro_needParams || $lparen eq '(' ) {
@@ -509,7 +523,7 @@ COMMA ~ ',' _WS_any
                 $prevPos = $rc{pos};
                 $rc{pos} += $lexemeLength;
 
-# $self->logger_debug('[%d->%d/%d] %s: %s', $prevPos, $rc{pos}, $maxPos, $lexeme, $lexemeValue);
+ $self->logger_debug('[%d->%d/%d] %s: %s', $prevPos, $rc{pos}, $maxPos, $lexeme, $lexemeValue);
 #
 # We can safely ignore the events from lexeme_read(), because we made sure in the gramamr
 # that resume() will NOT advance the position, generating on those events:
