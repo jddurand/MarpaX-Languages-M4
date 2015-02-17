@@ -17,7 +17,9 @@ role MarpaX::Languages::M4::Role::Impl {
     requires 'impl_appendValue';
     requires 'impl_value';
     requires 'impl_valueRef';
-    requires 'impl_parseBuffer';
+    requires 'impl_parseIncremental';
+    requires 'impl_parseBuffers';
+    requires 'impl_pos';
     requires 'impl_eof';
 
     with 'MarpaX::Languages::M4::Role::Builtin';

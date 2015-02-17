@@ -61,7 +61,8 @@ class MarpaX::Languages::M4::Impl::Parser::Actions {
             return MarpaX::Languages::M4::Impl::Value->new('');
         }
         else {
-            return $argumentsGroup->value_concat( $self->macro, $self->paramPos );
+            return $argumentsGroup->value_concat( $self->macro,
+                $self->paramPos );
         }
     }
 
@@ -76,7 +77,7 @@ class MarpaX::Languages::M4::Impl::Parser::Actions {
                 ;    # Per def there is one element
         }
         else {
-            return $arguments->value_push('');    # Per def there is one element
+            return $arguments->value_push('');  # Per def there is one element
         }
     }
 
@@ -451,8 +452,8 @@ COMMA ~ ',' _WS_any
                         # Eventual postmatch length
                         #
                         $lexemeLength
-                            += $thisMacro->macro_postMatchLengthExecute( $self,
-                            ${$inputRef}, $rc{pos} + $lexemeLength );
+                            += $thisMacro->macro_postMatchLengthExecute(
+                            $self, ${$inputRef}, $rc{pos} + $lexemeLength );
                         #
                         # Input is changing
                         #
@@ -463,7 +464,16 @@ COMMA ~ ',' _WS_any
                             $lexeme = 'ANYTHING';
                         }
                         else {
-# $self->logger_debug('[%d..%d/%d] Input is changing: replace %s by %s', $rc{pos}, $rc{pos}, $maxPos, substr(${$inputRef}, $rc{pos}, $lexemeLength), $lexemeValue);
+                            # $self->logger_debug(
+                            #    '[%d..%d/%d] Input is changing: replace %s by %s',
+                            #    $rc{pos},
+                            #    $rc{pos},
+                            #     $maxPos,
+                            #     substr(
+                            #         ${$inputRef}, $rc{pos}, $lexemeLength
+                            #     ),
+                            #     $lexemeValue
+                            # );
                             substr(
                                 ${$inputRef},  $rc{pos},
                                 $lexemeLength, $lexemeValue
@@ -520,7 +530,8 @@ COMMA ~ ',' _WS_any
             else {
                 my $tmpValue = MarpaX::Languages::M4::Impl::Value->new()
                     ->value_push($lexemeValue);
-                $self->impl_appendValue( $tmpValue->value_concat->value_firstElement );
+                $self->impl_appendValue(
+                    $tmpValue->value_concat->value_firstElement );
                 $prevPos = $rc{pos};
                 $rc{pos} += $lexemeLength;
             }

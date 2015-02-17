@@ -46,8 +46,7 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $input = ${$inputRef};
   my $gnu = MarpaX::Languages::M4::Impl::GNU->new();
   $gnu->$init;
-  my $pos = $gnu->impl_parseBuffer($input);
-  my $got = $gnu->impl_eof->impl_value;
+  my $got = $gnu->impl_parseBuffers($input)->impl_value;
   my $expected = ${$outputRef};
 
   cmp_ok($got, 'eq', $expected, $testName);
@@ -405,7 +404,7 @@ undefine(foo)
 BAR
 
 foo
-__! 032 builtin does not depend on --prefix-builtin: input( { shift->prefix_builtins('m4_') }) !__
+__! 032 builtin does not depend on --prefix-builtin: input( {my ($self) = @_; $self->prefix_builtins('m4_'); $self }) !__
 m4_builtin(`divnum')
 m4_builtin(`m4_divnum')
 m4_indir(`divnum')
@@ -532,7 +531,7 @@ one comparison: 1
 two comparisons: 2
 three comparisons: 3
 default answer: 4
-__! 041 shift - composites join/joinall: input( { shift->include(['inc']) }) !__
+__! 041 shift - composites join/joinall: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`join.m4')
 join,join(`-'),join(`-', `'),join(`-', `', `')
 joinall,joinall(`-'),joinall(`-', `'),joinall(`-', `', `')
@@ -555,7 +554,7 @@ __! 041 shift - composites join/joinall: output !__
 -1---2-
 1,2,3
 1
-__! 042 shift - composites quote/dquote/dquote_elt: input( { shift->include(['inc']) }) !__
+__! 042 shift - composites quote/dquote/dquote_elt: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`quote.m4')
 -quote-dquote-dquote_elt-
 -quote()-dquote()-dquote_elt()-
@@ -574,7 +573,7 @@ __! 042 shift - composites quote/dquote/dquote_elt: output !__
 -1-1-2-
 ``1'',``2''
 ``1',`2''
-__! 043 shift - composite argn: input( { shift->include(['inc']) }) !__
+__! 043 shift - composite argn: input !__
 define(`argn', `ifelse(`$1', 1, ``$2'',
   `argn(decr(`$1'), shift(shift($@)))')')
 argn(`1', `a')
@@ -585,13 +584,13 @@ __! 043 shift - composite argn: output !__
 a
 
 k
-__! 044 composite forloop: input( { shift->include(['inc']) }) !__
+__! 044 composite forloop: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`forloop.m4')
 forloop(`i', `1', `8', `i ')
 __! 044 composite forloop: output !__
 
 1 2 3 4 5 6 7 8 
-__! 045 composite forloop - nested: input( { shift->include(['inc']) }) !__
+__! 045 composite forloop - nested: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`forloop.m4')
 forloop(`i', `1', `4', `forloop(`j', `1', `8', ` (i, j)')
 ')
@@ -602,7 +601,7 @@ __! 045 composite forloop - nested: output !__
  (3, 1) (3, 2) (3, 3) (3, 4) (3, 5) (3, 6) (3, 7) (3, 8)
  (4, 1) (4, 2) (4, 3) (4, 4) (4, 5) (4, 6) (4, 7) (4, 8)
 
-__! 046 composites foreach/foreachq: input( { shift->include(['inc']) }) !__
+__! 046 composites foreach/foreachq: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`foreach.m4')
 foreach(`x', (foo, bar, foobar), `Word was: x
 ')dnl
@@ -618,7 +617,7 @@ Word was: foobar
 Word was: foo
 Word was: bar
 Word was: foobar
-__! 047 composites foreach/foreachq - generate a shell case statement: input( { shift->include(['inc']) }) !__
+__! 047 composites foreach/foreachq - generate a shell case statement: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`foreach.m4')
 define(`_case', `  $1)
     $2=" $1";;
@@ -638,7 +637,7 @@ case $1 in
   c)
     varc=" c";;
 esac
-__! 048 composites foreach/foreachq - comparison: input( { shift->include(['inc']) }) !__
+__! 048 composites foreach/foreachq - comparison: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 define(`a', `1')define(`b', `2')define(`c', `3')
 include(`foreach.m4')
 include(`foreachq.m4')
@@ -658,7 +657,7 @@ __! 048 composites foreach/foreachq - comparison: output !__
 a
 (b
 c)
-__! 049 composite foreachq limitation: input( { shift->include(['inc']) }) !__
+__! 049 composite foreachq limitation: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
 include(`foreach.m4')include(`foreachq.m4')
 foreach(`name', `(`a', `b')', ` defn(`name')')
 foreachq(`name', ``a', `b'', ` defn(`name')')
@@ -666,7 +665,7 @@ __! 049 composite foreachq limitation: output !__
 
  a b
  _arg1(`a', `b') _arg1(shift(`a', `b'))
-__! 050 composite stack: input( { shift->include(['inc']) }) !__
+__! 050 composite stack: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`stack.m4')
 pushdef(`a', `1')pushdef(`a', `2')pushdef(`a', `3')
 define(`show', ``$1'
@@ -683,7 +682,7 @@ __! 050 composite stack: output !__
 3
 2
 1
-__! 050 composite define_blind: input( { shift->include(['inc']) }) !__
+__! 050 composite define_blind: input !__
 define(`define_blind', `ifelse(`$#', `0', ``$0'',
 `_$0(`$1', `$2', `$'`#', `$'`0')')')
 define(`_define_blind', `define(`$1',
@@ -707,7 +706,7 @@ arguments were bar
 blah
 arguments were a,b
 ifelse(`$#', `0', ``$0'', `arguments were $*')
-__! 051 composite curry: input( { shift->include(['inc']) }) !__
+__! 051 composite curry: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
 include(`curry.m4')include(`stack.m4')
 define(`reverse', `ifelse(`$#', `0', , `$#', `1', ``$1'',
                           `reverse(shift($@)), `$1'')')
@@ -720,7 +719,7 @@ __! 051 composite curry: output !__
 
 :1, 4:2, 4:3, 4
 3, 2, 1
-__! 052 composites copy/rename: input( { shift->include(['inc']) }) !__
+__! 052 composites copy/rename: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
 include(`curry.m4')include(`stack.m4')
 define(`rename', `copy($@)undefine(`$1')')dnl
 define(`copy', `ifdef(`$2', `errprint(`$2 already defined
@@ -740,7 +739,7 @@ __! 052 composites copy/rename: output !__
 2 b 2
  0
 1 1
-__! 053 dumpdef: input( { shift->include(['inc']) }) !__
+__! 053 dumpdef: input !__
 define(`foo', `Hello world.')
 dumpdef(`foo')
 dumpdef(`define')
@@ -748,7 +747,7 @@ __! 053 dumpdef: output !__
 
 
 
-__! 054 dumpdef 2: input( { shift->include(['inc']) }) !__
+__! 054 dumpdef 2: input !__
 pushdef(`f', ``$0'1')pushdef(`f', ``$0'2')
 f(popdef(`f')dumpdef(`f'))
 f(popdef(`f')dumpdef(`f'))
