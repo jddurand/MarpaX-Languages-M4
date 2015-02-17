@@ -12,12 +12,13 @@ role MarpaX::Languages::M4::Role::Impl {
     use MarpaX::Languages::M4::Role::Logger;
     use MarpaX::Languages::M4::Role::Parser;
 
-    requires 'quote';
-    requires 'unquote';
-    requires 'appendValue';
-    requires 'value';
-    requires 'valueRef';
-    requires 'eof';
+    requires 'impl_quote';
+    requires 'impl_unquote';
+    requires 'impl_appendValue';
+    requires 'impl_value';
+    requires 'impl_valueRef';
+    requires 'impl_parseBuffer';
+    requires 'impl_eof';
 
     with 'MarpaX::Languages::M4::Role::Builtin';
     with 'MarpaX::Languages::M4::Role::Logger';

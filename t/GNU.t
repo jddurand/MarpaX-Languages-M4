@@ -46,8 +46,8 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $input = ${$inputRef};
   my $gnu = MarpaX::Languages::M4::Impl::GNU->new();
   $gnu->$init;
-  my $pos = $gnu->parseBuffer($input);
-  my $got = $gnu->eof->value;
+  my $pos = $gnu->impl_parseBuffer($input);
+  my $got = $gnu->impl_eof->impl_value;
   my $expected = ${$outputRef};
 
   cmp_ok($got, 'eq', $expected, $testName);

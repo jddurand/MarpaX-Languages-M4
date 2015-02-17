@@ -520,7 +520,7 @@ COMMA ~ ',' _WS_any
             else {
                 my $tmpValue = MarpaX::Languages::M4::Impl::Value->new()
                     ->value_push($lexemeValue);
-                $self->appendValue( $tmpValue->value_concat->value_firstElement );
+                $self->impl_appendValue( $tmpValue->value_concat->value_firstElement );
                 $prevPos = $rc{pos};
                 $rc{pos} += $lexemeLength;
             }
@@ -577,7 +577,7 @@ COMMA ~ ',' _WS_any
 
         # $printable =~ s/([^[:print:]])/sprintf('0x%x', ord($1))/eg;
         return Str->check($input)
-            ? ( $noQuote ? $printable : $self->quote($printable) )
+            ? ( $noQuote ? $printable : $self->impl_quote($printable) )
             : $printable;
     }
 

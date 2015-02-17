@@ -735,7 +735,7 @@ EVAL_GRAMMAR
         pos($input) = $pos;
         if ( $input =~ /\G$quotedstring_regexp/s ) {
             ${$lexemeLengthRef} = $+[0] - $-[0];
-            ${$lexemeValueRef}  = $self->unquote(
+            ${$lexemeValueRef}  = $self->impl_unquote(
                 substr( $input, $-[0], ${$lexemeLengthRef} ) );
             return true;
         }
@@ -1350,7 +1350,7 @@ EVAL_GRAMMAR
         }
     );
 
-    method quote (Str $string --> Str) {
+    method impl_quote (Str $string --> Str) {
         if ( $self->quote_start_length > 0 && $self->quote_end_length > 0 ) {
             return $self->quote_start . $string . $self->quote_end;
         }
@@ -1359,7 +1359,7 @@ EVAL_GRAMMAR
         }
     }
 
-    method unquote (Str $string --> Str) {
+    method impl_unquote (Str $string --> Str) {
         if ( $self->quote_start_length > 0 && $self->quote_end_length > 0 ) {
             substr( $string, 0, $self->quote_start_length, '' );
             substr( $string, -$self->quote_end_length,
@@ -1371,7 +1371,7 @@ EVAL_GRAMMAR
     method _checkIgnored (Str $name, @ignored --> Undef) {
         if (@ignored) {
             $self->logger_warn( 'excess arguments to builtin %s ignored',
-                $self->quote($name) );
+                $self->impl_quote($name) );
         }
         return;
     }
@@ -1379,7 +1379,7 @@ EVAL_GRAMMAR
     method builtin_define (Undef|Str|M4Macro $name?, Undef|Str|M4Macro $defn?, @ignored --> Str) {
         if ( Undef->check($name) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('define') );
+                $self->impl_quote('define') );
             return '';
         }
         $defn //= '';
@@ -1442,7 +1442,7 @@ EVAL_GRAMMAR
                     {
                         $self->logger_warn(
                             '%s: cannot concatenate builtin %s',
-                            'defn', $self->quote( $rc[$_]->macro_name ) );
+                            'defn', $self->impl_quote( $rc[$_]->macro_name ) );
                     }
                     else {
            #
@@ -1452,11 +1452,11 @@ EVAL_GRAMMAR
                     }
                 }
                 else {
-                    $rc .= $self->quote( $rc[$_]->macro_expansion );
+                    $rc .= $self->impl_quote( $rc[$_]->macro_expansion );
                 }
             }
             else {
-                $rc .= $self->quote( $rc[$_] );
+                $rc .= $self->impl_quote( $rc[$_] );
             }
         }
         return $rc;
@@ -1465,7 +1465,7 @@ EVAL_GRAMMAR
     method builtin_pushdef (Undef|Str $name?, Undef|Str|M4Macro $defn?, @ignored --> Str) {
         if ( Undef->check($name) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('pushdef') );
+                $self->impl_quote('pushdef') );
             return '';
         }
 
@@ -1514,7 +1514,7 @@ EVAL_GRAMMAR
     method builtin_indir (Undef|Str|M4Macro $name, @args --> Str|M4Macro) {
         if ( Undef->check($name) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('indir') );
+                $self->impl_quote('indir') );
             return '';
         }
         #
@@ -1523,7 +1523,7 @@ EVAL_GRAMMAR
         if ( M4Macro->check($name) ) {
             $self->logger_warn(
                 'indir: invalid macro name ignored',
-                $self->quote( $name->macro_name )
+                $self->impl_quote( $name->macro_name )
             );
             return '';
         }
@@ -1546,7 +1546,7 @@ EVAL_GRAMMAR
         }
         else {
             $self->logger_error( 'indir: undefined macro %s',
-                $self->quote($name) );
+                $self->impl_quote($name) );
             return '';
         }
     }
@@ -1554,7 +1554,7 @@ EVAL_GRAMMAR
     method builtin_builtin (Undef|Str|M4Macro $name?, @args --> Str|M4Macro) {
         if ( Undef->check($name) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('builtin') );
+                $self->impl_quote('builtin') );
             return '';
         }
         if ( M4Macro->check($name) ) {
@@ -1562,7 +1562,7 @@ EVAL_GRAMMAR
             # Not supported
             #
             $self->logger_error( '%s: invalid macro name ignored',
-                $self->quote('builtin') );
+                $self->impl_quote('builtin') );
             return '';
         }
         if ( $self->_builtins_exists($name) ) {
@@ -1581,7 +1581,7 @@ EVAL_GRAMMAR
         }
         else {
             $self->logger_error( 'builtin: undefined builtin %s',
-                $self->quote($name) );
+                $self->impl_quote($name) );
             return '';
         }
     }
@@ -1589,7 +1589,7 @@ EVAL_GRAMMAR
     method builtin_ifdef (Undef|Str $name?, Undef|Str $string1?, Undef|Str $string2?, @ignored --> Str) {
         if ( Undef->check($name) || Undef->check($string1) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('ifdef') );
+                $self->impl_quote('ifdef') );
             return '';
         }
 
@@ -1610,7 +1610,7 @@ EVAL_GRAMMAR
             }
             elsif ( scalar(@args) == 2 ) {
                 $self->logger_error( 'too few arguments to builtin %s',
-                    $self->quote('ifelse') );
+                    $self->impl_quote('ifelse') );
                 return '';
             }
             elsif ( scalar(@args) >= 3 && scalar(@args) <= 5 ) {
@@ -1623,7 +1623,7 @@ EVAL_GRAMMAR
                 if ( !Undef->check($ignored) ) {
                     $self->logger_warn(
                         'excess arguments to builtin %s ignored',
-                        $self->quote('ifelse') );
+                        $self->impl_quote('ifelse') );
                 }
                 return ( $string1 eq $string2 ) ? $equal : $notEqual;
             }
@@ -1644,7 +1644,7 @@ EVAL_GRAMMAR
         shift(@args);
 
         if (@args) {
-            return join( ',', map { $self->quote($_) } @args );
+            return join( ',', map { $self->impl_quote($_) } @args );
         }
         else {
             return '';
@@ -1660,7 +1660,7 @@ EVAL_GRAMMAR
         foreach ( sort @args ) {
             if ( !$self->_macros_exists($_) ) {
                 $self->logger_warn( 'dumpdef: undefined macro %s',
-                    $self->quote($_) );
+                    $self->impl_quote($_) );
             }
             else {
                 $self->logger_debug( '%s: %s', $_,
@@ -1758,7 +1758,7 @@ EVAL_GRAMMAR
         if ( Undef->check($string) ) {
             $self->logger_error(
                 'too few arguments to builtin %s',
-                $self->quote('changeword')
+                $self->impl_quote('changeword')
             );
             return '';
         }
@@ -1813,7 +1813,7 @@ EVAL_GRAMMAR
           # Therefore, $! should be setted
           #
           if ( !$silent ) {
-            $self->logger_error( 'cannot open %s: %s', $self->quote($file), $! );
+            $self->logger_error( 'cannot open %s: %s', $self->impl_quote($file), $! );
           }
           return '';
         }
@@ -1862,7 +1862,7 @@ EVAL_GRAMMAR
     method builtin_include (Undef|Str $file, @ignored --> Str) {
         if ( Undef->check($file) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('include') );
+                $self->impl_quote('include') );
             return '';
         }
         $self->_checkIgnored( 'include', @ignored );
@@ -1873,7 +1873,7 @@ EVAL_GRAMMAR
     method builtin_sinclude (Undef|Str $file, @ignored --> Str) {
         if ( Undef->check($file) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('sinclude') );
+                $self->impl_quote('sinclude') );
             return '';
         }
         $self->_checkIgnored( 'sinclude', @ignored );
@@ -1881,14 +1881,14 @@ EVAL_GRAMMAR
         return $self->_includeFile( true, $file );
     }
 
-    method eof(--> ConsumerOf['MarpaX::Languages::M4::Role::Impl']) {
+    method impl_eof(--> ConsumerOf['MarpaX::Languages::M4::Role::Impl']) {
       #
       # At EOF m4wrap calls cal pile up
       #
       $self->_set__eof(true);
       while (my @m4wrap = $self->_m4wrap_elements) {
         $self->_set___m4wrap([]);
-        $self->parseBuffer(join('', @m4wrap));
+        $self->impl_parseBuffer(join('', @m4wrap));
       }
       $self->_set__eof(false);
       return $self;
@@ -1945,7 +1945,7 @@ EVAL_GRAMMAR
         $number //= 0;
         if ( length("$number") <= 0 ) {
             $self->logger_warn( 'empty string treated as 0 in builtin %s',
-                $self->quote('divert') );
+                $self->impl_quote('divert') );
             $number = 0;
         }
         if ( !Int->check($number) ) {
@@ -2054,7 +2054,7 @@ EVAL_GRAMMAR
                     #
                     # And append to the now-current diversion
                     #
-                    $self->appendValue($content);
+                    $self->impl_appendValue($content);
                 }
                 else {
                     $self->_remove_diversion($number);
@@ -2064,7 +2064,7 @@ EVAL_GRAMMAR
                 #
                 # Treated as name of a file
                 #
-                $self->appendValue( $self->builtin_include($number) );
+                $self->impl_appendValue( $self->builtin_include($number) );
             }
         }
 
@@ -2080,7 +2080,7 @@ EVAL_GRAMMAR
     method builtin_len (Undef|Str $string?, @ignored --> Str) {
         if ( Undef->check($string) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('len') );
+                $self->impl_quote('len') );
             return '';
         }
         $self->_checkIgnored( 'len', @ignored );
@@ -2092,12 +2092,12 @@ EVAL_GRAMMAR
     method builtin_index (Undef|Str $string?, Undef|Str $substring?, @ignored --> Str) {
         if ( Undef->check($string) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('index') );
+                $self->impl_quote('index') );
             return '';
         }
         if ( Undef->check($substring) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('index') );
+                $self->impl_quote('index') );
             return 0;
         }
         $self->_checkIgnored( 'index', @ignored );
@@ -2113,7 +2113,7 @@ EVAL_GRAMMAR
     method builtin_regexp (Undef|Str $string?, Undef|Str $regexp?, Undef|Str $replacement?, @ignored --> Str) {
         if ( Undef->check($string) || Undef->check($regexp) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('index') );
+                $self->impl_quote('index') );
             return 0;
         }
         $self->_checkIgnored( 'regexp', @ignored );
@@ -2154,12 +2154,12 @@ EVAL_GRAMMAR
     method builtin_substr (Undef|Str $string?, Undef|Str $from?, Undef|Str $length?, @ignored --> Str) {
         if ( Undef->check($string) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('substr') );
+                $self->impl_quote('substr') );
             return '';
         }
         if ( Undef->check($from) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('substr') );
+                $self->impl_quote('substr') );
             return $string;
         }
         $self->_checkIgnored( 'substr', @ignored );
@@ -2186,12 +2186,12 @@ EVAL_GRAMMAR
     method builtin_translit (Undef|Str $string?, Undef|Str $chars?, Undef|Str $replacement?, @ignored --> Str) {
         if ( Undef->check($string) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('translit') );
+                $self->impl_quote('translit') );
             return '';
         }
         if ( Undef->check($chars) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('translit') );
+                $self->impl_quote('translit') );
             return $string;
         }
         $self->_checkIgnored( 'translit', @ignored );
@@ -2222,12 +2222,12 @@ EVAL_GRAMMAR
     method builtin_patsubst (Undef|Str $string?, Undef|Str $regexp?, Undef|Str $replacement?, @ignored --> Str) {
         if ( Undef->check($string) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('patsubst') );
+                $self->impl_quote('patsubst') );
             return '';
         }
         if ( Undef->check($regexp) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('patsubst') );
+                $self->impl_quote('patsubst') );
             return $string;
         }
 
@@ -2278,7 +2278,7 @@ EVAL_GRAMMAR
     method builtin_format (Undef|Str $format?, Str @arguments --> Str) {
         if ( Undef->check($format) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('format') );
+                $self->impl_quote('format') );
             return '';
         }
         my $rc = '';
@@ -2295,7 +2295,7 @@ EVAL_GRAMMAR
     method builtin_incr (Undef|Str $number?, Str @ignored --> Str) {
         if ( Undef->check($number) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('incr') );
+                $self->impl_quote('incr') );
             return '';
         }
         $self->_checkIgnored( 'incr', @ignored );
@@ -2330,7 +2330,7 @@ EVAL_GRAMMAR
     method builtin_decr (Undef|Str $number?, Str @ignored --> Str) {
         if ( Undef->check($number) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('decr') );
+                $self->impl_quote('decr') );
             return '';
         }
         $self->_checkIgnored( 'decr', @ignored );
@@ -2365,7 +2365,7 @@ EVAL_GRAMMAR
     method builtin_eval (Undef|Str $expression?, Undef|Str $radix?, Undef|Str $width?, Str @ignored --> Str) {
         if ( Undef->check($expression) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('decr') );
+                $self->impl_quote('decr') );
             return '';
         }
         $self->_checkIgnored( 'eval', @ignored );
@@ -2420,7 +2420,7 @@ EVAL_GRAMMAR
     method builtin_syscmd (Undef|Str $command?, Str @ignored --> Str) {
         if ( Undef->check($command) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('syscmd') );
+                $self->impl_quote('syscmd') );
             return '';
         }
         $self->_checkIgnored( 'syscmd', @ignored );
@@ -2443,7 +2443,7 @@ EVAL_GRAMMAR
     method builtin_esyscmd (Undef|Str $command?, Str @ignored --> Str) {
         if ( Undef->check($command) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote('esyscmd') );
+                $self->impl_quote('esyscmd') );
             return '';
         }
         $self->_checkIgnored( 'esyscmd', @ignored );
@@ -2472,7 +2472,7 @@ EVAL_GRAMMAR
     method _mkstemp (Str $macro, Undef|Str $template?, Str @ignored --> Str) {
         if ( Undef->check($template) ) {
             $self->logger_error( 'too few arguments to builtin %s',
-                $self->quote($macro) );
+                $self->impl_quote($macro) );
             return '';
         }
         $self->_checkIgnored( $macro, @ignored );
@@ -2490,7 +2490,7 @@ EVAL_GRAMMAR
             return;
         };
 
-        return $self->quote($tmp);
+        return $self->impl_quote($tmp);
     }
 
     method builtin_mkstemp (Str @args --> Str) {
@@ -2568,7 +2568,7 @@ EVAL_GRAMMAR
         #
         if ( $newExpansion =~ s/\\\$\\\@/\$listArgsQuoted/g ) {
             $prepareArguments
-                .= "\tmy \$listArgsQuoted = join(',', map {\$self->quote(\$_)} \@args);\n";
+                .= "\tmy \$listArgsQuoted = join(',', map {\$self->impl_quote(\$_)} \@args);\n";
         }
    #
    # Take care: a macro can very well try to access something outside of @args
@@ -2597,20 +2597,20 @@ STUB
         return $codeRef;
     }
 
-    method parseBuffer (Str $input --> PositiveOrZeroInt) {
+    method impl_parseBuffer (Str $input --> PositiveOrZeroInt) {
         return $self->parser_parse($input);
     }
 
-    method appendValue (Str $result) {
+    method impl_appendValue (Str $result) {
         $self->_lastDiversion->print($result);
     }
 
-    method valueRef (--> Ref['SCALAR']) {
+    method impl_valueRef (--> Ref['SCALAR']) {
         return $self->_diversions_get(0)->sref;
     }
 
-    method value (--> Str) {
-        return ${ $self->valueRef };
+    method impl_value (--> Str) {
+        return ${ $self->impl_valueRef };
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';
