@@ -900,3 +900,76 @@ __! 065 changequote  - EOF within a quoted string: input( {my ($self) = @_; $sel
 `dangling quote
 __! 065 changequote  - EOF within a quoted string: output !__
 hello world
+__! 066 changecom: input !__
+define(`comment', `COMMENT')
+# A normal comment
+changecom(`/*', `*/')
+# Not a comment anymore
+But: /* this is a comment now */ while this is not a comment
+__! 066 changecom: output !__
+
+# A normal comment
+
+# Not a COMMENT anymore
+But: /* this is a comment now */ while this is not a COMMENT
+__! 067 changecom without arguments: input !__
+define(`comment', `COMMENT')
+changecom
+# Not a comment anymore
+changecom(`#', `')
+# comment again
+__! 067 changecom without arguments: output !__
+
+
+# Not a COMMENT anymore
+
+# comment again
+__! 068 changecom - comments have precedence to macro: input !__
+define(`hi', `HI')
+define(`hi1hi2', `hello')
+changecom(`q', `Q')
+q hi Q hi
+changecom(`1', `2')
+hi1hi2
+hi 1hi2
+__! 068 changecom - comments have precedence to macro: output !__
+
+
+
+q hi Q HI
+
+hello
+HI 1hi2
+__! 069 changecom - comments have precedence to arguments collection: input !__
+define(`echo', `$#:$*:$@:')
+define(`hi', `HI')
+changecom(`(',`)')
+echo(hi)
+changecom
+changecom(`((', `))')
+echo(hi)
+echo((hi))
+changecom(`,', `)')
+echo(hi,hi)bye)
+changecom
+echo(hi,`,`'hi',hi)
+echo(hi,`,`'hi',hi`'changecom(`,,', `hi'))
+__! 069 changecom - comments have precedence to arguments collection: output !__
+
+
+
+0:::(hi)
+
+
+1:HI:HI:
+0:::((hi))
+
+1:HI,hi)bye:HI,hi)bye:
+
+3:HI,,HI,HI:HI,,`'hi,HI:
+3:HI,,`'hi,HI:HI,,`'hi,HI:
+__! 070 changecom  - EOF within a comment: input( {my ($self) = @_; $self->impl_eof; $self; }) !__
+changecom(`/*', `*/')
+/*dangling comment
+__! 070 changecom  - EOF within a comment: output !__
+

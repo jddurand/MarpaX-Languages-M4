@@ -45,7 +45,7 @@ class MarpaX::Languages::M4::Impl::GNU {
     use MarpaX::Languages::M4::Type::Token -all;
     use Marpa::R2;
     use MooX::HandlesVia;
-    use Throwable::Factory EncodeError => [qw/$message $error proposal/], EOFInQuotedString => undef;
+    use Throwable::Factory EncodeError => [qw/$message $error proposal/], EOFInQuotedString => undef, EOFInComment => undef;
     use Types::Common::Numeric -all;
 
     BEGIN {

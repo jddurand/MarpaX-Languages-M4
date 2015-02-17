@@ -274,15 +274,23 @@ COMMA ~ ',' _WS_any
             my $lexemeValue;
             my $lexemeLength;
             my $lexeme;
+
             my $QuotedstringValue;
             my $QuotedstringLength;
             my $isQuotedString = false;
+
+            my $CommentValue;
+            my $CommentLength;
+            my $isComment = false;
+            my $canCollectArguments = true;
             if ( $g == $BYMACROARGUMENTS_G ) {
               $isQuotedString = $self->parser_isQuotedstring(${$inputRef},  $rc{pos}, $maxPos, \$QuotedstringValue, \$QuotedstringLength);
+              $isComment = $self->parser_isComment(${$inputRef},  $rc{pos}, $maxPos, \$CommentValue, \$CommentLength);
+              $canCollectArguments = ! $isQuotedString && ! $isComment;
             }
             foreach (@lexemeNames) {
               if ( $_ eq 'NOPARAM' ) {
-                if ( exists( $expected{NOPARAM} ) && ! $isQuotedString) {
+                if ( exists( $expected{NOPARAM} ) && $canCollectArguments) {
                   pos( ${$inputRef} ) = $rc{pos};
                   if ( ${$inputRef} =~ /\G\(\s*\)/s ) {
                     $lexeme = 'NOPARAM';
@@ -294,7 +302,7 @@ COMMA ~ ',' _WS_any
                 }
               }
               elsif ( $_ eq 'LPAREN' ) {
-                if ( exists( $expected{LPAREN} ) && ! $isQuotedString &&
+                if ( exists( $expected{LPAREN} ) && $canCollectArguments &&
                      substr( ${$inputRef}, $rc{pos}, 1 ) eq '(' )
                   {
                     $lexeme       = 'LPAREN';
@@ -304,7 +312,7 @@ COMMA ~ ',' _WS_any
                   }
               }
               elsif ( $_ eq 'RPAREN' ) {
-                if ( exists( $expected{RPAREN} )  && ! $isQuotedString &&
+                if ( exists( $expected{RPAREN} )  && $canCollectArguments &&
                      substr( ${$inputRef}, $rc{pos}, 1 ) eq ')' )
                   {
                     $lexeme       = 'RPAREN';
@@ -314,7 +322,7 @@ COMMA ~ ',' _WS_any
                   }
               }
               elsif ( $_ eq 'COMMA' ) {
-                if ( exists( $expected{COMMA} )  && ! $isQuotedString) {
+                if ( exists( $expected{COMMA} )  && $canCollectArguments) {
                   pos( ${$inputRef} ) = $rc{pos};
                   if ( ${$inputRef} =~ /\G,\s*/s ) {
                     $lexeme = 'COMMA';
@@ -333,6 +341,16 @@ COMMA ~ ',' _WS_any
                     $lexeme = $_;
                     $lexemeValue = $QuotedstringValue;
                     $lexemeLength = $QuotedstringLength;
+                    last;
+                  }
+                } elsif ($_ eq 'COMMENT' && $g == $BYMACROARGUMENTS_G) {
+                  #
+                  # Already done in the context of macro arguments grammar
+                  #
+                  if ($isComment) {
+                    $lexeme = $_;
+                    $lexemeValue = $CommentValue;
+                    $lexemeLength = $CommentLength;
                     last;
                   }
                 } else {
@@ -371,7 +389,11 @@ COMMA ~ ',' _WS_any
                     #
                     my $lparenPos = $rc{pos} + $lexemeLength;
                     my $dummy;
-                    my $lparen = $self->parser_isQuotedstring(${$inputRef},  $lparenPos, $maxPos, \$dummy, \$dummy) ? '' :
+                    my $lparen = (
+                                  $self->parser_isQuotedstring(${$inputRef},  $lparenPos, $maxPos, \$dummy, \$dummy)
+                                  ||
+                                  $self->parser_isComment(${$inputRef},  $lparenPos, $maxPos, \$dummy, \$dummy)
+                                  ) ? '' :
                       ( $lparenPos <= $maxPos )
                         ? substr( ${$inputRef}, $lparenPos, 1 )
                         : '';
