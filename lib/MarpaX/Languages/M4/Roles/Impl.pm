@@ -17,6 +17,7 @@ role MarpaX::Languages::M4::Roles::Impl {
     requires 'appendValue';
     requires 'value';
     requires 'valueRef';
+    requires 'eof';
 
     with 'MarpaX::Languages::M4::Roles::Builtins';
     with 'MarpaX::Languages::M4::Roles::Logger';

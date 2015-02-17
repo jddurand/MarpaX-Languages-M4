@@ -923,9 +923,12 @@ EVAL_GRAMMAR
                         if ( $input =~ /\G.*?\n/s ) {
                             return $+[0] - $-[0];
                         }
-                        elsif ( $input =~ /\G[^\n]*\z/ ) {
+                        elsif ( $self->_eof && $input =~ /\G[^\n]*\z/ ) {
                             $self->logger_warn( '%s: %s',
                                 'dnl', 'EOF without a newline' );
+                            return $+[0] - $-[0];
+                        } else {
+                            return 0;
                         }
                     }
                 );
@@ -1307,6 +1310,12 @@ EVAL_GRAMMAR
             _m4wrap_unshift  => 'unshift',
             _m4wrap_elements => 'elements',
         }
+    );
+
+    has _eof => (
+        is          => 'rwp',
+        isa         => Bool,
+        default     => false
     );
 
     has _diversions => (
@@ -1872,8 +1881,21 @@ EVAL_GRAMMAR
         return $self->_includeFile( true, $file );
     }
 
+    method eof(--> ConsumerOf['MarpaX::Languages::M4::Roles::Impl']) {
+      #
+      # At EOF m4wrap calls cal pile up
+      #
+      $self->_set__eof(true);
+      while (my @m4wrap = $self->_m4wrap_elements) {
+        $self->_set___m4wrap([]);
+        $self->parseBuffer(join('', @m4wrap));
+      }
+      $self->_set__eof(false);
+      return $self;
+    }
+
     method DESTROY {
-                          # $self->_m4_undivert();
+      # $self->_m4_undivert();
     }
 
     method _apply_diversion (Int $number, ConsumerOf ['IO::Handle'] $fh --> Undef) {
