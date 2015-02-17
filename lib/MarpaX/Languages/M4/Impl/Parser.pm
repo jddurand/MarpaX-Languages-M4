@@ -278,7 +278,7 @@ COMMA ~ ',' _WS_any
             my $QuotedstringLength;
             my $isQuotedString = false;
             if ( $g == $BYMACROARGUMENTS_G ) {
-              $isQuotedString = $self->parser_isQuotedstring(${$inputRef},  $rc{pos}, \$QuotedstringValue, \$QuotedstringLength);
+              $isQuotedString = $self->parser_isQuotedstring(${$inputRef},  $rc{pos}, $maxPos, \$QuotedstringValue, \$QuotedstringLength);
             }
             foreach (@lexemeNames) {
               if ( $_ eq 'NOPARAM' ) {
@@ -341,7 +341,7 @@ COMMA ~ ',' _WS_any
                   #
                   my $method = 'parser_is' . ucfirst( lc($_) );
                   if ($self->$method(
-                                     ${$inputRef},  $rc{pos},
+                                     ${$inputRef},  $rc{pos}, $maxPos,
                                      \$lexemeValue, \$lexemeLength
                                     )
                      )
@@ -371,7 +371,7 @@ COMMA ~ ',' _WS_any
                     #
                     my $lparenPos = $rc{pos} + $lexemeLength;
                     my $dummy;
-                    my $lparen = $self->parser_isQuotedstring(${$inputRef},  $lparenPos, \$dummy, \$dummy) ? '' :
+                    my $lparen = $self->parser_isQuotedstring(${$inputRef},  $lparenPos, $maxPos, \$dummy, \$dummy) ? '' :
                       ( $lparenPos <= $maxPos )
                         ? substr( ${$inputRef}, $lparenPos, 1 )
                         : '';
@@ -523,7 +523,7 @@ COMMA ~ ',' _WS_any
                 $prevPos = $rc{pos};
                 $rc{pos} += $lexemeLength;
 
- $self->logger_debug('[%d->%d/%d] %s: %s', $prevPos, $rc{pos}, $maxPos, $lexeme, $lexemeValue);
+# $self->logger_debug('[%d->%d/%d] %s: %s', $prevPos, $rc{pos}, $maxPos, $lexeme, $lexemeValue);
 #
 # We can safely ignore the events from lexeme_read(), because we made sure in the gramamr
 # that resume() will NOT advance the position, generating on those events:

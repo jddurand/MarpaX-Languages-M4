@@ -566,20 +566,30 @@ EVAL_GRAMMAR
         isa         => Str,
         default     => $DEFAULT_QUOTE_START,
         trigger     => 1,
-        handles_via => 'String',
-        handles     => { quote_start_length => 'length' },
         format      => 's',
         doc =>
             "Quote start. An empty option value disables support of quoted string. Default: \"$DEFAULT_QUOTE_START\"."
     );
+
+    #
+    # We cache quote length to avoid unnecessary calls to length() in parser_isQuotedstring()
+    #
+    has _quoteStartLength => (
+                              is => 'rwp',
+                              isa => PositiveOrZeroInt,
+                              default => length($DEFAULT_QUOTE_START)
+                             );
+    has _quoteEndLength => (
+                              is => 'rwp',
+                              isa => PositiveOrZeroInt,
+                              default => length($DEFAULT_QUOTE_END)
+                             );
 
     option quote_end => (
         is          => 'rw',
         isa         => Str,
         default     => $DEFAULT_QUOTE_END,
         trigger     => 1,
-        handles_via => 'String',
-        handles     => { quote_end_length => 'length' },
         format      => 's',
         doc         => "Quote end. Default: \"$DEFAULT_QUOTE_END\"."
     );
@@ -700,7 +710,7 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
     # PARSER REQUIRED METHODS
     # ---------------------------------------------------------------
-    method parser_isWord (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
+    method parser_isWord (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         my $word_regexp = $self->_word_regexp;
         pos($input) = $pos;
         if ( $input =~ /\G$word_regexp/s ) {
@@ -717,7 +727,7 @@ EVAL_GRAMMAR
         return false;
     }
 
-    method parser_isComment (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
+    method parser_isComment (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         my $com_regexp = $self->_com_regexp;
         if ( Undef->check($com_regexp) ) {
             return false;
@@ -732,23 +742,42 @@ EVAL_GRAMMAR
         return false;
     }
 
-    method parser_isQuotedstring (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
-        my $quotedstring_regexp = $self->_quotedstring_regexp;
-        if ( Undef->check($quotedstring_regexp) ) {
-            return false;
+    method parser_isQuotedstring (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
+      #
+      # We cannot rely on a balanced regexp a-la-Regexp::Common
+      # because if end-string is a prefix of start-string, it has precedence
+      #
+      my $quoteStart = $self->quote_start;
+      my $quoteEnd = $self->quote_end;
+      my $quoteStartLength = $self->_quoteStartLength;
+      my $quoteEndLength = $self->_quoteEndLength;
+      if ($quoteStartLength > 0 && $quoteEndLength > 0) {
+        if (index($input, $quoteStart, $pos) == $pos) {
+          my $nested = 0;
+          my $lastPos = $pos + $quoteStartLength;
+          while ($lastPos <= $maxPos) {
+            if (index($input, $quoteEnd, $lastPos) == $lastPos) {
+              $lastPos += $quoteEndLength;
+              if ($nested == 0) {
+                ${$lexemeLengthRef} = $lastPos - $pos;
+                ${$lexemeValueRef}  = $self->impl_unquote(substr( $input, $pos, ${$lexemeLengthRef} ) );
+                return true;
+              } else {
+                $nested--;
+              }
+            } elsif (index($input, $quoteStart, $lastPos) == $lastPos) {
+              $lastPos += $quoteStartLength;
+              $nested++;
+            } else {
+              ++$lastPos;
+            }
+          }
         }
-
-        pos($input) = $pos;
-        if ( $input =~ /\G$quotedstring_regexp/s ) {
-            ${$lexemeLengthRef} = $+[0] - $-[0];
-            ${$lexemeValueRef}  = $self->impl_unquote(
-                substr( $input, $-[0], ${$lexemeLengthRef} ) );
-            return true;
-        }
-        return false;
+      }
+      return false;
     }
 
-    method parser_isCharacter (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
+    method parser_isCharacter (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         pos($input) = $pos;
         if ( $input =~ /\G./s ) {
             ${$lexemeLengthRef} = $+[0] - $-[0];
@@ -856,11 +885,6 @@ EVAL_GRAMMAR
     method _build__com_regexp {
         return __PACKAGE__->_generate_com_regexp( $DEFAULT_COM_START,
             $DEFAULT_COM_END );
-    }
-
-    method _build__quotedstring_regexp {
-        return __PACKAGE__->_generate_quotedstring_regexp(
-            $DEFAULT_QUOTE_START, $DEFAULT_QUOTE_END );
     }
 
     method _build__logger_category {
@@ -1172,20 +1196,12 @@ EVAL_GRAMMAR
     }
 
     method _trigger_quote_start (Str $quote_start, @args --> Undef) {
-        $self->_set__quotedstring_regexp(
-            __PACKAGE__->_generate_quotedstring_regexp(
-                $quote_start, $self->quote_end
-            )
-        );
+        $self->_set__quoteStartLength(length($quote_start));
         return;
     }
 
     method _trigger_quote_end (Str $quote_end, @args --> Undef) {
-        $self->_set__quotedstring_regexp(
-            __PACKAGE__->_generate_quotedstring_regexp(
-                $self->quote_start, $quote_end
-            )
-        );
+        $self->_set__quoteEndLength(length($quote_end));
         return;
     }
 
@@ -1223,41 +1239,6 @@ EVAL_GRAMMAR
                 map { "\\x{" . sprintf( '%x', ord($_) ) . "}" }
                     split( '', $com_end ) );
             return qr/\G$start(.*?)$end/;
-        }
-        else {
-            return undef;
-        }
-    }
-
-    method _generate_quotedstring_regexp (ClassName $class: Str $quote_start, Str $quote_end --> RegexpRef|Undef) {
-            #
-            # We apply the same technique as Regexp::Common::balanced
-            # but without its pre-processing on the '|' character and
-            # by forcing the \G at the beginning
-            #
-        if ( length($quote_start) > 0 && length($quote_end) > 0 ) {
-            local $" = "|";
-            my @re;
-            my $qb = quotemeta $quote_start;
-            my $qe = quotemeta $quote_end;
-            my $fb = quotemeta substr $quote_start => 0, 1;
-            my $fe = quotemeta substr $quote_end => 0, 1;
-            my $tb = quotemeta substr $quote_start => 1;
-            my $te = quotemeta substr $quote_end => 1;
-            my $add;
-
-            if ( $fb eq $fe ) {
-                push @re =>
-                    qq /(?:$qb(?:(?>[^$fb]+)|$fb(?!$tb)(?!$te)|(?-1))*$qe)/;
-            }
-            else {
-                my @clauses = "(?>[^$fb$fe]+)";
-                push @clauses => "$fb(?!$tb)" if length $tb;
-                push @clauses => "$fe(?!$te)" if length $te;
-                push @clauses => "(?-1)";
-                push @re      => qq /(?:$qb(?:@clauses)*$qe)/;
-            }
-            return qr/(@re)/;
         }
         else {
             return undef;
@@ -1303,13 +1284,6 @@ EVAL_GRAMMAR
     );
 
     has _com_regexp => (
-        is      => 'rwp',
-        lazy    => 1,
-        builder => 1,
-        isa     => RegexpRef | Undef
-    );
-
-    has _quotedstring_regexp => (
         is      => 'rwp',
         lazy    => 1,
         builder => 1,
@@ -1375,7 +1349,7 @@ EVAL_GRAMMAR
     );
 
     method impl_quote (Str $string --> Str) {
-        if ( $self->quote_start_length > 0 && $self->quote_end_length > 0 ) {
+        if ( $self->_quoteStartLength > 0 && $self->_quoteEndLength > 0 ) {
             return $self->quote_start . $string . $self->quote_end;
         }
         else {
@@ -1384,10 +1358,10 @@ EVAL_GRAMMAR
     }
 
     method impl_unquote (Str $string --> Str) {
-        if ( $self->quote_start_length > 0 && $self->quote_end_length > 0 ) {
-            substr( $string, 0, $self->quote_start_length, '' );
-            substr( $string, -$self->quote_end_length,
-                $self->quote_end_length, '' );
+        if ( $self->_quoteStartLength > 0 && $self->_quoteEndLength > 0 ) {
+            substr( $string, 0, $self->_quoteStartLength, '' );
+            my $quoteEndLength = $self->_quoteEndLength;
+            substr( $string, -$quoteEndLength, $quoteEndLength, '' );
         }
         return $string;
     }
