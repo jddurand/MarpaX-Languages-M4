@@ -862,3 +862,36 @@ __! 063 changequote  - quotes recognized before argument collection: output !__
 
 
 1:HIhibye:
+__! 064 changequote  - compute a quoted string: input !__
+changequote(`[', `]')dnl
+define([a], [1, (b)])dnl
+define([b], [2])dnl
+define([quote], [[$*]])dnl
+define([expand], [_$0(($1))])dnl
+define([_expand],
+  [changequote([(], [)])$1changequote`'changequote(`[', `]')])dnl
+expand([a, a, [a, a], [[a, a]]])
+quote(a, a, [a, a], [[a, a]])
+__! 064 changequote  - compute a quoted string: output !__
+1, (2), 1, (2), a, a, [a, a]
+1,(2),1,(2),a, a,[a, a]
+__! 064 changequote  - when end-string is a prefix of start-string: input !__
+define(`hi', `HI')
+changequote(`""', `"')
+""hi"""hi"
+""hi" ""hi"
+""hi"" "hi"
+changequote
+`hi`hi'hi'
+changequote(`"', `"')
+"hi"hi"hi"
+__! 064 changequote  - when end-string is a prefix of start-string: output !__
+
+
+hihi
+hi hi
+hi" "HI"
+
+hi`hi'hi
+
+hiHIhi
