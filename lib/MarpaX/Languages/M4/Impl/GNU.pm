@@ -42,6 +42,7 @@ class MarpaX::Languages::M4::Impl::GNU {
     use MarpaX::Languages::M4::Role::Impl;
     use MarpaX::Languages::M4::Type::Macro -all;
     use MarpaX::Languages::M4::Type::Impl -all;
+    use MarpaX::Languages::M4::Type::Token -all;
     use Marpa::R2;
     use MooX::HandlesVia;
     use Throwable::Factory EncodeError => [qw/$message $error proposal/];
@@ -117,10 +118,14 @@ class MarpaX::Languages::M4::Impl::GNU {
     our $DEFAULT_COM_END     = "\n";
     our $DEFAULT_WORD_REGEXP = '[_a-zA-Z][_a-zA-Z0-9]*';
 
+    # Comments are recognized in preference to macros.
+    # Comments are recognized in preference to argument collection.
+    # Macros are recognized in preference to the begin-quote string.
+    # Quotes are recognized in preference to argument collection.
     our $TOKENS_PRIORITY_DEFAULT_VALUE
-        = [qw/COMMENT QUOTEDSTRING WORD CHARACTER/];
+        = [qw/COMMENT WORD QUOTEDSTRING CHARACTER/];
     our $TOKENS_PRIORITY_TYPE
-        = ArrayRef [ Enum [qw/COMMENT QUOTEDSTRING WORD CHARACTER/] ];
+        = ArrayRef [ M4Token ];
 
     our $INTEGER_TYPE_TYPE = Enum [qw/native bitvector/];
     our $INTEGER_TYPE_DEFAULT_VALUE = 'bitvector';
@@ -1382,7 +1387,7 @@ EVAL_GRAMMAR
         if ( $self->quote_start_length > 0 && $self->quote_end_length > 0 ) {
             substr( $string, 0, $self->quote_start_length, '' );
             substr( $string, -$self->quote_end_length,
-                $self->quote_start_length, '' );
+                $self->quote_end_length, '' );
         }
         return $string;
     }
