@@ -774,3 +774,91 @@ __! 057 dnl warning at eof: output !__
 
 
 0 HI 2 HI
+__! 058 changequote: input !__
+changequote(`[', `]')
+define([foo], [Macro [foo].])
+foo
+__! 058 changequote: output !__
+
+
+Macro foo.
+__! 059 changequote multi-characters: input !__
+changequote(`[[[', `]]]')
+define([[[foo]]], [[[Macro [[[[[foo]]]]].]]])
+foo
+__! 059 changequote multi-characters: output !__
+
+
+Macro [[foo]].
+__! 060 changequote utf8: input !__
+changequote(`ᚠ', `ᛗ')
+define(ᚠfooᛗ, ᚠMacro ᚠfooᛗ.ᛗ)
+foo
+__! 060 changequote utf8: output !__
+
+
+Macro foo.
+__! 061 changequote arguments: input !__
+define(`foo', `Macro `FOO'.')
+changequote(`', `')
+foo
+`foo'
+changequote(`,)
+foo
+__! 061 changequote arguments: output !__
+
+
+Macro `FOO'.
+`Macro `FOO'.'
+
+Macro FOO.
+__! 062 changequote  - macros recognized before strings: input !__
+define(`echo', `$@')
+define(`hi', `HI')
+changequote(`q', `Q')
+q hi Q hi
+echo(hi)
+changequote
+changequote(`-', `EOF')
+- hi EOF hi
+changequote
+changequote(`1', `2')
+hi1hi2
+hi 1hi2
+__! 062 changequote  - macros recognized before strings: output !__
+
+
+
+q HI Q HI
+qHIQ
+
+
+ hi  HI
+
+
+hi1hi2
+HI hi
+__! 063 changequote  - quotes recognized before argument collection: input !__
+define(`echo', `$#:$@:')
+define(`hi', `HI')
+changequote(`(',`)')
+echo(hi)
+changequote
+changequote(`((', `))')
+echo(hi)
+echo((hi))
+changequote
+changequote(`,', `)')
+echo(hi,hi)bye)
+__! 063 changequote  - quotes recognized before argument collection: output !__
+
+
+
+0::hi
+
+
+1:HI:
+0::hi
+
+
+1:HIhibye:
