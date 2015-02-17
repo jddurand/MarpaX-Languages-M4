@@ -43,8 +43,8 @@ class MarpaX::Languages::M4::Impl::Macro {
         },
         handles_via => 'Hash',
         handles     => {
-            paramCanBeMacro_get    => 'get',
-            paramCanBeMacro_exists => 'exists'
+            _paramCanBeMacro_get    => 'get',
+            _paramCanBeMacro_exists => 'exists'
         }
     );
     has postMatchLength => (
@@ -62,11 +62,11 @@ class MarpaX::Languages::M4::Impl::Macro {
     }
 
     method paramCanBeMacro_check (PositiveOrZeroInt $paramPos --> Bool) {
-        if ((      $self->paramCanBeMacro_exists($paramPos)
-                && $self->paramCanBeMacro_get($paramPos)
+        if ((      $self->_paramCanBeMacro_exists($paramPos)
+                && $self->_paramCanBeMacro_get($paramPos)
             )
-            || (   $self->paramCanBeMacro_exists('*')
-                && $self->paramCanBeMacro_get('*') )
+            || (   $self->_paramCanBeMacro_exists('*')
+                && $self->_paramCanBeMacro_get('*') )
             )
         {
             return true;
