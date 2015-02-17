@@ -4,7 +4,7 @@ use Moops;
 
 # ABSTRACT: M4 Logger role
 
-role MarpaX::Languages::M4::Roles::Logger {
+role MarpaX::Languages::M4::Role::Logger {
 
     # VERSION
 

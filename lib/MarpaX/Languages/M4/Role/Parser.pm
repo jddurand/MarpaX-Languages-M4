@@ -4,7 +4,7 @@ use Moops;
 
 # ABSTRACT: M4 Macro Parser role
 
-role MarpaX::Languages::M4::Roles::Parser {
+role MarpaX::Languages::M4::Role::Parser {
 
     # VERSION
 

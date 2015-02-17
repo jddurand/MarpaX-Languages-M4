@@ -39,8 +39,8 @@ class MarpaX::Languages::M4::Impl::GNU {
     use MarpaX::Languages::M4::Impl::GNU::Eval;
     use MarpaX::Languages::M4::Impl::Macros;
     use MarpaX::Languages::M4::Impl::Macro;
-    use MarpaX::Languages::M4::Roles::Impl;
-    use MarpaX::Languages::M4::Types::Macro -all;
+    use MarpaX::Languages::M4::Role::Impl;
+    use MarpaX::Languages::M4::Type::Macro -all;
     use Marpa::R2;
     use MooX::HandlesVia;
     use Throwable::Factory EncodeError => [qw/$message $error proposal/];
@@ -1881,7 +1881,7 @@ EVAL_GRAMMAR
         return $self->_includeFile( true, $file );
     }
 
-    method eof(--> ConsumerOf['MarpaX::Languages::M4::Roles::Impl']) {
+    method eof(--> ConsumerOf['MarpaX::Languages::M4::Role::Impl']) {
       #
       # At EOF m4wrap calls cal pile up
       #
@@ -2613,6 +2613,6 @@ STUB
         return ${ $self->valueRef };
     }
 
-    with 'MarpaX::Languages::M4::Roles::Impl';
+    with 'MarpaX::Languages::M4::Role::Impl';
     with 'MooX::Role::Logger';
 }

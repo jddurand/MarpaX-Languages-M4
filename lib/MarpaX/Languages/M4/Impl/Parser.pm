@@ -7,8 +7,8 @@ use MarpaX::Languages::M4::Impl::Value;
 
 class MarpaX::Languages::M4::Impl::Parser::Actions {
     use MarpaX::Languages::M4::Impl::Value;
-    use MarpaX::Languages::M4::Types::Value -all;
-    use MarpaX::Languages::M4::Types::Macro -all;
+    use MarpaX::Languages::M4::Type::Value -all;
+    use MarpaX::Languages::M4::Type::Macro -all;
     use Types::Common::Numeric -all;
 
     # VERSION
@@ -84,10 +84,10 @@ class MarpaX::Languages::M4::Impl::Parser::Actions {
 
 #
 # Expose only the base implementation of parse() method
-# required by MarpaX::Languages::M4::Roles::Parser
+# required by MarpaX::Languages::M4::Role::Parser
 #
 class MarpaX::Languages::M4::Impl::Parser {
-    use MarpaX::Languages::M4::Types::Macro -all;
+    use MarpaX::Languages::M4::Type::Macro -all;
     use MarpaX::Languages::M4::Impl::Value;
     use Marpa::R2 2.103_004;
     use Scalar::Util qw/readonly/;
@@ -192,10 +192,10 @@ COMMA ~ ',' _WS_any
     }
 
 #
-# When grammar is by token, this is returning a ConsumerOf['MarpaX::Languages::M4::Roles::Value by default']
-# when grammar is by arguments, this is returning an ArrayRef[ConsumerOf['MarpaX::Languages::M4::Roles::Value']] by default
+# When grammar is by token, this is returning a ConsumerOf['MarpaX::Languages::M4::Role::Value by default']
+# when grammar is by arguments, this is returning an ArrayRef[ConsumerOf['MarpaX::Languages::M4::Role::Value']] by default
 #
-    method _parseByGrammar (Ref['SCALAR'] $inputRef, PositiveOrZeroInt $pos, InstanceOf['Marpa::R2::Scanless::G'] $g, Undef|M4Macro $macro? --> Undef|Dict[pos => PositiveOrZeroInt, value => ConsumerOf['MarpaX::Languages::M4::Roles::Value']]) {
+    method _parseByGrammar (Ref['SCALAR'] $inputRef, PositiveOrZeroInt $pos, InstanceOf['Marpa::R2::Scanless::G'] $g, Undef|M4Macro $macro? --> Undef|Dict[pos => PositiveOrZeroInt, value => ConsumerOf['MarpaX::Languages::M4::Role::Value']]) {
 
         my $maxPos = length( ${$inputRef} ) - 1;
         #

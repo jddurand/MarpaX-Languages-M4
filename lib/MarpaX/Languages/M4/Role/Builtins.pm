@@ -4,7 +4,7 @@ use Moops;
 
 # ABSTRACT: Builtins role
 
-role MarpaX::Languages::M4::Roles::Builtins {
+role MarpaX::Languages::M4::Role::Builtins {
 
     # VERSION
 

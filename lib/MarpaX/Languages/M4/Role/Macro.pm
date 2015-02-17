@@ -4,7 +4,7 @@ use Moops;
 
 # ABSTRACT: M4 Macro role
 
-role MarpaX::Languages::M4::Roles::Macro {
+role MarpaX::Languages::M4::Role::Macro {
 
     # VERSION
 

@@ -5,9 +5,9 @@ use Moops;
 # ABSTRACT: M4 Macro Parse Value generic implementation
 
 class MarpaX::Languages::M4::Impl::Value {
-    use MarpaX::Languages::M4::Roles::Value;
-    use MarpaX::Languages::M4::Types::Macro -all;
-    use MarpaX::Languages::M4::Types::Value -all;
+    use MarpaX::Languages::M4::Role::Value;
+    use MarpaX::Languages::M4::Type::Macro -all;
+    use MarpaX::Languages::M4::Type::Value -all;
     use MooX::HandlesVia;
     use Types::Common::Numeric -all;
 
@@ -102,5 +102,5 @@ class MarpaX::Languages::M4::Impl::Value {
         return $self;
     }
 
-    with 'MarpaX::Languages::M4::Roles::Value';
+    with 'MarpaX::Languages::M4::Role::Value';
 }

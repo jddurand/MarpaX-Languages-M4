@@ -8,8 +8,8 @@ class MarpaX::Languages::M4::Impl::Macro {
 
     # VERSION
 
-    use MarpaX::Languages::M4::Roles::Macro;
-    use MarpaX::Languages::M4::Types::Macro -all;
+    use MarpaX::Languages::M4::Role::Macro;
+    use MarpaX::Languages::M4::Type::Macro -all;
     use MooX::HandlesVia;
     use Types::Common::Numeric -all;
 
@@ -76,5 +76,5 @@ class MarpaX::Languages::M4::Impl::Macro {
         }
     }
 
-    with 'MarpaX::Languages::M4::Roles::Macro';
+    with 'MarpaX::Languages::M4::Role::Macro';
 }

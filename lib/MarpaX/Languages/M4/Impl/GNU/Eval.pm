@@ -25,7 +25,7 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
 
     has SELF => {
         is      => 'ro',
-        isa     => ConsumerOf ['MarpaX::Languages::M4::Roles::Impl'],
+        isa     => ConsumerOf ['MarpaX::Languages::M4::Role::Impl'],
         default => sub {$MarpaX::Languages::M4::Impl::GNU::SELF}
     };
 

@@ -4,9 +4,9 @@ use Moops;
 
 # ABSTRACT: M4 Macro type
 
-library MarpaX::Languages::M4::Types::Macro declares M4Macro {
+library MarpaX::Languages::M4::Type::Macro declares M4Macro {
 
     # VERSION
 
-    declare M4Macro, as ConsumerOf ['MarpaX::Languages::M4::Roles::Macro'];
+    declare M4Macro, as ConsumerOf ['MarpaX::Languages::M4::Role::Macro'];
 }
