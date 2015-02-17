@@ -61,7 +61,7 @@ class MarpaX::Languages::M4::Impl::Parser::Actions {
             return MarpaX::Languages::M4::Impl::Value->new('');
         }
         else {
-            return $argumentsGroup->concat( $self->macro, $self->paramPos );
+            return $argumentsGroup->value_concat( $self->macro, $self->paramPos );
         }
     }
 
@@ -71,12 +71,12 @@ class MarpaX::Languages::M4::Impl::Parser::Actions {
         # $argumentsGroup is nullable
         #
         if ( !Undef->check($argumentsGroup) ) {
-            $argumentsGroup->concat( $self->macro, $self->paramPos );
-            return $arguments->push( $argumentsGroup->elements )
+            $argumentsGroup->value_concat( $self->macro, $self->paramPos );
+            return $arguments->value_push( $argumentsGroup->value_elements )
                 ;    # Per def there is one element
         }
         else {
-            return $arguments->push('');    # Per def there is one element
+            return $arguments->value_push('');    # Per def there is one element
         }
     }
 
@@ -419,7 +419,7 @@ COMMA ~ ',' _WS_any
                             #
                             my $printableArguments = join( ', ',
                                 map { $self->_printable($_) }
-                                    $parametersValue->elements );
+                                    $parametersValue->value_elements );
                             $self->logger_debug(
                                 '[%d..%d/%d] %s(%s) -> ???',
                                 $rc{pos},
@@ -429,7 +429,7 @@ COMMA ~ ',' _WS_any
                                 $printableArguments
                             );
                             $lexemeValue = $thisMacro->macro_execute( $self,
-                                $parametersValue->elements );
+                                $parametersValue->value_elements );
                             if ( length($lexemeValue) > 0 ) {
                                 $self->logger_debug(
                                     '[%d..%d/%d] %s(...) -> %s',
@@ -519,8 +519,8 @@ COMMA ~ ',' _WS_any
             }
             else {
                 my $tmpValue = MarpaX::Languages::M4::Impl::Value->new()
-                    ->push($lexemeValue);
-                $self->appendValue( $tmpValue->concat->firstElement );
+                    ->value_push($lexemeValue);
+                $self->appendValue( $tmpValue->value_concat->value_firstElement );
                 $prevPos = $rc{pos};
                 $rc{pos} += $lexemeLength;
             }

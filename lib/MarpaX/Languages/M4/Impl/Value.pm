@@ -19,7 +19,6 @@ class MarpaX::Languages::M4::Impl::Value {
         default     => sub { [] },
         handles_via => 'Array',
         handles     => {
-            _value_unshift  => 'unshift',
             _value_push     => 'push',
             _value_get      => 'get',
             _value_count    => 'count',
@@ -40,25 +39,20 @@ class MarpaX::Languages::M4::Impl::Value {
         }
     };
 
-    method elements {
+    method value_elements {
         return $self->_value_elements;
     }
 
-    method firstElement {
+    method value_firstElement {
         return $self->_value_get(0);
     }
 
-    method unshift (Str|M4Macro @elements --> M4Value) {
-        $self->_value_unshift(@elements);
-        return $self;
-    }
-
-    method push (Str|M4Macro @elements --> M4Value) {
+    method value_push (Str|M4Macro @elements --> M4Value) {
         $self->_value_push(@elements);
         return $self;
     }
 
-    method concat (Undef|M4Macro $macro?, Undef|PositiveOrZeroInt $paramPos? --> M4Value) {
+    method value_concat (Undef|M4Macro $macro?, Undef|PositiveOrZeroInt $paramPos? --> M4Value) {
         if ( $self->_value_count <= 0 ) {
             $self->_value( [''] );
             return $self;
