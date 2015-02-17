@@ -195,56 +195,56 @@ class MarpaX::Languages::M4::Impl::GNU {
         {   source => \<<EVAL_GRAMMAR
 :default ::= action => ::first
 :start ::= eval
-eval ::= Expression                             action => MarpaX::Languages::M4::Impl::GNU::Eval::_eval
+eval ::= Expression                             action => _eval
 
 Expression ::=
     Number
     | ('(') Expression (')') assoc => group
     # Catch common invalid operations for a nice error message
     # Uncatched stuff will have the Marpa native exception.
-   || '++'  Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-    | '+='  Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-    | '--'  Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-    | '-='  Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-    | '*='  Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-    | '/='  Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-    | '%='  Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-    | '>>=' Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-    | '<<=' Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-    | '^='  Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-    | '&='  Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-    | '|='  Expression                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_invalidOp
-   || '+' Expression                            action => MarpaX::Languages::M4::Impl::GNU::Eval::_noop
-    | '-' Expression                            action => MarpaX::Languages::M4::Impl::GNU::Eval::_neg
-    | '~' Expression                            action => MarpaX::Languages::M4::Impl::GNU::Eval::_bneg
-    | '!' Expression                            action => MarpaX::Languages::M4::Impl::GNU::Eval::_lneg
-   || Expression '**' Expression assoc => right action => MarpaX::Languages::M4::Impl::GNU::Eval::_exp
-   || Expression '*' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_mul
-    | Expression ('/') Expression               action => MarpaX::Languages::M4::Impl::GNU::Eval::_div
-    | Expression '%' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_mod
-   || Expression '+' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_add
-    | Expression '-' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_sub
-   || Expression '<<' Expression                action => MarpaX::Languages::M4::Impl::GNU::Eval::_left
-    | Expression '>>' Expression                action => MarpaX::Languages::M4::Impl::GNU::Eval::_right
-   || Expression '>' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_gt
-    | Expression '>=' Expression                action => MarpaX::Languages::M4::Impl::GNU::Eval::_ge
-    | Expression '<' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_lt
-    | Expression '<=' Expression                action => MarpaX::Languages::M4::Impl::GNU::Eval::_le
-   || Expression '==' Expression                action => MarpaX::Languages::M4::Impl::GNU::Eval::_eq
+   || '++'  Expression                          action => _invalidOp
+    | '+='  Expression                          action => _invalidOp
+    | '--'  Expression                          action => _invalidOp
+    | '-='  Expression                          action => _invalidOp
+    | '*='  Expression                          action => _invalidOp
+    | '/='  Expression                          action => _invalidOp
+    | '%='  Expression                          action => _invalidOp
+    | '>>=' Expression                          action => _invalidOp
+    | '<<=' Expression                          action => _invalidOp
+    | '^='  Expression                          action => _invalidOp
+    | '&='  Expression                          action => _invalidOp
+    | '|='  Expression                          action => _invalidOp
+   || '+' Expression                            action => _noop
+    | '-' Expression                            action => _neg
+    | '~' Expression                            action => _bneg
+    | '!' Expression                            action => _lneg
+   || Expression '**' Expression assoc => right action => _exp
+   || Expression '*' Expression                 action => _mul
+    | Expression ('/') Expression               action => _div
+    | Expression '%' Expression                 action => _mod
+   || Expression '+' Expression                 action => _add
+    | Expression '-' Expression                 action => _sub
+   || Expression '<<' Expression                action => _left
+    | Expression '>>' Expression                action => _right
+   || Expression '>' Expression                 action => _gt
+    | Expression '>=' Expression                action => _ge
+    | Expression '<' Expression                 action => _lt
+    | Expression '<=' Expression                action => _le
+   || Expression '==' Expression                action => _eq
     # Special case of '=' aliased to '=='
-    | Expression '=' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_eq2
-    | Expression '!=' Expression                action => MarpaX::Languages::M4::Impl::GNU::Eval::_ne
-   || Expression '&' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_band
-   || Expression '^' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_bxor
-   || Expression '|' Expression                 action => MarpaX::Languages::M4::Impl::GNU::Eval::_bor
-   || Expression '&&' Expression                action => MarpaX::Languages::M4::Impl::GNU::Eval::_land
-   || Expression '||' Expression                action => MarpaX::Languages::M4::Impl::GNU::Eval::_lor
+    | Expression '=' Expression                 action => _eq2
+    | Expression '!=' Expression                action => _ne
+   || Expression '&' Expression                 action => _band
+   || Expression '^' Expression                 action => _bxor
+   || Expression '|' Expression                 action => _bor
+   || Expression '&&' Expression                action => _land
+   || Expression '||' Expression                action => _lor
 
-Number ::= decimalNumber                        action => MarpaX::Languages::M4::Impl::GNU::Eval::_decimal
-         | octalNumber                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_octal
-         | hexaNumber                           action => MarpaX::Languages::M4::Impl::GNU::Eval::_hex
-         | binaryNumber                         action => MarpaX::Languages::M4::Impl::GNU::Eval::_binary
-         | radixNumber                          action => MarpaX::Languages::M4::Impl::GNU::Eval::_radix
+Number ::= decimalNumber                        action => _decimal
+         | octalNumber                          action => _octal
+         | hexaNumber                           action => _hex
+         | binaryNumber                         action => _binary
+         | radixNumber                          action => _radix
 
 _DECDIGITS   ~ [0-9]+
 _OCTDIGITS   ~ [0-7]+
