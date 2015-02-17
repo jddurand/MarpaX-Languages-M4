@@ -694,7 +694,7 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
     # PARSER REQUIRED METHODS
     # ---------------------------------------------------------------
-    method parse_isWord (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
+    method parser_isWord (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         my $word_regexp = $self->_word_regexp;
         pos($input) = $pos;
         if ( $input =~ /\G$word_regexp/s ) {
@@ -711,7 +711,7 @@ EVAL_GRAMMAR
         return false;
     }
 
-    method parse_isComment (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
+    method parser_isComment (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         my $com_regexp = $self->_com_regexp;
         if ( Undef->check($com_regexp) ) {
             return false;
@@ -726,7 +726,7 @@ EVAL_GRAMMAR
         return false;
     }
 
-    method parse_isQuotedstring (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
+    method parser_isQuotedstring (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         my $quotedstring_regexp = $self->_quotedstring_regexp;
         if ( Undef->check($quotedstring_regexp) ) {
             return false;
@@ -742,7 +742,7 @@ EVAL_GRAMMAR
         return false;
     }
 
-    method parse_isCharacter (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
+    method parser_isCharacter (Str $input, PositiveOrZeroInt $pos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         pos($input) = $pos;
         if ( $input =~ /\G./s ) {
             ${$lexemeLengthRef} = $+[0] - $-[0];
@@ -756,7 +756,7 @@ EVAL_GRAMMAR
       return $self->_macros_get($word)->macros_get(-1);
     }
 
-    method parse_isMacro (Str $word, Ref $macroRef? --> Bool) {
+    method parser_isMacro (Str $word, Ref $macroRef? --> Bool) {
         if ( $self->_macros_exists($word) ) {
             ${$macroRef} = $self->_getMacro($word);
             return true;
@@ -764,7 +764,7 @@ EVAL_GRAMMAR
         return false,;
     }
 
-    method parse_tokensPriority {
+    method parser_tokensPriority {
         return $self->_policy_tokens_priority_elements;
     }
 
@@ -2598,7 +2598,7 @@ STUB
     }
 
     method parseBuffer (Str $input --> PositiveOrZeroInt) {
-        return $self->parse($input);
+        return $self->parser_parse($input);
     }
 
     method appendValue (Str $result) {

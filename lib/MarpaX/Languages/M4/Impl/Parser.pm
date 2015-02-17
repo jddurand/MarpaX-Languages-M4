@@ -180,7 +180,7 @@ COMMA ~ ',' _WS_any
         default => 0
     );
 
-    method parse (Str $input --> PositiveOrZeroInt) {
+    method parser_parse (Str $input --> PositiveOrZeroInt) {
             #
             # We will modify the buffer in-place, therefore we want to
             # have OUR version of the input.
@@ -207,7 +207,7 @@ COMMA ~ ',' _WS_any
         #
         # Get the lexemes ordering
         #
-        my @lexemeNames = $self->parse_tokensPriority();
+        my @lexemeNames = $self->parser_tokensPriority();
 #
 # In the context of a macroArguments, unquoted parenthesis have higher priorities
 # over everything
@@ -326,7 +326,7 @@ COMMA ~ ',' _WS_any
                     }
                 }
                 else {
-                    my $method = 'parse_is' . ucfirst( lc($_) );
+                    my $method = 'parser_is' . ucfirst( lc($_) );
                     if ($self->$method(
                             ${$inputRef},  $rc{pos},
                             \$lexemeValue, \$lexemeLength
@@ -351,7 +351,7 @@ COMMA ~ ',' _WS_any
             #
             if ( $lexeme eq 'WORD' ) {
                 my $thisMacro;
-                if ( $self->parse_isMacro( $lexemeValue, \$thisMacro ) ) {
+                if ( $self->parser_isMacro( $lexemeValue, \$thisMacro ) ) {
                     #
                     # Is the macro recognized only with arguments ?
                     #
