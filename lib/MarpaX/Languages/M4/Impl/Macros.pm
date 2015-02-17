@@ -17,7 +17,7 @@ class MarpaX::Languages::M4::Impl::Macros {
         default     => sub { [] },
         handles_via => 'Array',
         handles     => {
-            macros_is_empty => 'is_empty',
+            macros_isEmpty  => 'is_empty',
             macros_push     => 'push',
             macros_pop      => 'pop',
             macros_set      => 'set',

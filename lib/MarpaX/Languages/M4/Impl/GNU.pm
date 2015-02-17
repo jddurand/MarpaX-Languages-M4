@@ -1503,7 +1503,7 @@ EVAL_GRAMMAR
         foreach (@names) {
             if ( $self->_macros_exists($_) ) {
                 $self->_macros_get($_)->macros_pop();
-                if ( $self->_macros_get($_)->macros_is_empty ) {
+                if ( $self->_macros_get($_)->macros_isEmpty ) {
                     $self->_macros_delete($_);
                 }
             }

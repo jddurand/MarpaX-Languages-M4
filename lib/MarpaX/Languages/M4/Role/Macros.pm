@@ -8,7 +8,7 @@ role MarpaX::Languages::M4::Role::Macros {
 
     # VERSION
 
-    requires 'macros_is_empty';
+    requires 'macros_isEmpty';
     requires 'macros_push';
     requires 'macros_pop';
     requires 'macros_set';
