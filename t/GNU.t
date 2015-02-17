@@ -47,7 +47,7 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $gnu = MarpaX::Languages::M4::Impl::GNU->new();
   $gnu->$init;
   my $pos = $gnu->parseBuffer($input);
-  my $got = $gnu->value;
+  my $got = $gnu->eof->value;
   my $expected = ${$outputRef};
 
   cmp_ok($got, 'eq', $expected, $testName);
@@ -756,3 +756,22 @@ __! 054 dumpdef 2: output !__
 
 f2
 f1
+__! 055 dnl: input !__
+define(`foo', `Macro `foo'.')dnl A very simple macro, indeed.
+foo
+__! 055 dnl: output !__
+Macro foo.
+__! 056 dnl warning: input !__
+dnl(`args are ignored, but side effects occur',
+define(`foo', `like this')) while this text is ignored: undefine(`foo')
+See how `foo' was defined, foo?
+__! 056 dnl warning: output !__
+See how foo was defined, like this?
+__! 057 dnl warning at eof: input !__
+m4wrap(`m4wrap(`2 hi
+')0 hi dnl 1 hi')
+define(`hi', `HI')
+__! 057 dnl warning at eof: output !__
+
+
+0 HI 2 HI
