@@ -895,3 +895,8 @@ hi" "HI"
 hi`hi'hi
 
 hiHIhi
+__! 065 changequote  - EOF within a quoted string: input( {my ($self) = @_; $self->impl_eof; $self; }) !__
+`hello world'
+`dangling quote
+__! 065 changequote  - EOF within a quoted string: output !__
+hello world

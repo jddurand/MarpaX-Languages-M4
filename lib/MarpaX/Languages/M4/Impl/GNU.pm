@@ -45,7 +45,7 @@ class MarpaX::Languages::M4::Impl::GNU {
     use MarpaX::Languages::M4::Type::Token -all;
     use Marpa::R2;
     use MooX::HandlesVia;
-    use Throwable::Factory EncodeError => [qw/$message $error proposal/];
+    use Throwable::Factory EncodeError => [qw/$message $error proposal/], EOFInQuotedString => undef;
     use Types::Common::Numeric -all;
 
     BEGIN {
@@ -771,6 +771,14 @@ EVAL_GRAMMAR
             } else {
               ++$lastPos;
             }
+          }
+          #
+          # If we are here, it is an error if eof is flagged
+          #
+          if ($self->_eof) {
+            $self->logger_error(
+                                'EOF in string');
+            EOFInQuotedString->throw('EOF in string');
           }
         }
       }
@@ -2645,14 +2653,15 @@ STUB
     }
 
     method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
-        $self->_set__pos( $self->parser_parse($input) );
         return $self;
     }
 
     method impl_parseBuffers (Str @input --> ConsumerOf[M4Impl]) {
-        foreach (@input) {
-            $self->impl_parseIncremental($_);
-        }
+        try {
+          foreach (@input) {
+            $self->_set__pos( $self->parser_parse($_) );
+          }
+        };
         $self->_set__eof(true);
         return $self;
     }
@@ -2670,7 +2679,7 @@ STUB
         return ${ $self->impl_valueRef };
     }
 
-    method impl_eof (--> Str) {
+    method impl_eof (--> ConsumerOf[M4Impl]) {
         $self->_set__eof(true);
         return $self;
     }
