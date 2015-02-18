@@ -766,7 +766,7 @@ define(`foo', `like this')) while this text is ignored: undefine(`foo')
 See how `foo' was defined, foo?
 __! 056 dnl warning: output !__
 See how foo was defined, like this?
-__! 057 dnl warning at eof: input !__
+__! 057 dnl warning at eof: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
 m4wrap(`m4wrap(`2 hi
 ')0 hi dnl 1 hi')
 define(`hi', `HI')
@@ -895,7 +895,7 @@ hi" "HI"
 hi`hi'hi
 
 hiHIhi
-__! 065 changequote  - EOF within a quoted string: input( {my ($self) = @_; $self->impl_eof; $self; }) !__
+__! 065 changequote  - EOF within a quoted string: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
 `hello world'
 `dangling quote
 __! 065 changequote  - EOF within a quoted string: output !__
@@ -968,7 +968,7 @@ __! 069 changecom - comments have precedence to arguments collection: output !__
 
 3:HI,,HI,HI:HI,,`'hi,HI:
 3:HI,,`'hi,HI:HI,,`'hi,HI:
-__! 070 changecom  - EOF within a comment: input( {my ($self) = @_; $self->impl_eof; $self; }) !__
+__! 070 changecom  - EOF within a comment: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
 changecom(`/*', `*/')
 /*dangling comment
 __! 070 changecom  - EOF within a comment: output !__

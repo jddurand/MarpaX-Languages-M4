@@ -571,6 +571,15 @@ EVAL_GRAMMAR
             "Quote start. An empty option value disables support of quoted string. Default: \"$DEFAULT_QUOTE_START\"."
     );
 
+    option quote_end => (
+        is          => 'rw',
+        isa         => Str,
+        default     => $DEFAULT_QUOTE_END,
+        trigger     => 1,
+        format      => 's',
+        doc         => "Quote end. Default: \"$DEFAULT_QUOTE_END\"."
+    );
+
     #
     # We cache quote length to avoid unnecessary calls to length() in parser_isQuotedstring()
     #
@@ -585,22 +594,11 @@ EVAL_GRAMMAR
                               default => length($DEFAULT_QUOTE_END)
                              );
 
-    option quote_end => (
-        is          => 'rw',
-        isa         => Str,
-        default     => $DEFAULT_QUOTE_END,
-        trigger     => 1,
-        format      => 's',
-        doc         => "Quote end. Default: \"$DEFAULT_QUOTE_END\"."
-    );
-
     option com_start => (
         is          => 'rw',
         isa         => Str,
         default     => $DEFAULT_COM_START,
         trigger     => 1,
-        handles_via => 'String',
-        handles     => { com_start_length => 'length' },
         format      => 's',
         doc         => "Comment start. Default: \"$DEFAULT_COM_START\"."
     );
@@ -610,11 +608,23 @@ EVAL_GRAMMAR
         isa         => Str,
         default     => $DEFAULT_COM_END,
         trigger     => 1,
-        handles_via => 'String',
-        handles     => { com_end_length => 'length' },
         format      => 's',
         doc         => "Comment end. Default: the newline character."
     );
+
+    #
+    # Ditto for comment
+    #
+    has _comStartLength => (
+                              is => 'rwp',
+                              isa => PositiveOrZeroInt,
+                              default => length($DEFAULT_COM_START)
+                             );
+    has _comEndLength => (
+                              is => 'rwp',
+                              isa => PositiveOrZeroInt,
+                              default => length($DEFAULT_COM_END)
+                             );
 
     option word_regexp => (
         is      => 'rw',
@@ -728,18 +738,37 @@ EVAL_GRAMMAR
     }
 
     method parser_isComment (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
-        my $com_regexp = $self->_com_regexp;
-        if ( Undef->check($com_regexp) ) {
-            return false;
+      #
+      # We want to catch EOF in comment. So we do it ourself.
+      #
+      my $comStart = $self->com_start;
+      my $comEnd = $self->com_end;
+      my $comStartLength = $self->_comStartLength;
+      my $comEndLength = $self->_comEndLength;
+      if ($comStartLength > 0 && $comEndLength > 0) {
+        if (index($input, $comStart, $pos) == $pos) {
+          my $lastPos = $pos + $comStartLength;
+          while ($lastPos <= $maxPos) {
+            if (index($input, $comEnd, $lastPos) == $lastPos) {
+              $lastPos += $comEndLength;
+              ${$lexemeLengthRef} = $lastPos - $pos;
+              ${$lexemeValueRef}  = substr( $input, $pos, ${$lexemeLengthRef} );
+              return true;
+            } else {
+              ++$lastPos;
+            }
+          }
+          #
+          # If we are here, it is an error if eof is flagged
+          #
+          if ($self->_eof) {
+            $self->logger_error(
+                                'EOF in comment');
+            EOFInComment->throw('EOF in comment');
+          }
         }
-
-        pos($input) = $pos;
-        if ( $input =~ /\G$com_regexp/s ) {
-            ${$lexemeLengthRef} = $+[0] - $-[0];
-            ${$lexemeValueRef} = substr( $input, $-[0], ${$lexemeLengthRef} );
-            return true;
-        }
-        return false;
+      }
+      return false;
     }
 
     method parser_isQuotedstring (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
@@ -1192,14 +1221,12 @@ EVAL_GRAMMAR
     }
 
     method _trigger_com_start (Str $com_start, @args --> Undef) {
-        $self->_set__com_regexp(
-            __PACKAGE__->_generate_com_regexp( $com_start, $self->com_end ) );
+        $self->_set__comStartLength(length($com_start));
         return;
     }
 
     method _trigger_com_end (Str $com_end, @args --> Undef) {
-        $self->_set__com_regexp(
-            __PACKAGE__->_generate_com_regexp( $self->com_start, $com_end ) );
+        $self->_set__comEndLength(length($com_end));
         return;
     }
 
@@ -1234,24 +1261,6 @@ EVAL_GRAMMAR
         isa     => Undef | ConsumerOf ['IO::Handle'],
         default => sub { IO::Handle->new_from_fd( fileno(STDERR), 'w' ) }
     );
-
-    method _generate_com_regexp (ClassName $class: Str $com_start, Str $com_end --> RegexpRef|Undef) {
-                                  #
-                                  # In M4 comments are not balanced
-                                  #
-        if ( length($com_start) > 0 && length($com_end) > 0 ) {
-            my $start = join( '',
-                map { "\\x{" . sprintf( '%x', ord($_) ) . "}" }
-                    split( '', $com_start ) );
-            my $end = join( '',
-                map { "\\x{" . sprintf( '%x', ord($_) ) . "}" }
-                    split( '', $com_end ) );
-            return qr/\G$start(.*?)$end/;
-        }
-        else {
-            return undef;
-        }
-    }
 
     method _exit (Int $exitValue) {
         if ( $self->policy_exit ) {
@@ -2653,16 +2662,17 @@ STUB
     }
 
     method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
+        try {
+          $self->_set__pos( $self->parser_parse($input) );
+        };
         return $self;
     }
 
     method impl_parseBuffers (Str @input --> ConsumerOf[M4Impl]) {
-        try {
-          foreach (@input) {
-            $self->_set__pos( $self->parser_parse($_) );
-          }
-        };
-        $self->_set__eof(true);
+        foreach (@input) {
+            $self->impl_parseIncremental ($_);
+        }
+        $self->impl_eoi;
         return $self;
     }
 
@@ -2679,7 +2689,7 @@ STUB
         return ${ $self->impl_valueRef };
     }
 
-    method impl_eof (--> ConsumerOf[M4Impl]) {
+    method impl_eoi (--> ConsumerOf[M4Impl]) {
         $self->_set__eof(true);
         return $self;
     }
