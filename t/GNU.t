@@ -1036,3 +1036,12 @@ changeword(`#([_a-zA-Z0-9]*)')#dnl
 #echo(`foo #foo')
 __! 074 changeword - change of symbol lookup: output !__
 foo bar
+__! 075 changeword - Difference v.s. TeX: input !__
+ifdef(`changeword', `', `errprint(` skipping: no changeword support
+')m4exit(`77')')dnl
+define(`a', `errprint(`Hello')')dnl
+changeword(`@([_a-zA-Z0-9]*)')
+@a
+__! 075 changeword - Difference v.s. TeX: output !__
+
+errprint(Hello)
