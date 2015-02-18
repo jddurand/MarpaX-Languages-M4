@@ -49,6 +49,7 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $got = $gnu->impl_parseBuffers($input)->impl_value;
   my $expected = ${$outputRef};
 
+  $testName =~ s/\d+//;
   cmp_ok($got, 'eq', $expected, $testName);
 }
 done_testing();
@@ -445,58 +446,58 @@ ifelse(`foo', `bar')
 __! 035 ifelse - one or two arguments: output !__
 
 
-__! 035 ifelse - three or four arguments: input !__
+__! 036 ifelse - three or four arguments: input !__
 ifelse(`foo', `bar', `true')
 ifelse(`foo', `foo', `true')
 define(`foo', `bar')
 ifelse(foo, `bar', `true', `false')
 ifelse(foo, `foo', `true', `false')
-__! 035 ifelse - three or four arguments: output !__
+__! 036 ifelse - three or four arguments: output !__
 
 true
 
 true
 false
-__! 036 ifelse - reproduce behaviour of blind builtins: input !__
+__! 037 ifelse - reproduce behaviour of blind builtins: input !__
 define(`foo', `ifelse(`$#', `0', ``$0'', `arguments:$#')')
 foo
 foo()
 foo(`a', `b', `c')
-__! 036 ifelse - reproduce behaviour of blind builtins: output !__
+__! 037 ifelse - reproduce behaviour of blind builtins: output !__
 
 foo
 arguments:1
 arguments:3
-__! 037 ifelse - more than four arguments: input !__
+__! 038 ifelse - more than four arguments: input !__
 ifelse(`foo', `bar', `third', `gnu', `gnats')
 ifelse(`foo', `bar', `third', `gnu', `gnats', `sixth')
 ifelse(`foo', `bar', `third', `gnu', `gnats', `sixth', `seventh')
 ifelse(`foo', `bar', `3', `gnu', `gnats', `6', `7', `8')
-__! 037 ifelse - more than four arguments: output !__
+__! 038 ifelse - more than four arguments: output !__
 gnu
 
 seventh
 7
-__! 038 shift: input !__
+__! 039 shift: input !__
 shift
 shift(`bar')
 shift(`foo', `bar', `baz')
-__! 038 shift: output !__
+__! 039 shift: output !__
 shift
 
 bar,baz
-__! 039 shift - composite reverse: input !__
+__! 040 shift - composite reverse: input !__
 define(`reverse', `ifelse(`$#', `0', , `$#', `1', ``$1'',
                           `reverse(shift($@)), `$1'')')
 reverse
 reverse(`foo')
 reverse(`foo', `bar', `gnats', `and gnus')
-__! 039 shift - composite reverse: output !__
+__! 040 shift - composite reverse: output !__
 
 
 foo
 and gnus, gnats, bar, foo
-__! 040 shift - composite cond: input !__
+__! 041 shift - composite cond: input !__
 define(`cond',
 `ifelse(`$#', `1', `$1',
         `ifelse($1, `$2', `$3',
@@ -522,7 +523,7 @@ example2(`yes')
 example2(`no')
 example2(`maybe')
 example2(`feeling rather indecisive today')
-__! 040 shift - composite cond: output !__
+__! 041 shift - composite cond: output !__
 one comparison: 3
 two comparisons: 3
 three comparisons: 3
@@ -531,7 +532,7 @@ one comparison: 1
 two comparisons: 2
 three comparisons: 3
 default answer: 4
-__! 041 shift - composites join/joinall: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 042 shift - composites join/joinall: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`join.m4')
 join,join(`-'),join(`-', `'),join(`-', `', `')
 joinall,joinall(`-'),joinall(`-', `'),joinall(`-', `', `')
@@ -543,7 +544,7 @@ joinall(`-', `', `1', `', `', `2', `')
 join(`,', `1', `2', `3')
 define(`nargs', `$#')dnl
 nargs(join(`,', `1', `2', `3'))
-__! 041 shift - composites join/joinall: output !__
+__! 042 shift - composites join/joinall: output !__
 
 ,,,
 ,,,-
@@ -554,7 +555,7 @@ __! 041 shift - composites join/joinall: output !__
 -1---2-
 1,2,3
 1
-__! 042 shift - composites quote/dquote/dquote_elt: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 043 shift - composites quote/dquote/dquote_elt: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`quote.m4')
 -quote-dquote-dquote_elt-
 -quote()-dquote()-dquote_elt()-
@@ -564,7 +565,7 @@ define(`n', `$#')dnl
 -n(quote(`1', `2'))-n(dquote(`1', `2'))-n(dquote_elt(`1', `2'))-
 dquote(dquote_elt(`1', `2'))
 dquote_elt(dquote(`1', `2'))
-__! 042 shift - composites quote/dquote/dquote_elt: output !__
+__! 043 shift - composites quote/dquote/dquote_elt: output !__
 
 ----
 --`'-`'-
@@ -573,42 +574,42 @@ __! 042 shift - composites quote/dquote/dquote_elt: output !__
 -1-1-2-
 ``1'',``2''
 ``1',`2''
-__! 043 shift - composite argn: input !__
+__! 044 shift - composite argn: input !__
 define(`argn', `ifelse(`$1', 1, ``$2'',
   `argn(decr(`$1'), shift(shift($@)))')')
 argn(`1', `a')
 define(`foo', `argn(`11', $@)')
 foo(`a', `b', `c', `d', `e', `f', `g', `h', `i', `j', `k', `l')
-__! 043 shift - composite argn: output !__
+__! 044 shift - composite argn: output !__
 
 a
 
 k
-__! 044 composite forloop: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 045 composite forloop: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`forloop.m4')
 forloop(`i', `1', `8', `i ')
-__! 044 composite forloop: output !__
+__! 045 composite forloop: output !__
 
 1 2 3 4 5 6 7 8 
-__! 045 composite forloop - nested: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 046 composite forloop - nested: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`forloop.m4')
 forloop(`i', `1', `4', `forloop(`j', `1', `8', ` (i, j)')
 ')
-__! 045 composite forloop - nested: output !__
+__! 046 composite forloop - nested: output !__
 
  (1, 1) (1, 2) (1, 3) (1, 4) (1, 5) (1, 6) (1, 7) (1, 8)
  (2, 1) (2, 2) (2, 3) (2, 4) (2, 5) (2, 6) (2, 7) (2, 8)
  (3, 1) (3, 2) (3, 3) (3, 4) (3, 5) (3, 6) (3, 7) (3, 8)
  (4, 1) (4, 2) (4, 3) (4, 4) (4, 5) (4, 6) (4, 7) (4, 8)
 
-__! 046 composites foreach/foreachq: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 047 composites foreach/foreachq: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`foreach.m4')
 foreach(`x', (foo, bar, foobar), `Word was: x
 ')dnl
 include(`foreachq.m4')
 foreachq(`x', `foo, bar, foobar', `Word was: x
 ')dnl
-__! 046 composites foreach/foreachq: output !__
+__! 047 composites foreach/foreachq: output !__
 
 Word was: foo
 Word was: bar
@@ -617,7 +618,7 @@ Word was: foobar
 Word was: foo
 Word was: bar
 Word was: foobar
-__! 047 composites foreach/foreachq - generate a shell case statement: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 048 composites foreach/foreachq - generate a shell case statement: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`foreach.m4')
 define(`_case', `  $1)
     $2=" $1";;
@@ -627,7 +628,7 @@ case $`'1 in
 foreach(`x', `(`(`a', `vara')', `(`b', `varb')', `(`c', `varc')')',
         `_cat(`_case', x)')dnl
 esac
-__! 047 composites foreach/foreachq - generate a shell case statement: output !__
+__! 048 composites foreach/foreachq - generate a shell case statement: output !__
 
 case $1 in
   a)
@@ -637,7 +638,7 @@ case $1 in
   c)
     varc=" c";;
 esac
-__! 048 composites foreach/foreachq - comparison: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 049 composites foreach/foreachq - comparison: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 define(`a', `1')define(`b', `2')define(`c', `3')
 include(`foreach.m4')
 include(`foreachq.m4')
@@ -645,7 +646,7 @@ foreach(`x', `(``a'', ``(b'', ``c)'')', `x
 ')
 foreachq(`x', ```a'', ``(b'', ``c)''', `x
 ')dnl
-__! 048 composites foreach/foreachq - comparison: output !__
+__! 049 composites foreach/foreachq - comparison: output !__
 
 
 
@@ -657,22 +658,22 @@ __! 048 composites foreach/foreachq - comparison: output !__
 a
 (b
 c)
-__! 049 composite foreachq limitation: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
+__! 050 composite foreachq limitation: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
 include(`foreach.m4')include(`foreachq.m4')
 foreach(`name', `(`a', `b')', ` defn(`name')')
 foreachq(`name', ``a', `b'', ` defn(`name')')
-__! 049 composite foreachq limitation: output !__
+__! 050 composite foreachq limitation: output !__
 
  a b
  _arg1(`a', `b') _arg1(shift(`a', `b'))
-__! 050 composite stack: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 051 composite stack: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
 include(`stack.m4')
 pushdef(`a', `1')pushdef(`a', `2')pushdef(`a', `3')
 define(`show', ``$1'
 ')
 stack_foreach(`a', `show')dnl
 stack_foreach_lifo(`a', `show')dnl
-__! 050 composite stack: output !__
+__! 051 composite stack: output !__
 
 
 
@@ -682,7 +683,7 @@ __! 050 composite stack: output !__
 3
 2
 1
-__! 050 composite define_blind: input !__
+__! 052 composite define_blind: input !__
 define(`define_blind', `ifelse(`$#', `0', ``$0'',
 `_$0(`$1', `$2', `$'`#', `$'`0')')')
 define(`_define_blind', `define(`$1',
@@ -695,7 +696,7 @@ define(`blah', defn(`foo'))
 blah
 blah(`a', `b')
 defn(`blah')
-__! 050 composite define_blind: output !__
+__! 052 composite define_blind: output !__
 
 
 define_blind
@@ -706,20 +707,20 @@ arguments were bar
 blah
 arguments were a,b
 ifelse(`$#', `0', ``$0'', `arguments were $*')
-__! 051 composite curry: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
+__! 053 composite curry: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
 include(`curry.m4')include(`stack.m4')
 define(`reverse', `ifelse(`$#', `0', , `$#', `1', ``$1'',
                           `reverse(shift($@)), `$1'')')
 pushdef(`a', `1')pushdef(`a', `2')pushdef(`a', `3')
 stack_foreach(`a', `:curry(`reverse', `4')')
 curry(`curry', `reverse', `1')(`2')(`3')
-__! 051 composite curry: output !__
+__! 053 composite curry: output !__
 
 
 
 :1, 4:2, 4:3, 4
 3, 2, 1
-__! 052 composites copy/rename: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
+__! 054 composites copy/rename: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
 include(`curry.m4')include(`stack.m4')
 define(`rename', `copy($@)undefine(`$1')')dnl
 define(`copy', `ifdef(`$2', `errprint(`$2 already defined
@@ -731,7 +732,7 @@ rename(`b', `c')
 a b c
 popdef(`a', `c')c a
 popdef(`a', `c')a c
-__! 052 composites copy/rename: output !__
+__! 054 composites copy/rename: output !__
 
 
 
@@ -739,80 +740,80 @@ __! 052 composites copy/rename: output !__
 2 b 2
  0
 1 1
-__! 053 dumpdef: input !__
+__! 055 dumpdef: input !__
 define(`foo', `Hello world.')
 dumpdef(`foo')
 dumpdef(`define')
-__! 053 dumpdef: output !__
+__! 055 dumpdef: output !__
 
 
 
-__! 054 dumpdef 2: input !__
+__! 056 dumpdef 2: input !__
 pushdef(`f', ``$0'1')pushdef(`f', ``$0'2')
 f(popdef(`f')dumpdef(`f'))
 f(popdef(`f')dumpdef(`f'))
-__! 054 dumpdef 2: output !__
+__! 056 dumpdef 2: output !__
 
 f2
 f1
-__! 055 dnl: input !__
+__! 057 dnl: input !__
 define(`foo', `Macro `foo'.')dnl A very simple macro, indeed.
 foo
-__! 055 dnl: output !__
+__! 057 dnl: output !__
 Macro foo.
-__! 056 dnl warning: input !__
+__! 058 dnl warning: input !__
 dnl(`args are ignored, but side effects occur',
 define(`foo', `like this')) while this text is ignored: undefine(`foo')
 See how `foo' was defined, foo?
-__! 056 dnl warning: output !__
+__! 058 dnl warning: output !__
 See how foo was defined, like this?
-__! 057 dnl warning at eof: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
+__! 059 dnl warning at eof: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
 m4wrap(`m4wrap(`2 hi
 ')0 hi dnl 1 hi')
 define(`hi', `HI')
-__! 057 dnl warning at eof: output !__
+__! 059 dnl warning at eof: output !__
 
 
 0 HI 2 HI
-__! 058 changequote: input !__
+__! 060 changequote: input !__
 changequote(`[', `]')
 define([foo], [Macro [foo].])
 foo
-__! 058 changequote: output !__
+__! 060 changequote: output !__
 
 
 Macro foo.
-__! 059 changequote multi-characters: input !__
+__! 061 changequote multi-characters: input !__
 changequote(`[[[', `]]]')
 define([[[foo]]], [[[Macro [[[[[foo]]]]].]]])
 foo
-__! 059 changequote multi-characters: output !__
+__! 061 changequote multi-characters: output !__
 
 
 Macro [[foo]].
-__! 060 changequote utf8: input !__
+__! 062 changequote utf8: input !__
 changequote(`ᚠ', `ᛗ')
 define(ᚠfooᛗ, ᚠMacro ᚠfooᛗ.ᛗ)
 foo
-__! 060 changequote utf8: output !__
+__! 062 changequote utf8: output !__
 
 
 Macro foo.
-__! 061 changequote arguments: input !__
+__! 063 changequote arguments: input !__
 define(`foo', `Macro `FOO'.')
 changequote(`', `')
 foo
 `foo'
 changequote(`,)
 foo
-__! 061 changequote arguments: output !__
+__! 063 changequote arguments: output !__
 
 
 Macro `FOO'.
 `Macro `FOO'.'
 
 Macro FOO.
-__! 062 changequote  - macros recognized before strings: input !__
+__! 064 changequote  - macros recognized before strings: input !__
 define(`echo', `$@')
 define(`hi', `HI')
 changequote(`q', `Q')
@@ -825,7 +826,7 @@ changequote
 changequote(`1', `2')
 hi1hi2
 hi 1hi2
-__! 062 changequote  - macros recognized before strings: output !__
+__! 064 changequote  - macros recognized before strings: output !__
 
 
 
@@ -838,7 +839,7 @@ qHIQ
 
 hi1hi2
 HI hi
-__! 063 changequote  - quotes recognized before argument collection: input !__
+__! 065 changequote  - quotes recognized before argument collection: input !__
 define(`echo', `$#:$@:')
 define(`hi', `HI')
 changequote(`(',`)')
@@ -850,7 +851,7 @@ echo((hi))
 changequote
 changequote(`,', `)')
 echo(hi,hi)bye)
-__! 063 changequote  - quotes recognized before argument collection: output !__
+__! 065 changequote  - quotes recognized before argument collection: output !__
 
 
 
@@ -862,7 +863,7 @@ __! 063 changequote  - quotes recognized before argument collection: output !__
 
 
 1:HIhibye:
-__! 064 changequote  - compute a quoted string: input !__
+__! 066 changequote  - compute a quoted string: input !__
 changequote(`[', `]')dnl
 define([a], [1, (b)])dnl
 define([b], [2])dnl
@@ -872,10 +873,10 @@ define([_expand],
   [changequote([(], [)])$1changequote`'changequote(`[', `]')])dnl
 expand([a, a, [a, a], [[a, a]]])
 quote(a, a, [a, a], [[a, a]])
-__! 064 changequote  - compute a quoted string: output !__
+__! 066 changequote  - compute a quoted string: output !__
 1, (2), 1, (2), a, a, [a, a]
 1,(2),1,(2),a, a,[a, a]
-__! 064 changequote  - when end-string is a prefix of start-string: input !__
+__! 067 changequote  - when end-string is a prefix of start-string: input !__
 define(`hi', `HI')
 changequote(`""', `"')
 ""hi"""hi"
@@ -885,7 +886,7 @@ changequote
 `hi`hi'hi'
 changequote(`"', `"')
 "hi"hi"hi"
-__! 064 changequote  - when end-string is a prefix of start-string: output !__
+__! 067 changequote  - when end-string is a prefix of start-string: output !__
 
 
 hihi
@@ -895,36 +896,36 @@ hi" "HI"
 hi`hi'hi
 
 hiHIhi
-__! 065 changequote  - EOF within a quoted string: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
+__! 068 changequote  - EOF within a quoted string: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
 `hello world'
 `dangling quote
-__! 065 changequote  - EOF within a quoted string: output !__
+__! 068 changequote  - EOF within a quoted string: output !__
 hello world
-__! 066 changecom: input !__
+__! 069 changecom: input !__
 define(`comment', `COMMENT')
 # A normal comment
 changecom(`/*', `*/')
 # Not a comment anymore
 But: /* this is a comment now */ while this is not a comment
-__! 066 changecom: output !__
+__! 069 changecom: output !__
 
 # A normal comment
 
 # Not a COMMENT anymore
 But: /* this is a comment now */ while this is not a COMMENT
-__! 067 changecom without arguments: input !__
+__! 070 changecom without arguments: input !__
 define(`comment', `COMMENT')
 changecom
 # Not a comment anymore
 changecom(`#', `')
 # comment again
-__! 067 changecom without arguments: output !__
+__! 070 changecom without arguments: output !__
 
 
 # Not a COMMENT anymore
 
 # comment again
-__! 068 changecom - comments have precedence to macro: input !__
+__! 071 changecom - comments have precedence to macro: input !__
 define(`hi', `HI')
 define(`hi1hi2', `hello')
 changecom(`q', `Q')
@@ -932,7 +933,7 @@ q hi Q hi
 changecom(`1', `2')
 hi1hi2
 hi 1hi2
-__! 068 changecom - comments have precedence to macro: output !__
+__! 071 changecom - comments have precedence to macro: output !__
 
 
 
@@ -940,7 +941,7 @@ q hi Q HI
 
 hello
 HI 1hi2
-__! 069 changecom - comments have precedence to arguments collection: input !__
+__! 072 changecom - comments have precedence to arguments collection: input !__
 define(`echo', `$#:$*:$@:')
 define(`hi', `HI')
 changecom(`(',`)')
@@ -954,7 +955,7 @@ echo(hi,hi)bye)
 changecom
 echo(hi,`,`'hi',hi)
 echo(hi,`,`'hi',hi`'changecom(`,,', `hi'))
-__! 069 changecom - comments have precedence to arguments collection: output !__
+__! 072 changecom - comments have precedence to arguments collection: output !__
 
 
 
@@ -968,33 +969,33 @@ __! 069 changecom - comments have precedence to arguments collection: output !__
 
 3:HI,,HI,HI:HI,,`'hi,HI:
 3:HI,,`'hi,HI:HI,,`'hi,HI:
-__! 070 changecom  - EOF within a comment: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
+__! 073 changecom  - EOF within a comment: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
 changecom(`/*', `*/')
 /*dangling comment
-__! 070 changecom  - EOF within a comment: output !__
+__! 073 changecom  - EOF within a comment: output !__
 
-__! 071 changeword: input !__
+__! 074 changeword: input !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 changeword(`[_a-zA-Z0-9]+')
 define(`1', `0')1
-__! 071 changeword: output !__
+__! 074 changeword: output !__
 
 0
-__! 072 changeword - prevent accidentical call of builtin: input( {my ($self) = @_; $self->_policy_cmdtounix(1); $self }) !__
+__! 075 changeword - prevent accidentical call of builtin: input( {my ($self) = @_; $self->_policy_cmdtounix(1); $self }) !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`_indir', defn(`indir'))
 changeword(`_[_a-zA-Z0-9]*')
 esyscmd(`foo')
 _indir(`esyscmd', `echo hi')
-__! 072 changeword - prevent accidentical call of builtin: output !__
+__! 075 changeword - prevent accidentical call of builtin: output !__
 
 
 esyscmd(foo)
 hi
 
-__! 073 changeword - word-regexp is character per character: input !__
+__! 076 changeword - word-regexp is character per character: input !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`foo
@@ -1018,7 +1019,7 @@ changeword(`[cd][a-z]*|fo*[
 ]?')
 dnl Now we can call `foo\n'.
 foo
-__! 073 changeword - word-regexp is character per character: output !__
+__! 076 changeword - word-regexp is character per character: output !__
 
 0
 0
@@ -1028,20 +1029,67 @@ foo
 foo
 
 bar
-__! 074 changeword - change of symbol lookup: input !__
+__! 077 changeword - change of symbol lookup: input !__
 define(`foo', `bar')dnl
 define(`echo', `$*')dnl
 changecom(`/*', `*/')dnl Because comment have higher precedence to word
 changeword(`#([_a-zA-Z0-9]*)')#dnl
 #echo(`foo #foo')
-__! 074 changeword - change of symbol lookup: output !__
+__! 077 changeword - change of symbol lookup: output !__
 foo bar
-__! 075 changeword - Difference v.s. TeX: input !__
+__! 078 changeword - Difference v.s. TeX: input !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`a', `errprint(`Hello')')dnl
 changeword(`@([_a-zA-Z0-9]*)')
 @a
-__! 075 changeword - Difference v.s. TeX: output !__
+__! 078 changeword - Difference v.s. TeX: output !__
 
 errprint(Hello)
+__! 079 m4wrap: input !__
+define(`cleanup', `This is the `cleanup' action.
+')
+m4wrap(`cleanup')
+This is the first and last normal input line.
+__! 079 m4wrap: output !__
+
+
+This is the first and last normal input line.
+This is the cleanup action.
+__! 080 m4wrap - emulate FIFO behaviour: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+include(`wrapfifo.m4')
+m4wrap(`a`'m4wrap(`c
+', `d')')m4wrap(`b')
+__! 080 m4wrap - emulate FIFO behaviour: output !__
+
+
+abc
+__! 081 m4wrap - emulate LIFO behaviour: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+include(`wraplifo.m4')
+m4wrap(`a`'m4wrap(`c
+', `d')')m4wrap(`b')
+__! 081 m4wrap - emulate LIFO behaviour: output !__
+
+
+bac
+__! 081 m4wrap - factorial: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+define(`f', `ifelse(`$1', `0', `Answer: 0!=1
+', eval(`$1>1'), `0', `Answer: $2$1=eval(`$2$1')
+', `m4wrap(`f(decr(`$1'), `$2$1*')')')')
+f(`10')
+__! 081 m4wrap - factorial: output !__
+
+
+Answer: 10*9*8*7*6*5*4*3*2*1=3628800
+__! 082 m4wrap - concatenation and rescan: input !__
+define(`aa', `AA
+')
+m4wrap(`a')m4wrap(`a')
+__! 082 m4wrap - concatenation and rescan: output !__
+
+
+AA
+__! 083 m4wrap - transition between recursion levels: input !__
+m4wrap(`m4wrap(`)')len(abc')
+__! 083 m4wrap - transition between recursion levels: output !__
+
