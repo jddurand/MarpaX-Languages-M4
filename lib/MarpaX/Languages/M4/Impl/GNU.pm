@@ -747,7 +747,7 @@ EVAL_GRAMMAR
             my $lexemeValue;
             my $thisInput = substr( $input, $pos, 1 );
             while ( $lastPos <= $maxPos ) {
-                if ( $thisInput =~ /\G$word_regexp/s ) {
+                if ( $thisInput =~ /^$word_regexp/s ) {
                     my $thisLength = $+[0] - $-[0];
                     if ( $lexemeLength > 0 && $lexemeLength == $thisLength ) {
                         #
@@ -2230,11 +2230,11 @@ EVAL_GRAMMAR
 
         $string //= '';
 
-        if ( Str->check($replacement) ) {
+        if ( Undef->check($replacement) ) {
             #
             # Expands to the index of first match in string
             #
-            my $index = '';
+            my $index = -1;
             try {
                 if ( $string =~ /$regexp/ ) {
                     $index = $-[0];
