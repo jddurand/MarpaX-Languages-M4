@@ -994,3 +994,37 @@ __! 072 changeword - prevent accidentical call of builtin: output !__
 esyscmd(foo)
 hi
 
+__! 073 changeword - word-regexp is character per character: input !__
+ifdef(`changeword', `', `errprint(` skipping: no changeword support
+')m4exit(`77')')dnl
+define(`foo
+', `bar
+')
+dnl This example wants to recognize changeword, dnl, and `foo\n'.
+dnl First, we check that our regexp will match.
+regexp(`changeword', `[cd][a-z]*|foo[
+]')
+regexp(`foo
+', `[cd][a-z]*|foo[
+]')
+regexp(`f', `[cd][a-z]*|foo[
+]')
+foo
+changeword(`[cd][a-z]*|foo[
+]')
+dnl Even though `foo\n' matches, we forgot to allow `f'.
+foo
+changeword(`[cd][a-z]*|fo*[
+]?')
+dnl Now we can call `foo\n'.
+foo
+__! 073 changeword - word-regexp is character per character: output !__
+
+0
+0
+-1
+foo
+
+foo
+
+bar

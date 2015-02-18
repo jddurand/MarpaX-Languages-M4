@@ -45,7 +45,10 @@ class MarpaX::Languages::M4::Impl::GNU {
     use MarpaX::Languages::M4::Type::Token -all;
     use Marpa::R2;
     use MooX::HandlesVia;
-    use Throwable::Factory EncodeError => [qw/$message $error proposal/], EOFInQuotedString => undef, EOFInComment => undef;
+    use Throwable::Factory
+        EncodeError       => [qw/$message $error proposal/],
+        EOFInQuotedString => undef,
+        EOFInComment      => undef;
     use Types::Common::Numeric -all;
 
     BEGIN {
@@ -124,8 +127,7 @@ class MarpaX::Languages::M4::Impl::GNU {
     # Quotes are recognized in preference to argument collection.
     our $TOKENS_PRIORITY_DEFAULT_VALUE
         = [qw/COMMENT WORD QUOTEDSTRING CHARACTER/];
-    our $TOKENS_PRIORITY_TYPE
-        = ArrayRef [ M4Token ];
+    our $TOKENS_PRIORITY_TYPE = ArrayRef [M4Token];
 
     our $INTEGER_TYPE_TYPE = Enum [qw/native bitvector/];
     our $INTEGER_TYPE_DEFAULT_VALUE = 'bitvector';
@@ -395,6 +397,16 @@ EVAL_GRAMMAR
             q{Divertion type. Possible values: "memory" (all diversions are kept in memory), "temp" (all diversions are kept in temporary files). Default: "memory".}
     );
 
+    option policy_wordCharacterPerCharacter => (
+        is          => 'rw',
+        isa         => Bool,
+        default     => true,
+        trigger     => 1,
+        negativable => 1,
+        doc =>
+            q{Word-regexp policy. If true, a word is constructed character-per-character, i.e. the word-regexp is done iteratively: first on one character, then on two characters if previous one matched, and so on. If false, the regexp is applied on the full buffer at current position.}
+    );
+
     option policy_exit => (
         is          => 'rw',
         isa         => Bool,
@@ -562,69 +574,69 @@ EVAL_GRAMMAR
     );
 
     option quote_start => (
-        is          => 'rw',
-        isa         => Str,
-        default     => $DEFAULT_QUOTE_START,
-        trigger     => 1,
-        format      => 's',
+        is      => 'rw',
+        isa     => Str,
+        default => $DEFAULT_QUOTE_START,
+        trigger => 1,
+        format  => 's',
         doc =>
             "Quote start. An empty option value disables support of quoted string. Default: \"$DEFAULT_QUOTE_START\"."
     );
 
     option quote_end => (
-        is          => 'rw',
-        isa         => Str,
-        default     => $DEFAULT_QUOTE_END,
-        trigger     => 1,
-        format      => 's',
-        doc         => "Quote end. Default: \"$DEFAULT_QUOTE_END\"."
+        is      => 'rw',
+        isa     => Str,
+        default => $DEFAULT_QUOTE_END,
+        trigger => 1,
+        format  => 's',
+        doc     => "Quote end. Default: \"$DEFAULT_QUOTE_END\"."
     );
 
-    #
-    # We cache quote length to avoid unnecessary calls to length() in parser_isQuotedstring()
-    #
+#
+# We cache quote length to avoid unnecessary calls to length() in parser_isQuotedstring()
+#
     has _quoteStartLength => (
-                              is => 'rwp',
-                              isa => PositiveOrZeroInt,
-                              default => length($DEFAULT_QUOTE_START)
-                             );
+        is      => 'rwp',
+        isa     => PositiveOrZeroInt,
+        default => length($DEFAULT_QUOTE_START)
+    );
     has _quoteEndLength => (
-                              is => 'rwp',
-                              isa => PositiveOrZeroInt,
-                              default => length($DEFAULT_QUOTE_END)
-                             );
+        is      => 'rwp',
+        isa     => PositiveOrZeroInt,
+        default => length($DEFAULT_QUOTE_END)
+    );
 
     option com_start => (
-        is          => 'rw',
-        isa         => Str,
-        default     => $DEFAULT_COM_START,
-        trigger     => 1,
-        format      => 's',
-        doc         => "Comment start. Default: \"$DEFAULT_COM_START\"."
+        is      => 'rw',
+        isa     => Str,
+        default => $DEFAULT_COM_START,
+        trigger => 1,
+        format  => 's',
+        doc     => "Comment start. Default: \"$DEFAULT_COM_START\"."
     );
 
     option com_end => (
-        is          => 'rw',
-        isa         => Str,
-        default     => $DEFAULT_COM_END,
-        trigger     => 1,
-        format      => 's',
-        doc         => "Comment end. Default: the newline character."
+        is      => 'rw',
+        isa     => Str,
+        default => $DEFAULT_COM_END,
+        trigger => 1,
+        format  => 's',
+        doc     => "Comment end. Default: the newline character."
     );
 
     #
     # Ditto for comment
     #
     has _comStartLength => (
-                              is => 'rwp',
-                              isa => PositiveOrZeroInt,
-                              default => length($DEFAULT_COM_START)
-                             );
+        is      => 'rwp',
+        isa     => PositiveOrZeroInt,
+        default => length($DEFAULT_COM_START)
+    );
     has _comEndLength => (
-                              is => 'rwp',
-                              isa => PositiveOrZeroInt,
-                              default => length($DEFAULT_COM_END)
-                             );
+        is      => 'rwp',
+        isa     => PositiveOrZeroInt,
+        default => length($DEFAULT_COM_END)
+    );
 
     option word_regexp => (
         is      => 'rw',
@@ -644,6 +656,12 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
     # POLICY MAPPED ATTRIBUTES
     # ---------------------------------------------------------------
+    has _wordCharacterPerCharacter => (
+        is      => 'rw',
+        isa     => Bool,
+        default => true,
+    );
+
     has _policy_tokens_priority => (
         is          => 'rw',
         isa         => $TOKENS_PRIORITY_TYPE,
@@ -723,95 +741,145 @@ EVAL_GRAMMAR
     method parser_isWord (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         my $word_regexp = $self->_word_regexp;
         pos($input) = $pos;
-        if ( $input =~ /\G$word_regexp/s ) {
-            ${$lexemeLengthRef} = $+[0] - $-[0];
-            if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
-                ${$lexemeValueRef} = substr( $input, $-[1], $+[1] - $-[1] );
+        if ( $self->_wordCharacterPerCharacter ) {
+            my $lastPos      = $pos + 1;
+            my $lexemeLength = 0;
+            my $lexemeValue;
+            my $thisInput = substr( $input, $pos, 1 );
+            while ( $lastPos <= $maxPos ) {
+                if ( $thisInput =~ /\G$word_regexp/s ) {
+                    my $thisLength = $+[0] - $-[0];
+                    if ( $lexemeLength > 0 && $lexemeLength == $thisLength ) {
+                        #
+                        # We went one character too far
+                        #
+                        last;
+                    }
+                    $lexemeLength = $thisLength;
+                    #
+                    # Take care: Undef->check() is likely to modify %-
+                    #
+                    my ( $beg, $end ) = ( $-[1], $+[1] );
+                    if ( !Undef->check($beg) && $end > $beg ) {
+                        $lexemeValue
+                            = substr( $thisInput, $beg, $end - $beg );
+                    }
+                    else {
+                        $lexemeValue
+                            = substr( $thisInput, $-[0], $lexemeLength );
+                    }
+                    $thisInput .= substr( $input, $lastPos++, 1 );
+                }
+                else {
+                    last;
+                }
             }
-            else {
-                ${$lexemeValueRef}
-                    = substr( $input, $-[0], ${$lexemeLengthRef} );
+            if ( $lexemeLength > 0 ) {
+                ${$lexemeLengthRef} = $lexemeLength;
+                ${$lexemeValueRef}  = $lexemeValue;
+                return true;
             }
-            return true;
+        }
+        else {
+            if ( $input =~ /\G$word_regexp/s ) {
+                ${$lexemeLengthRef} = $+[0] - $-[0];
+                if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
+                    ${$lexemeValueRef}
+                        = substr( $input, $-[1], $+[1] - $-[1] );
+                }
+                else {
+                    ${$lexemeValueRef}
+                        = substr( $input, $-[0], ${$lexemeLengthRef} );
+                }
+                return true;
+            }
         }
         return false;
     }
 
     method parser_isComment (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
-      #
-      # We want to catch EOF in comment. So we do it ourself.
-      #
-      my $comStart = $self->com_start;
-      my $comEnd = $self->com_end;
-      my $comStartLength = $self->_comStartLength;
-      my $comEndLength = $self->_comEndLength;
-      if ($comStartLength > 0 && $comEndLength > 0) {
-        if (index($input, $comStart, $pos) == $pos) {
-          my $lastPos = $pos + $comStartLength;
-          while ($lastPos <= $maxPos) {
-            if (index($input, $comEnd, $lastPos) == $lastPos) {
-              $lastPos += $comEndLength;
-              ${$lexemeLengthRef} = $lastPos - $pos;
-              ${$lexemeValueRef}  = substr( $input, $pos, ${$lexemeLengthRef} );
-              return true;
-            } else {
-              ++$lastPos;
+            #
+            # We want to catch EOF in comment. So we do it ourself.
+            #
+        my $comStart       = $self->com_start;
+        my $comEnd         = $self->com_end;
+        my $comStartLength = $self->_comStartLength;
+        my $comEndLength   = $self->_comEndLength;
+        if ( $comStartLength > 0 && $comEndLength > 0 ) {
+
+            if ( index( $input, $comStart, $pos ) == $pos ) {
+                my $lastPos = $pos + $comStartLength;
+                while ( $lastPos <= $maxPos ) {
+                    if ( index( $input, $comEnd, $lastPos ) == $lastPos ) {
+                        $lastPos += $comEndLength;
+                        ${$lexemeLengthRef} = $lastPos - $pos;
+                        ${$lexemeValueRef}
+                            = substr( $input, $pos, ${$lexemeLengthRef} );
+                        return true;
+                    }
+                    else {
+                        ++$lastPos;
+                    }
+                }
+                #
+                # If we are here, it is an error if eof is flagged
+                #
+                if ( $self->_eof ) {
+                    $self->logger_error('EOF in comment');
+                    EOFInComment->throw('EOF in comment');
+                }
             }
-          }
-          #
-          # If we are here, it is an error if eof is flagged
-          #
-          if ($self->_eof) {
-            $self->logger_error(
-                                'EOF in comment');
-            EOFInComment->throw('EOF in comment');
-          }
         }
-      }
-      return false;
+        return false;
     }
 
     method parser_isQuotedstring (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
-      #
-      # We cannot rely on a balanced regexp a-la-Regexp::Common
-      # because if end-string is a prefix of start-string, it has precedence
-      #
-      my $quoteStart = $self->quote_start;
-      my $quoteEnd = $self->quote_end;
-      my $quoteStartLength = $self->_quoteStartLength;
-      my $quoteEndLength = $self->_quoteEndLength;
-      if ($quoteStartLength > 0 && $quoteEndLength > 0) {
-        if (index($input, $quoteStart, $pos) == $pos) {
-          my $nested = 0;
-          my $lastPos = $pos + $quoteStartLength;
-          while ($lastPos <= $maxPos) {
-            if (index($input, $quoteEnd, $lastPos) == $lastPos) {
-              $lastPos += $quoteEndLength;
-              if ($nested == 0) {
-                ${$lexemeLengthRef} = $lastPos - $pos;
-                ${$lexemeValueRef}  = $self->impl_unquote(substr( $input, $pos, ${$lexemeLengthRef} ) );
-                return true;
-              } else {
-                $nested--;
-              }
-            } elsif (index($input, $quoteStart, $lastPos) == $lastPos) {
-              $lastPos += $quoteStartLength;
-              $nested++;
-            } else {
-              ++$lastPos;
+            #
+            # We cannot rely on a balanced regexp a-la-Regexp::Common
+         # because if end-string is a prefix of start-string, it has precedence
+         #
+        my $quoteStart       = $self->quote_start;
+        my $quoteEnd         = $self->quote_end;
+        my $quoteStartLength = $self->_quoteStartLength;
+        my $quoteEndLength   = $self->_quoteEndLength;
+        if ( $quoteStartLength > 0 && $quoteEndLength > 0 ) {
+
+            if ( index( $input, $quoteStart, $pos ) == $pos ) {
+                my $nested  = 0;
+                my $lastPos = $pos + $quoteStartLength;
+                while ( $lastPos <= $maxPos ) {
+                    if ( index( $input, $quoteEnd, $lastPos ) == $lastPos ) {
+                        $lastPos += $quoteEndLength;
+                        if ( $nested == 0 ) {
+                            ${$lexemeLengthRef} = $lastPos - $pos;
+                            ${$lexemeValueRef}  = $self->impl_unquote(
+                                substr( $input, $pos, ${$lexemeLengthRef} ) );
+                            return true;
+                        }
+                        else {
+                            $nested--;
+                        }
+                    }
+                    elsif (
+                        index( $input, $quoteStart, $lastPos ) == $lastPos )
+                    {
+                        $lastPos += $quoteStartLength;
+                        $nested++;
+                    }
+                    else {
+                        ++$lastPos;
+                    }
+                }
+                #
+                # If we are here, it is an error if eof is flagged
+                #
+                if ( $self->_eof ) {
+                    $self->logger_error('EOF in string');
+                    EOFInQuotedString->throw('EOF in string');
+                }
             }
-          }
-          #
-          # If we are here, it is an error if eof is flagged
-          #
-          if ($self->_eof) {
-            $self->logger_error(
-                                'EOF in string');
-            EOFInQuotedString->throw('EOF in string');
-          }
         }
-      }
-      return false;
+        return false;
     }
 
     method parser_isCharacter (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
@@ -1048,6 +1116,11 @@ EVAL_GRAMMAR
     # ----------------------------------------------------
     # Triggers
     # ----------------------------------------------------
+    method _trigger_policy_wordCharacterPerCharacter (Bool $policy_wordCharacterPerCharacter --> Undef) {
+        $self->_set__wordCharacterPerCharacter(
+            $policy_wordCharacterPerCharacter);
+    }
+
     method _trigger_policy_tokens_priority (ArrayRef[Str] $policy_tokens_priority --> Undef) {
         my %tokens_priority = ();
         my $currentMaxIndex = $#{$policy_tokens_priority};
@@ -1144,9 +1217,11 @@ EVAL_GRAMMAR
     method _trigger_word_regexp (Str $regexp, @rest --> Undef) {
         try {
             $self->_word_regexp(qr/$regexp/);
-        } catch {
-          $self->logger_error( '%s: %s', $self->impl_quote('changeword'), $_);
-          return;
+        }
+        catch {
+            $self->logger_error( '%s: %s', $self->impl_quote('changeword'),
+                $_ );
+            return;
         };
 
         return;
@@ -1227,22 +1302,22 @@ EVAL_GRAMMAR
     }
 
     method _trigger_com_start (Str $com_start, @args --> Undef) {
-        $self->_set__comStartLength(length($com_start));
+        $self->_set__comStartLength( length($com_start) );
         return;
     }
 
     method _trigger_com_end (Str $com_end, @args --> Undef) {
-        $self->_set__comEndLength(length($com_end));
+        $self->_set__comEndLength( length($com_end) );
         return;
     }
 
     method _trigger_quote_start (Str $quote_start, @args --> Undef) {
-        $self->_set__quoteStartLength(length($quote_start));
+        $self->_set__quoteStartLength( length($quote_start) );
         return;
     }
 
     method _trigger_quote_end (Str $quote_end, @args --> Undef) {
-        $self->_set__quoteEndLength(length($quote_end));
+        $self->_set__quoteEndLength( length($quote_end) );
         return;
     }
 
@@ -2664,14 +2739,14 @@ STUB
 
     method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
         try {
-          $self->_set__pos( $self->parser_parse($input) );
+            $self->_set__pos( $self->parser_parse($input) );
         };
         return $self;
     }
 
     method impl_parseBuffers (Str @input --> ConsumerOf[M4Impl]) {
         foreach (@input) {
-            $self->impl_parseIncremental ($_);
+            $self->impl_parseIncremental($_);
         }
         $self->impl_eoi;
         return $self;
