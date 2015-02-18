@@ -973,3 +973,24 @@ changecom(`/*', `*/')
 /*dangling comment
 __! 070 changecom  - EOF within a comment: output !__
 
+__! 071 changeword: input !__
+ifdef(`changeword', `', `errprint(` skipping: no changeword support
+')m4exit(`77')')dnl
+changeword(`[_a-zA-Z0-9]+')
+define(`1', `0')1
+__! 071 changeword: output !__
+
+0
+__! 072 changeword - prevent accidentical call of builtin: input !__
+ifdef(`changeword', `', `errprint(` skipping: no changeword support
+')m4exit(`77')')dnl
+define(`_indir', defn(`indir'))
+changeword(`_[_a-zA-Z0-9]*')
+esyscmd(`foo')
+_indir(`esyscmd', `echo hi')
+__! 072 changeword - prevent accidentical call of builtin: output !__
+
+
+esyscmd(foo)
+hi
+

@@ -1142,7 +1142,13 @@ EVAL_GRAMMAR
     }
 
     method _trigger_word_regexp (Str $regexp, @rest --> Undef) {
-        $self->_word_regexp(qr/$regexp/);
+        try {
+            $self->_word_regexp(qr/$regexp/);
+        } catch {
+          $self->logger_error( '%s: %s', $self->impl_quote('changeword'), $_);
+          return;
+        };
+
         return;
     }
 
@@ -1800,13 +1806,8 @@ EVAL_GRAMMAR
         }
         $self->_checkIgnored( 'changeword', @ignored );
 
-        try {
-            $self->word_regexp( $string || $DEFAULT_WORD_REGEXP );
-        }
-        catch {
-            $self->logger_error( 'changeword: %s', $_ );
-            return;
-        }
+        $self->word_regexp( $string || $DEFAULT_WORD_REGEXP );
+
         return '';
     }
 
