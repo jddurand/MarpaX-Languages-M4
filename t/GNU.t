@@ -49,7 +49,7 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $got = $gnu->impl_parseBuffers($input)->impl_value;
   my $expected = ${$outputRef};
 
-  $testName =~ s/\d+//;
+  $testName =~ s/\d+\s*//;
   cmp_ok($got, 'eq', $expected, $testName);
 }
 done_testing();
