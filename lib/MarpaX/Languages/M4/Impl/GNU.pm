@@ -757,15 +757,15 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
 
     method parser_isWord (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
-        my $word_regexp = $self->_word_regexp;
         pos($input) = $pos;
         if ( $self->_wordCharacterPerCharacter ) {
-            my $lastPos      = $pos;
-            my $lexemeLength = 0;
+            my $word_regexpIncremental = $self->_word_regexpIncremental;
+            my $lastPos                = $pos;
+            my $lexemeLength           = 0;
             my $lexemeValue;
             my $thisInput = substr( $input, $pos, 1 );
             while ( $lastPos <= $maxPos ) {
-                if ( $thisInput =~ /^$word_regexp/s ) {
+                if ( $thisInput =~ $word_regexpIncremental ) {
                     my $thisLength = $+[0] - $-[0];
                     if ( $lexemeLength > 0 && $lexemeLength == $thisLength ) {
                         #
@@ -803,7 +803,7 @@ EVAL_GRAMMAR
             }
         }
         else {
-            if ( $input =~ /\G$word_regexp/s ) {
+            if ( $input =~ $self->_word_regexpGlobal ) {
                 ${$lexemeLengthRef} = $+[0] - $-[0];
                 if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
                     ${$lexemeValueRef}
@@ -940,7 +940,7 @@ EVAL_GRAMMAR
                 ) ? ''
                 : ( $lparenPos <= $maxPos ) ? substr( $input, $lparenPos, 1 )
                 :                             '';
-            if ( !$macro->macro_needParams || $lparen eq '(' ) {
+            if ( $lparen eq '(' || !$macro->macro_needParams ) {
                 ${$macroRef} = $macro;
                 ${$lparenPosRef} = ( $lparen eq '(' ) ? $lparenPos : -1;
                 return true;
@@ -1268,7 +1268,8 @@ EVAL_GRAMMAR
 
     method _trigger_word_regexp (Str $regexp, @rest --> Undef) {
         try {
-            $self->_word_regexp(qr/$regexp/);
+            $self->_word_regexpGlobal(qr/\G$regexp/s);
+            $self->_word_regexpIncremental(qr/^$regexp/s);
         }
         catch {
             $self->logger_error( '%s: %s', $self->impl_quote('changeword'),
@@ -1427,10 +1428,16 @@ EVAL_GRAMMAR
         }
     );
 
-    has _word_regexp => (
+    has _word_regexpGlobal => (
         is      => 'rw',
         isa     => RegexpRef,
-        default => sub {qr/$DEFAULT_WORD_REGEXP/}
+        default => sub {qr/\G$DEFAULT_WORD_REGEXP/}
+    );
+
+    has _word_regexpIncremental => (
+        is      => 'rw',
+        isa     => RegexpRef,
+        default => sub {qr/^$DEFAULT_WORD_REGEXP/}
     );
 
     has _com_regexp => (
