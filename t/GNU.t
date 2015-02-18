@@ -1028,3 +1028,11 @@ foo
 foo
 
 bar
+__! 074 changeword - change of symbol lookup: input !__
+define(`foo', `bar')dnl
+define(`echo', `$*')dnl
+changecom(`/*', `*/')dnl Because comment have higher precedence to word
+changeword(`#([_a-zA-Z0-9]*)')#dnl
+#echo(`foo #foo')
+__! 074 changeword - change of symbol lookup: output !__
+foo bar

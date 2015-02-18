@@ -346,10 +346,10 @@ EVAL_GRAMMAR
     # the option as such, and add the negativable extra-option.
     # ---------------------------------------------------------------
     option policy_cmdtounix => (
-        is          => 'rw',
-        isa         => Bool,
-        default     => false,
-        trigger     => 1,
+        is      => 'rw',
+        isa     => Bool,
+        default => false,
+        trigger => 1,
         doc =>
             q{Convert any command output from platform's native end-of-line character set to Unix style (LF). Default to a false value.}
     );
@@ -668,10 +668,10 @@ EVAL_GRAMMAR
     # POLICY MAPPED ATTRIBUTES
     # ---------------------------------------------------------------
     has _policy_cmdtounix => (
-                              is => 'rw',
-                              isa => Bool,
-                              default => false,
-                              );
+        is      => 'rw',
+        isa     => Bool,
+        default => false,
+    );
 
     has _wordCharacterPerCharacter => (
         is      => 'rw',
@@ -778,7 +778,11 @@ EVAL_GRAMMAR
                     # Take care: Undef->check() is likely to modify %-
                     #
                     my ( $beg, $end ) = ( $-[1], $+[1] );
-                    if ( !Undef->check($beg) && $end > $beg ) {
+                    #
+                    # It is perfectly legal to have an empty string
+                    # as word "value"
+                    #
+                    if ( !Undef->check($beg) && !Undef->check($end) ) {
                         $lexemeValue
                             = substr( $thisInput, $beg, $end - $beg );
                     }
@@ -1185,7 +1189,7 @@ EVAL_GRAMMAR
         return;
     }
 
-    method _trigger_policy_cmdtounix(Bool $policy_cmdtounix --> Undef) {
+    method _trigger_policy_cmdtounix (Bool $policy_cmdtounix --> Undef) {
         $self->_policy_cmdtounix($policy_cmdtounix);
         return;
     }
@@ -2587,7 +2591,7 @@ EVAL_GRAMMAR
         return $rc;
     }
 
-    method _syscmd(Str $macroName, Bool $divert, Undef|Str $command?, Str @ignored --> Str) {
+    method _syscmd (Str $macroName, Bool $divert, Undef|Str $command?, Str @ignored --> Str) {
         if ( Undef->check($command) ) {
             $self->logger_error(
                 'too few arguments to builtin %s',
@@ -2599,62 +2603,88 @@ EVAL_GRAMMAR
 
         $command //= '';
         if ( length($command) > 0 ) {
-          if (IPC::Cmd->can_capture_buffer) {
-            my $exitCode;
-            my $stderr;
-            my $stdout;
-            my $executed = false;
-            if (IPC::Cmd->can_use_run_forked) {
-              my $hashref = run_forked($command);
-              if ( HashRef->check($hashref) ) {
-                $exitCode = $hashref->{exit_code} // 0;
-                $stderr = $hashref->{stderr} // '';
-                $stdout = $hashref->{stdout} // '';
-                $executed = true;
-              } else {
-                $self->logger_error( '%s: %s', $self->impl_quote($macroName), 'Internal error. IPC::Cmd::run_forked did not return a hash reference');
-              }
-            } elsif (IPC::Cmd->can_use_ipc_run || IPC::Cmd->can_use_ipc_open3) {
-              my ($ok, $err, undef, $stdout_buff, $stderr_buff) = run( command => $command);
-              $exitCode = $ok ? EXIT_SUCCESS : EXIT_FAILURE;
-              $stdout = Undef->check($stdout_buff) ? '' :
-                ArrayRef->check($stdout_buff) ? join('', @{$stdout_buff}) : '';
-              $stderr = Undef->check($stderr_buff) ? '' :
-                ArrayRef->check($stderr_buff) ? join('', @{$stderr_buff}) : '';
-              $executed = true;
-            } else {
-              $self->logger_error( '%s: %s', $self->impl_quote($macroName), 'Current configuration cannot execute IPC::Run nor IPC::Open3 despite it claims to be able to capture buffers');
-            }
-            if ($executed) {
-              $self->_lastSysExitCode( $exitCode );
-              if ($self->_policy_cmdtounix) {
-                $stderr =~ s/\R/\n/g;
-                $stdout =~ s/\R/\n/g;
-              }
-              if (length($stderr) > 0) {
-                $self->logger_error( '%s', $stderr );
-              }
-              if ($divert) {
-                $self->_diversions_get(-1)->print( $stdout );
-                return '';
-              } else {
-                return $stdout;
+            if ( IPC::Cmd->can_capture_buffer ) {
+                my $exitCode;
+                my $stderr;
+                my $stdout;
+                my $executed = false;
+                if ( IPC::Cmd->can_use_run_forked ) {
+                    my $hashref = run_forked($command);
+                    if ( HashRef->check($hashref) ) {
+                        $exitCode = $hashref->{exit_code} // 0;
+                        $stderr   = $hashref->{stderr}    // '';
+                        $stdout   = $hashref->{stdout}    // '';
+                        $executed = true;
+                    }
+                    else {
+                        $self->logger_error(
+                            '%s: %s',
+                            $self->impl_quote($macroName),
+                            'Internal error. IPC::Cmd::run_forked did not return a hash reference'
+                        );
+                    }
+                }
+                elsif (IPC::Cmd->can_use_ipc_run
+                    || IPC::Cmd->can_use_ipc_open3 )
+                {
+                    my ( $ok, $err, undef, $stdout_buff, $stderr_buff )
+                        = run( command => $command );
+                    $exitCode = $ok ? EXIT_SUCCESS : EXIT_FAILURE;
+                    $stdout
+                        = Undef->check($stdout_buff) ? ''
+                        : ArrayRef->check($stdout_buff)
+                        ? join( '', @{$stdout_buff} )
+                        : '';
+                    $stderr
+                        = Undef->check($stderr_buff) ? ''
+                        : ArrayRef->check($stderr_buff)
+                        ? join( '', @{$stderr_buff} )
+                        : '';
+                    $executed = true;
+                }
+                else {
+                    $self->logger_error(
+                        '%s: %s',
+                        $self->impl_quote($macroName),
+                        'Current configuration cannot execute IPC::Run nor IPC::Open3 despite it claims to be able to capture buffers'
+                    );
+                }
+                if ($executed) {
+                    $self->_lastSysExitCode($exitCode);
+                    if ( $self->_policy_cmdtounix ) {
+                        $stderr =~ s/\R/\n/g;
+                        $stdout =~ s/\R/\n/g;
+                    }
+                    if ( length($stderr) > 0 ) {
+                        $self->logger_error( '%s', $stderr );
+                    }
+                    if ($divert) {
+                        $self->_diversions_get(-1)->print($stdout);
+                        return '';
+                    }
+                    else {
+                        return $stdout;
+                    }
                 }
             }
-          } else {
-            $self->logger_error( '%s: %s', $self->impl_quote($macroName), 'Current configuration cannot capture buffers');
-          }
+            else {
+                $self->logger_error(
+                    '%s: %s',
+                    $self->impl_quote($macroName),
+                    'Current configuration cannot capture buffers'
+                );
+            }
         }
 
         return '';
     }
 
     method builtin_syscmd (Undef|Str $command?, Str @ignored --> Str) {
-      return $self->_syscmd('syscmd', true, $command, @ignored);
+        return $self->_syscmd( 'syscmd', true, $command, @ignored );
     }
 
     method builtin_esyscmd (Undef|Str $command?, Str @ignored --> Str) {
-      return $self->_syscmd('esyscmd', false, $command, @ignored);
+        return $self->_syscmd( 'esyscmd', false, $command, @ignored );
     }
 
     method builtin_sysval (Str @ignored --> Str) {
