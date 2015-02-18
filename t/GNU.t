@@ -981,7 +981,7 @@ define(`1', `0')1
 __! 071 changeword: output !__
 
 0
-__! 072 changeword - prevent accidentical call of builtin: input !__
+__! 072 changeword - prevent accidentical call of builtin: input( {my ($self) = @_; $self->_policy_cmdtounix(1); $self }) !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`_indir', defn(`indir'))

@@ -45,6 +45,7 @@ class MarpaX::Languages::M4::Impl::GNU {
     use MarpaX::Languages::M4::Type::Token -all;
     use Marpa::R2;
     use MooX::HandlesVia;
+    use POSIX qw/EXIT_FAILURE EXIT_SUCCESS/;
     use Throwable::Factory
         EncodeError       => [qw/$message $error proposal/],
         EOFInQuotedString => undef,
@@ -344,6 +345,14 @@ EVAL_GRAMMAR
     # The only exception is when the option is a boolean: we type
     # the option as such, and add the negativable extra-option.
     # ---------------------------------------------------------------
+    option policy_cmdtounix => (
+        is          => 'rw',
+        isa         => Bool,
+        default     => false,
+        trigger     => 1,
+        doc =>
+            q{Convert any command output from platform's native end-of-line character set to Unix style (LF). Default to a false value.}
+    );
     option policy_tokens_priority => (
         is          => 'rw',
         isa         => ArrayRef [Str],
@@ -658,6 +667,12 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
     # POLICY MAPPED ATTRIBUTES
     # ---------------------------------------------------------------
+    has _policy_cmdtounix => (
+                              is => 'rw',
+                              isa => Bool,
+                              default => false,
+                              );
+
     has _wordCharacterPerCharacter => (
         is      => 'rw',
         isa     => Bool,
@@ -1167,6 +1182,11 @@ EVAL_GRAMMAR
                     keys %tokens_priority
             ]
         );
+        return;
+    }
+
+    method _trigger_policy_cmdtounix(Bool $policy_cmdtounix --> Undef) {
+        $self->_policy_cmdtounix($policy_cmdtounix);
         return;
     }
 
@@ -2567,54 +2587,74 @@ EVAL_GRAMMAR
         return $rc;
     }
 
-    method builtin_syscmd (Undef|Str $command?, Str @ignored --> Str) {
+    method _syscmd(Str $macroName, Bool $divert, Undef|Str $command?, Str @ignored --> Str) {
         if ( Undef->check($command) ) {
             $self->logger_error(
                 'too few arguments to builtin %s',
-                $self->impl_quote('syscmd')
+                $self->impl_quote($macroName)
             );
             return '';
         }
-        $self->_checkIgnored( 'syscmd', @ignored );
+        $self->_checkIgnored( $macroName, @ignored );
 
         $command //= '';
         if ( length($command) > 0 ) {
-            my $hashref = run_forked($command);
-            if ( HashRef->check($hashref) ) {
-                $self->_lastSysExitCode( $hashref->{exit_code} // 0 );
-                $self->_diversions_get(-1)->print( $hashref->{stdout} // '' );
-                if ( !Undef->check( $hashref->{stderr} ) ) {
-                    $self->logger_error( '%s', $hashref->{stderr} );
+          if (IPC::Cmd->can_capture_buffer) {
+            my $exitCode;
+            my $stderr;
+            my $stdout;
+            my $executed = false;
+            if (IPC::Cmd->can_use_run_forked) {
+              my $hashref = run_forked($command);
+              if ( HashRef->check($hashref) ) {
+                $exitCode = $hashref->{exit_code} // 0;
+                $stderr = $hashref->{stderr} // '';
+                $stdout = $hashref->{stdout} // '';
+                $executed = true;
+              } else {
+                $self->logger_error( '%s: %s', $self->impl_quote($macroName), 'Internal error. IPC::Cmd::run_forked did not return a hash reference');
+              }
+            } elsif (IPC::Cmd->can_use_ipc_run || IPC::Cmd->can_use_ipc_open3) {
+              my ($ok, $err, undef, $stdout_buff, $stderr_buff) = run( command => $command);
+              $exitCode = $ok ? EXIT_SUCCESS : EXIT_FAILURE;
+              $stdout = Undef->check($stdout_buff) ? '' :
+                ArrayRef->check($stdout_buff) ? join('', @{$stdout_buff}) : '';
+              $stderr = Undef->check($stderr_buff) ? '' :
+                ArrayRef->check($stderr_buff) ? join('', @{$stderr_buff}) : '';
+              $executed = true;
+            } else {
+              $self->logger_error( '%s: %s', $self->impl_quote($macroName), 'Current configuration cannot execute IPC::Run nor IPC::Open3 despite it claims to be able to capture buffers');
+            }
+            if ($executed) {
+              $self->_lastSysExitCode( $exitCode );
+              if ($self->_policy_cmdtounix) {
+                $stderr =~ s/\R/\n/g;
+                $stdout =~ s/\R/\n/g;
+              }
+              if (length($stderr) > 0) {
+                $self->logger_error( '%s', $stderr );
+              }
+              if ($divert) {
+                $self->_diversions_get(-1)->print( $stdout );
+                return '';
+              } else {
+                return $stdout;
                 }
             }
+          } else {
+            $self->logger_error( '%s: %s', $self->impl_quote($macroName), 'Current configuration cannot capture buffers');
+          }
         }
 
         return '';
     }
 
+    method builtin_syscmd (Undef|Str $command?, Str @ignored --> Str) {
+      return $self->_syscmd('syscmd', true, $command, @ignored);
+    }
+
     method builtin_esyscmd (Undef|Str $command?, Str @ignored --> Str) {
-        if ( Undef->check($command) ) {
-            $self->logger_error(
-                'too few arguments to builtin %s',
-                $self->impl_quote('esyscmd')
-            );
-            return '';
-        }
-        $self->_checkIgnored( 'esyscmd', @ignored );
-
-        $command //= '';
-        if ( length($command) > 0 ) {
-            my $hashref = run_forked($command);
-            if ( HashRef->check($hashref) ) {
-                $self->_lastSysExitCode( $hashref->{exit_code} // 0 );
-                if ( !Undef->check( $hashref->{stderr} ) ) {
-                    $self->logger_error( '%s', $hashref->{stderr} );
-                }
-                return $hashref->{stdout} // '';
-            }
-        }
-
-        return '';
+      return $self->_syscmd('esyscmd', false, $command, @ignored);
     }
 
     method builtin_sysval (Str @ignored --> Str) {
