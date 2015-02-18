@@ -192,10 +192,10 @@ COMMA ~ ',' _WS_any
         return $self->_parseByTokens( \$work );
     }
 
-#
-# When grammar is by token, this is returning a ConsumerOf['MarpaX::Languages::M4::Role::Value by default']
-# when grammar is by arguments, this is returning an ArrayRef[ConsumerOf['MarpaX::Languages::M4::Role::Value']] by default
-#
+ #
+ # By token => ConsumerOf['MarpaX::Languages::M4::Role::Value by default']
+ # By arguments =>  ArrayRef[ConsumerOf['MarpaX::Languages::M4::Role::Value']]
+ #
     method _parseByGrammar (Ref['SCALAR'] $inputRef, PositiveOrZeroInt $pos, InstanceOf['Marpa::R2::Scanless::G'] $g, Undef|M4Macro $macro? --> Undef|Dict[pos => PositiveOrZeroInt, value => ConsumerOf['MarpaX::Languages::M4::Role::Value']]) {
 
         my $maxPos = length( ${$inputRef} ) - 1;
@@ -210,8 +210,8 @@ COMMA ~ ',' _WS_any
         #
         my @lexemeNames = $self->parser_tokensPriority();
         #
-        # In the context of a macroArguments, unquoted parenthesis have higher priorities
-        # over everything, except quoted string
+        # In the context of a macroArguments, unquoted parenthesis
+        # have higher priorities over everything, except quoted string
         #
         if ( $g == $BYMACROARGUMENTS_G ) {
             unshift( @lexemeNames, 'NOPARAM', 'LPAREN', 'RPAREN', 'COMMA' );
@@ -237,37 +237,39 @@ COMMA ~ ',' _WS_any
         # $prevPos is used only for logging
         #
         my $prevPos = $rc{pos} = $pos;
-#
-# The stream itself is of no importance. We use Marpa to drive the context, nothing more.
-# But is it NOT a hasard that I use the constant '(': when doing a recursive call using
-# the macroByarguments grammar, Marpa will expect this character at the first read, EVEN
-# if we paused before it.
-#
+        #
+        # The stream itself is of no importance.
+        # We use Marpa to drive the context, nothing more.
+        # But is it NOT a hasard that I use the constant '(':
+        # when doing a recursive call using
+        # the macroByarguments grammar, Marpa will expect this
+        # character at the first read, EVEN
+        # if we paused before it.
+        #
         $r->read( \'(' );
 
     again:
         while ( $rc{pos} <= $maxPos ) {
 
-# $self->logger_debug('[%d..%d/%d] 20 first characters: %s', $rc{pos}, $rc{pos}, $maxPos, substr(${$inputRef}, $rc{pos}, 20));
-#
-# We can be paused for the following reasons:
-# ^token generic event, or our end event.
-# I.e. it is enough to check if the pause reason is '^token'.
-# Because of the nature of the grammar, if the length of input is > 0,
-# it is always guaranteed that at least one character will be read: the CHARACTER token.
-# This mean that is it not possible to have our end event at position 0 for a non-empty
-# string.
-#
+            # $self->logger_debug( '[%d..%d/%d] 20 first characters: %s',
+            #     $rc{pos}, $rc{pos}, $maxPos,
+            #     substr( ${$inputRef}, $rc{pos}, 20 ) );
+
             my %events   = map { $_->[0] => 1 } @{ $r->events };
             my %expected = map { $_      => 1 } @{ $r->terminals_expected };
 
-# $self->logger_debug('[%d..%d/%d] Events: %s, Expected terminals: %s', $rc{pos}, $rc{pos}, $maxPos, [ keys %events ], [ keys %expected ]);
-#
-# At the very very first character, the event will be only ^token
-#
+            # $self->logger_debug(
+            #    '[%d..%d/%d] Events: %s, Expected terminals: %s',
+            #    $rc{pos}, $rc{pos}, $maxPos,
+            #    [ keys %events ],
+            #    [ keys %expected ]
+            # );
+
             if ( $r->exhausted ) {
 
-# $self->logger_debug('[%d..%d/%d] Parse is exhausted', $rc{pos}, $rc{pos}, $maxPos);
+                # $self->logger_debug( '[%d..%d/%d] Parse is exhausted',
+                #     $rc{pos}, $rc{pos}, $maxPos );
+
                 last;
             }
 
@@ -282,97 +284,112 @@ COMMA ~ ',' _WS_any
             my $CommentValue;
             my $CommentLength;
             my $isComment = false;
+
             my $canCollectArguments = true;
             if ( $g == $BYMACROARGUMENTS_G ) {
-              $isQuotedString = $self->parser_isQuotedstring(${$inputRef},  $rc{pos}, $maxPos, \$QuotedstringValue, \$QuotedstringLength);
-              $isComment = $self->parser_isComment(${$inputRef},  $rc{pos}, $maxPos, \$CommentValue, \$CommentLength);
-              $canCollectArguments = ! $isQuotedString && ! $isComment;
+                $isQuotedString
+                    = $self->parser_isQuotedstring( ${$inputRef}, $rc{pos},
+                    $maxPos, \$QuotedstringValue, \$QuotedstringLength );
+                $isComment = $self->parser_isComment( ${$inputRef}, $rc{pos},
+                    $maxPos, \$CommentValue, \$CommentLength );
+                $canCollectArguments = !$isQuotedString && !$isComment;
             }
+
             foreach (@lexemeNames) {
-              if ( $_ eq 'NOPARAM' ) {
-                if ( exists( $expected{NOPARAM} ) && $canCollectArguments) {
-                  pos( ${$inputRef} ) = $rc{pos};
-                  if ( ${$inputRef} =~ /\G\(\s*\)/s ) {
-                    $lexeme = 'NOPARAM';
-                    $lexemeValue = substr( ${$inputRef}, $-[0],
-                                           $+[0] - $-[0] );
-                    $lexemeLength = $+[0] - $-[0];
-                    last;
-                  }
-                }
-              }
-              elsif ( $_ eq 'LPAREN' ) {
-                if ( exists( $expected{LPAREN} ) && $canCollectArguments &&
-                     substr( ${$inputRef}, $rc{pos}, 1 ) eq '(' )
-                  {
-                    $lexeme       = 'LPAREN';
-                    $lexemeValue  = '(';
-                    $lexemeLength = 1;
-                    last;
-                  }
-              }
-              elsif ( $_ eq 'RPAREN' ) {
-                if ( exists( $expected{RPAREN} )  && $canCollectArguments &&
-                     substr( ${$inputRef}, $rc{pos}, 1 ) eq ')' )
-                  {
-                    $lexeme       = 'RPAREN';
-                    $lexemeValue  = ')';
-                    $lexemeLength = 1;
-                    last;
-                  }
-              }
-              elsif ( $_ eq 'COMMA' ) {
-                if ( exists( $expected{COMMA} )  && $canCollectArguments) {
-                  pos( ${$inputRef} ) = $rc{pos};
-                  if ( ${$inputRef} =~ /\G,\s*/s ) {
-                    $lexeme = 'COMMA';
-                    $lexemeValue = substr( ${$inputRef}, $-[0],
-                                           $+[0] - $-[0] );
-                    $lexemeLength = $+[0] - $-[0];
-                    last;
-                  }
-                }
-              } else {
-                if ($g == $BYMACROARGUMENTS_G && $_ eq 'QUOTEDSTRING') {
-                  #
-                  # Already done in the context of macro arguments grammar
-                  #
-                  if ($isQuotedString) {
-                    $lexeme = $_;
-                    $lexemeValue = $QuotedstringValue;
-                    $lexemeLength = $QuotedstringLength;
-                    last;
-                  }
-                } elsif ($g == $BYMACROARGUMENTS_G && $_ eq 'COMMENT') {
-                  #
-                  # Already done in the context of macro arguments grammar
-                  #
-                  if ($isComment) {
-                    $lexeme = $_;
-                    $lexemeValue = $CommentValue;
-                    $lexemeLength = $CommentLength;
-                    last;
-                  }
-                } else {
-                  #
-                  # QUOTEDSTRING not already done if not in the context of macro arguments grammar
-                  # Ditto for COMMENT.
-                  #
-                  my $method = 'parser_is' . ucfirst( lc($_) );
-                  if ($self->$method(
-                                     ${$inputRef},  $rc{pos}, $maxPos,
-                                     \$lexemeValue, \$lexemeLength
-                                    )
-                     )
+                if ( $_ eq 'NOPARAM' ) {
+                    if ( exists( $expected{NOPARAM} )
+                        && $canCollectArguments )
                     {
-                      $lexeme = $_;
-                      last;
+                        pos( ${$inputRef} ) = $rc{pos};
+                        if ( ${$inputRef} =~ /\G\(\s*\)/s ) {
+                            $lexeme = 'NOPARAM';
+                            $lexemeValue = substr( ${$inputRef}, $-[0],
+                                $+[0] - $-[0] );
+                            $lexemeLength = $+[0] - $-[0];
+                            last;
+                        }
                     }
                 }
-              }
+                elsif ( $_ eq 'LPAREN' ) {
+                    if (   exists( $expected{LPAREN} )
+                        && $canCollectArguments
+                        && substr( ${$inputRef}, $rc{pos}, 1 ) eq '(' )
+                    {
+                        $lexeme       = 'LPAREN';
+                        $lexemeValue  = '(';
+                        $lexemeLength = 1;
+                        last;
+                    }
+                }
+                elsif ( $_ eq 'RPAREN' ) {
+                    if (   exists( $expected{RPAREN} )
+                        && $canCollectArguments
+                        && substr( ${$inputRef}, $rc{pos}, 1 ) eq ')' )
+                    {
+                        $lexeme       = 'RPAREN';
+                        $lexemeValue  = ')';
+                        $lexemeLength = 1;
+                        last;
+                    }
+                }
+                elsif ( $_ eq 'COMMA' ) {
+                    if ( exists( $expected{COMMA} ) && $canCollectArguments )
+                    {
+                        pos( ${$inputRef} ) = $rc{pos};
+                        if ( ${$inputRef} =~ /\G,\s*/s ) {
+                            $lexeme = 'COMMA';
+                            $lexemeValue = substr( ${$inputRef}, $-[0],
+                                $+[0] - $-[0] );
+                            $lexemeLength = $+[0] - $-[0];
+                            last;
+                        }
+                    }
+                }
+                else {
+                    if ( $g == $BYMACROARGUMENTS_G && $_ eq 'QUOTEDSTRING' ) {
+                      #
+                      # Already done in the context of macro arguments grammar
+                      #
+                        if ($isQuotedString) {
+                            $lexeme       = $_;
+                            $lexemeValue  = $QuotedstringValue;
+                            $lexemeLength = $QuotedstringLength;
+                            last;
+                        }
+                    }
+                    elsif ( $g == $BYMACROARGUMENTS_G && $_ eq 'COMMENT' ) {
+                      #
+                      # Already done in the context of macro arguments grammar
+                      #
+                        if ($isComment) {
+                            $lexeme       = $_;
+                            $lexemeValue  = $CommentValue;
+                            $lexemeLength = $CommentLength;
+                            last;
+                        }
+                    }
+                    else {
+                        #
+                        # QUOTEDSTRING is not already done if not
+                        # in the context of macro arguments grammar
+                        # Ditto for COMMENT.
+                        #
+                        my $method = 'parser_is' . ucfirst( lc($_) );
+                        if ($self->$method(
+                                ${$inputRef}, $rc{pos},
+                                $maxPos,      \$lexemeValue,
+                                \$lexemeLength
+                            )
+                            )
+                        {
+                            $lexeme = $_;
+                            last;
+                        }
+                    }
+                }
             }
             #
-            # Nothing: then eat the character
+            # Nothing ?
             #
             if ( Undef->check($lexeme) ) {
                 NoLexeme->throw(
@@ -384,185 +401,184 @@ COMMA ~ ',' _WS_any
             #
             if ( $lexeme eq 'WORD' ) {
                 my $thisMacro;
-                if ( $self->parser_isMacro( $lexemeValue, \$thisMacro ) ) {
-                    #
-                    # Is the macro recognized only with arguments ?
-                    #
-                    my $lparenPos = $rc{pos} + $lexemeLength;
-                    my $dummy;
-                    my $lparen = (
-                                  $self->parser_isQuotedstring(${$inputRef},  $lparenPos, $maxPos, \$dummy, \$dummy)
-                                  ||
-                                  $self->parser_isComment(${$inputRef},  $lparenPos, $maxPos, \$dummy, \$dummy)
-                                  ) ? '' :
-                      ( $lparenPos <= $maxPos )
-                        ? substr( ${$inputRef}, $lparenPos, 1 )
-                        : '';
-                    if ( !$thisMacro->macro_needParams || $lparen eq '(' ) {
+                my $lparenPos;
+                if ($self->parser_isMacro(
+                        ${$inputRef}, $rc{pos},      $maxPos,
+                        $lexemeValue, $lexemeLength, \$thisMacro,
+                        \$lparenPos
+                    )
+                    )
+                {
 
-                        my $macroName = $lexemeValue;
-                        my $printableMacroName
-                            = $self->_printable( $macroName, true );
+                    my $macroName = $lexemeValue;
+                    my $printableMacroName
+                        = $self->_printable( $macroName, true );
 
-# $self->logger_debug('[%d..%d/%d] %s is an acceptable macro call', $rc{pos}, $rc{pos}, $maxPos, $lexemeValue);
-                        $self->logger_debug( '[%d..%d/%d] %s ...',
+                    # $self->logger_debug(
+                    #     '[%d..%d/%d] %s is an acceptable macro call',
+                    #     $rc{pos}, $rc{pos}, $maxPos, $lexemeValue );
+                    $self->logger_debug( '[%d..%d/%d] %s ...',
+                        $rc{pos}, $rc{pos}, $maxPos, $printableMacroName );
+
+                    if ( $lparenPos < 0 ) {
+                        #
+                        # Execute the macro without argument
+                        #
+                        $self->logger_debug( '[%d..%d/%d] %s -> ???',
                             $rc{pos}, $rc{pos}, $maxPos,
                             $printableMacroName );
-
-                        if ( $lparen ne '(' ) {
-                            #
-                            # Execute the macro without argument
-                            #
-                            $self->logger_debug( '[%d..%d/%d] %s -> ???',
-                                $rc{pos}, $rc{pos}, $maxPos,
-                                $printableMacroName );
-                            $lexemeValue = $thisMacro->macro_execute($self);
-                            if ( length($lexemeValue) > 0 ) {
-                                $self->logger_debug(
-                                    '[%d..%d/%d] %s -> %s',
-                                    $rc{pos},
-                                    $rc{pos},
-                                    $maxPos,
-                                    $printableMacroName,
-                                    $self->_printable($lexemeValue)
-                                );
-                            }
-                            else {
-                                $self->logger_debug( '[%d..%d/%d] %s',
-                                    $rc{pos}, $rc{pos}, $maxPos,
-                                    $printableMacroName );
-                            }
-                        }
-                        else {
-        #
-        # Call us recursively. This will change $lexemeValue and next position
-        #
-                            my $afterRparenPos;
-                            $self->_set__parse_level(
-                                $self->_parse_level + 1 );
-                            my $dict = $self->_parseByGrammar(
-                                $inputRef,           $lparenPos,
-                                $BYMACROARGUMENTS_G, $thisMacro
-                            );
-                            $self->_set__parse_level(
-                                $self->_parse_level - 1 );
-#
-# This will croak if dict is not defined
-#
-# $self->logger_debug('[%d..%d/%d] <= %s', $rc{pos}, $rc{pos}, $maxPos, $dict);
-                            my $parametersValue = $dict->{value};
-                            $afterRparenPos = $dict->{pos};
-                            #
-                            # Execute the macro
-                            #
-                            my $printableArguments = join( ', ',
-                                map { $self->_printable($_) }
-                                    $parametersValue->value_elements );
+                        $lexemeValue = $thisMacro->macro_execute($self);
+                        if ( length($lexemeValue) > 0 ) {
                             $self->logger_debug(
-                                '[%d..%d/%d] %s(%s) -> ???',
+                                '[%d..%d/%d] %s -> %s',
                                 $rc{pos},
                                 $rc{pos},
                                 $maxPos,
                                 $printableMacroName,
-                                $printableArguments
+                                $self->_printable($lexemeValue)
                             );
-                            $lexemeValue = $thisMacro->macro_execute( $self,
-                                $parametersValue->value_elements );
-                            if ( length($lexemeValue) > 0 ) {
-                                $self->logger_debug(
-                                    '[%d..%d/%d] %s(...) -> %s',
-                                    $rc{pos},
-                                    $rc{pos},
-                                    $maxPos,
-                                    $printableMacroName,
-                                    $self->_printable($lexemeValue)
-                                );
-                            }
-                            else {
-                                $self->logger_debug( '[%d..%d/%d] %s(...)',
-                                    $rc{pos}, $rc{pos}, $maxPos,
-                                    $printableMacroName );
-                            }
-                            $lexemeLength = $afterRparenPos - $rc{pos};
-                        }
-                        #
-                        # Eventual postmatch length
-                        #
-                        $lexemeLength
-                            += $thisMacro->macro_postMatchLengthExecute(
-                            $self, ${$inputRef}, $rc{pos} + $lexemeLength );
-                        #
-                        # Input is changing
-                        #
-                        if ( M4Macro->check($lexemeValue) ) {
-                            #
-                            # Protect the case of M4Macro
-                            #
-                            $lexeme = 'ANYTHING';
                         }
                         else {
-                            # $self->logger_debug(
-                            #    '[%d..%d/%d] Input is changing: replace %s by %s',
-                            #    $rc{pos},
-                            #    $rc{pos},
-                            #     $maxPos,
-                            #     substr(
-                            #         ${$inputRef}, $rc{pos}, $lexemeLength
-                            #     ),
-                            #     $lexemeValue
-                            # );
-                            substr(
-                                ${$inputRef},  $rc{pos},
-                                $lexemeLength, $lexemeValue
-                            );
-
-# $self->logger_debug('[%d..%d/%d] New input: %s', $rc{pos}, $rc{pos}, $maxPos, ${$inputRef});
-                            $maxPos = length( ${$inputRef} ) - 1;
-                            #
-                            # Protect the case of empty string
-                            #
-                            if ( $rc{pos} > $maxPos ) {
-                                return undef;
-                            }
-                            goto again;
+                            $self->logger_debug( '[%d..%d/%d] %s',
+                                $rc{pos}, $rc{pos}, $maxPos,
+                                $printableMacroName );
                         }
                     }
                     else {
+                        #
+                        # Call us recursively.
+                        # This will change $lexemeValue and next position
+                        #
+                        my $afterRparenPos;
+                        $self->_set__parse_level( $self->_parse_level + 1 );
+                        my $dict = $self->_parseByGrammar(
+                            $inputRef,           $lparenPos,
+                            $BYMACROARGUMENTS_G, $thisMacro
+                        );
+                        $self->_set__parse_level( $self->_parse_level - 1 );
+                        #
+                        # This will croak if dict is not defined
+                        #
+
+                        # $self->logger_debug( '[%d..%d/%d] <= %s',
+                        #     $rc{pos}, $rc{pos}, $maxPos, $dict );
+
+                        my $parametersValue = $dict->{value};
+                        $afterRparenPos = $dict->{pos};
+                        #
+                        # Execute the macro
+                        #
+                        my $printableArguments = join( ', ',
+                            map { $self->_printable($_) }
+                                $parametersValue->value_elements );
                         $self->logger_debug(
-                            '[%d..%d/%d] %s is not an acceptable macro call',
-                            $rc{pos}, $rc{pos}, $maxPos, $lexemeValue );
+                            '[%d..%d/%d] %s(%s) -> ???',
+                            $rc{pos},
+                            $rc{pos},
+                            $maxPos,
+                            $printableMacroName,
+                            $printableArguments
+                        );
+                        $lexemeValue = $thisMacro->macro_execute( $self,
+                            $parametersValue->value_elements );
+                        if ( length($lexemeValue) > 0 ) {
+                            $self->logger_debug(
+                                '[%d..%d/%d] %s(...) -> %s',
+                                $rc{pos},
+                                $rc{pos},
+                                $maxPos,
+                                $printableMacroName,
+                                $self->_printable($lexemeValue)
+                            );
+                        }
+                        else {
+                            $self->logger_debug( '[%d..%d/%d] %s(...)',
+                                $rc{pos}, $rc{pos}, $maxPos,
+                                $printableMacroName );
+                        }
+                        $lexemeLength = $afterRparenPos - $rc{pos};
+                    }
+                    #
+                    # Eventual postmatch length
+                    #
+                    $lexemeLength
+                        += $thisMacro->macro_postMatchLengthExecute( $self,
+                        ${$inputRef}, $rc{pos} + $lexemeLength );
+                    #
+                    # Input is changing
+                    #
+                    if ( M4Macro->check($lexemeValue) ) {
+                        #
+                        # Protect the case of M4Macro
+                        #
+                        $lexeme = 'ANYTHING';
+                    }
+                    else {
+                       # $self->logger_debug(
+                       #    '[%d..%d/%d] Input is changing: replace %s by %s',
+                       #    $rc{pos},
+                       #    $rc{pos},
+                       #     $maxPos,
+                       #     substr(
+                       #         ${$inputRef}, $rc{pos}, $lexemeLength
+                       #     ),
+                       #     $lexemeValue
+                       # );
+                        substr(
+                            ${$inputRef},  $rc{pos},
+                            $lexemeLength, $lexemeValue
+                        );
+
+                        # $self->logger_debug( '[%d..%d/%d] New input: %s',
+                        #     $rc{pos}, $rc{pos}, $maxPos, ${$inputRef} );
+
+                        $maxPos = length( ${$inputRef} ) - 1;
+                        #
+                        # Protect the case of empty string
+                        #
+                        if ( $rc{pos} > $maxPos ) {
+                            return undef;
+                        }
+                        goto again;
                     }
                 }
+                else {
+                    $self->logger_debug(
+                        '[%d..%d/%d] %s is not an acceptable macro call',
+                        $rc{pos}, $rc{pos}, $maxPos, $lexemeValue );
+                }
             }
-
-#
-# When _parse_level is zero, the token has been fully parsed, and its output is to
-# to be immediately "flushed".
-#
-# We do not need to do a lexeme_read(), nor a resume in this case: we know where we are.
-#
+            #
+            # When _parse_level is zero, the current token has been fully
+            # parsed, and its output is to
+            # to be immediately "flushed".
+            # We do not need to do a lexeme_read(), nor a resume in this case:
+            # we know where we are.
+            #
             if ( $self->_parse_level > 0 ) {
                 $r->lexeme_read( $lexeme, 0, 1, $lexemeValue );
                 $prevPos = $rc{pos};
                 $rc{pos} += $lexemeLength;
 
-# $self->logger_debug('[%d->%d/%d] %s: %s', $prevPos, $rc{pos}, $maxPos, $lexeme, $lexemeValue);
-#
-# We can safely ignore the events from lexeme_read(), because we made sure in the gramamr
-# that resume() will NOT advance the position, generating on those events:
-#
-# ^token
-# ^ANYTHING
-# macroArguments$
-# token$
-#
-# macroArguments$, if it happens will always be standalone
-# token$, when it happen, can be mixed with ^token or ^ANYTHING
-#
-# Please note that in the case of macro arguments, resume() will auto-magically
-# advance the position when it sees a COMMA
-#
-# $r->resume(0);
+                # $self->logger_debug( '[%d->%d/%d] %s: %s',
+                #     $prevPos, $rc{pos}, $maxPos, $lexeme, $lexemeValue );
+
+                #
+                # We can safely ignore the events from lexeme_read(),
+                # because we made sure in the grammar that resume() will
+                # NOT advance the position, thanks to those events:
+                #
+                # ^token
+                # ^ANYTHING
+                # macroArguments$
+                # token$
+                #
+                # macroArguments$, if it happens will always be standalone.
+                # token$, when it happen, can be mixed with ^token or
+                # ^ANYTHING.
+                #
+                # Please note that we do not use resume().
+                #
             }
             else {
                 my $tmpValue = MarpaX::Languages::M4::Impl::Value->new()
@@ -575,9 +591,10 @@ COMMA ~ ',' _WS_any
         }
 
         if ( $self->_parse_level > 0 ) {
-     #
-     # We are in the context of a recursive call: the output is of concern for
-     # a macro that called us.
+            #
+            # We are in the context of a recursive call: the output
+            # is of concern for a macro that called us.
+            #
             local $MarpaX::Languages::M4::Impl::Parser::macro = $macro;
             $rc{value} = ${ $r->value };
             if ( exists( $ENV{AUTHOR_TESTING} )
@@ -593,19 +610,22 @@ COMMA ~ ',' _WS_any
             }
         }
         else {
-  #
-  # We are at the top level: the output has already been "flushed" to whatever
-  # the diversion said to.
-  #
+            #
+            # We are at the top level: the output has already been
+            # "flushed" to whatever the current diversion said to.
+            #
         }
 
-# $self->logger_debug('[%d..%d/%d] => %s', $rc{pos}, $rc{pos}, $maxPos, \%rc);
+        # $self->logger_debug( '[%d..%d/%d] => %s',
+        #     $rc{pos}, $rc{pos}, $maxPos, \%rc );
+
         return \%rc;
     }
 
-#
-# M4 says that a token is processed as soon as it is recognized. So loop on token recognition
-#
+    #
+    # M4 says that a token is processed as soon as it is recognized.
+    # So we loop on token recognition
+    #
     method _parseByTokens (Ref['SCALAR'] $inputRef --> PositiveOrZeroInt) {
 
         my $rc = $self->_parseByGrammar( $inputRef, 0, $BYTOKEN_G );

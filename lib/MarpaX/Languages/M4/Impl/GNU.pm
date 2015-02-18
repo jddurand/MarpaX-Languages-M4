@@ -34,7 +34,7 @@ class MarpaX::Languages::M4::Impl::GNU {
     use File::Temp;
     use IO::File;
     use IO::Scalar;
-    use IPC::Cmd qw/run_forked/;
+    use IPC::Cmd qw/run run_forked/;
     use MarpaX::Languages::M4::Impl::GNU::BaseConversion;
     use MarpaX::Languages::M4::Impl::GNU::Eval;
     use MarpaX::Languages::M4::Impl::Macros;
@@ -121,10 +121,12 @@ class MarpaX::Languages::M4::Impl::GNU {
     our $DEFAULT_COM_END     = "\n";
     our $DEFAULT_WORD_REGEXP = '[_a-zA-Z][_a-zA-Z0-9]*';
 
+    #
     # Comments are recognized in preference to macros.
     # Comments are recognized in preference to argument collection.
     # Macros are recognized in preference to the begin-quote string.
     # Quotes are recognized in preference to argument collection.
+    #
     our $TOKENS_PRIORITY_DEFAULT_VALUE
         = [qw/COMMENT WORD QUOTEDSTRING CHARACTER/];
     our $TOKENS_PRIORITY_TYPE = ArrayRef [M4Token];
@@ -404,7 +406,7 @@ EVAL_GRAMMAR
         trigger     => 1,
         negativable => 1,
         doc =>
-            q{Word-regexp policy. If true, a word is constructed character-per-character, i.e. the word-regexp is done iteratively: first on one character, then on two characters if previous one matched, and so on. If false, the regexp is applied on the full buffer at current position.}
+            q{Word-regexp policy. If true, a word is constructed character-per-character, i.e. the word-regexp is done iteratively: first on one character, then on two characters if previous one matched, and so on. The iteration will always stop if a macro is recognized. If false, the regexp is applied on the full buffer at current position. Default is a true value.}
     );
 
     option policy_exit => (
@@ -738,11 +740,12 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
     # PARSER REQUIRED METHODS
     # ---------------------------------------------------------------
+
     method parser_isWord (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         my $word_regexp = $self->_word_regexp;
         pos($input) = $pos;
         if ( $self->_wordCharacterPerCharacter ) {
-            my $lastPos      = $pos + 1;
+            my $lastPos      = $pos;
             my $lexemeLength = 0;
             my $lexemeValue;
             my $thisInput = substr( $input, $pos, 1 );
@@ -768,7 +771,7 @@ EVAL_GRAMMAR
                         $lexemeValue
                             = substr( $thisInput, $-[0], $lexemeLength );
                     }
-                    $thisInput .= substr( $input, $lastPos++, 1 );
+                    $thisInput .= substr( $input, ++$lastPos, 1 );
                 }
                 else {
                     last;
@@ -798,9 +801,10 @@ EVAL_GRAMMAR
     }
 
     method parser_isComment (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
-            #
-            # We want to catch EOF in comment. So we do it ourself.
-            #
+
+        #
+        # We want to catch EOF in comment. So we do it ourself.
+        #
         my $comStart       = $self->com_start;
         my $comEnd         = $self->com_end;
         my $comStartLength = $self->_comStartLength;
@@ -834,10 +838,11 @@ EVAL_GRAMMAR
     }
 
     method parser_isQuotedstring (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
-            #
-            # We cannot rely on a balanced regexp a-la-Regexp::Common
-         # because if end-string is a prefix of start-string, it has precedence
-         #
+
+        #
+        # We cannot rely on a balanced regexp a-la-Regexp::Common
+        # because if end-string is a prefix of start-string, it has precedence
+        #
         my $quoteStart       = $self->quote_start;
         my $quoteEnd         = $self->quote_end;
         my $quoteStartLength = $self->_quoteStartLength;
@@ -896,11 +901,33 @@ EVAL_GRAMMAR
         return $self->_macros_get($word)->macros_get(-1);
     }
 
-    method parser_isMacro (Str $word, Ref $macroRef? --> Bool) {
-        if ( $self->_macros_exists($word) ) {
-            ${$macroRef} = $self->_getMacro($word);
-            return true;
+    method parser_isMacro (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Str $wordValue, PositiveInt $wordLength, Ref $macroRef, Ref $lparenPosRef --> Bool) {
+
+        #
+        # If a macro with this name exist, we have to check if it is accepted.
+        # The condition is if it is recognized only with parameters
+        #
+        if ( $self->_macros_exists($wordValue) ) {
+            my $macro     = $self->_getMacro($wordValue);
+            my $lparenPos = $pos + $wordLength;
+            my $dummy;
+            my $lparen
+                = (
+                $self->parser_isQuotedstring( $input, $lparenPos, $maxPos,
+                    \$dummy, \$dummy )
+                    || $self->parser_isComment(
+                    $input, $lparenPos, $maxPos, \$dummy, \$dummy
+                    )
+                ) ? ''
+                : ( $lparenPos <= $maxPos ) ? substr( $input, $lparenPos, 1 )
+                :                             '';
+            if ( !$macro->macro_needParams || $lparen eq '(' ) {
+                ${$macroRef} = $macro;
+                ${$lparenPosRef} = ( $lparen eq '(' ) ? $lparenPos : -1;
+                return true;
+            }
         }
+
         return false,;
     }
 
@@ -997,9 +1024,10 @@ EVAL_GRAMMAR
     }
 
     method _build__diversions {
-            #
-            # Diversion 0 is special and maps directly to an internal variable
-            #
+
+        #
+        # Diversion 0 is special and maps directly to an internal variable
+        #
         return { 0 => IO::Scalar->new };
     }
 
@@ -2035,9 +2063,10 @@ EVAL_GRAMMAR
                 '%s: cannot find internal diversion number %d',
                 'divert', $number );
         }
-#
-# We don't know the $fh of previous diversion, it is stored in diversions hash.
-#
+        #
+        # We don't know the $fh of previous diversion,
+        # it is stored in diversions hash.
+        #
         $self->_set__lastDiversion(
             $self->_diversions_get( $self->builtin_divnum ) );
         return;
@@ -2120,9 +2149,10 @@ EVAL_GRAMMAR
         foreach (@diversions) {
             my $number = $_;
             if ( Int->check($number) ) {
-#
-# Undiverting the current diversion, or number 0, or a unknown diversion is silently ignored.
-#
+                #
+                # Undiverting the current diversion, or number 0,
+                # or a unknown diversion is silently ignored.
+                #
                 if (   $number == $self->divnum
                     || $number == 0
                     || !$self->_diversions_exists($number) )
@@ -2218,14 +2248,21 @@ EVAL_GRAMMAR
         return index( $string, $substring );
     }
 
-    method builtin_regexp (Undef|Str $string?, Undef|Str $regexp?, Undef|Str $replacement?, @ignored --> Str) {
-        if ( Undef->check($string) || Undef->check($regexp) ) {
+    method builtin_regexp (Undef|Str $string?, Undef|Str $regexpString?, Undef|Str $replacement?, @ignored --> Str) {
+        if ( Undef->check($string) || Undef->check($regexpString) ) {
             $self->logger_error(
                 'too few arguments to builtin %s',
-                $self->impl_quote('index')
+                $self->impl_quote('regexp')
             );
-            return 0;
+            return '0';
         }
+
+        my $regexp = eval "qr/$regexpString/";
+        if ($@) {
+            $self->logger_error( '%s: %s', $self->impl_quote('regexp'), $@ );
+            return '';
+        }
+
         $self->_checkIgnored( 'regexp', @ignored );
 
         $string //= '';
@@ -2234,31 +2271,13 @@ EVAL_GRAMMAR
             #
             # Expands to the index of first match in string
             #
-            my $index = -1;
-            try {
-                if ( $string =~ /$regexp/ ) {
-                    $index = $-[0];
-                }
-                catch {
-                    $self->logger_warn( '%s: %s: %s', 'regexp', $regexp, $_ );
-                    return;
-                }
-            }
-            return $index;
+            my $index = ( $string =~ /$regexp/ ) ? $-[0] : -1;
+            return "$index";
         }
         else {
-            #
-            # This should not happen but who knows
-            #
-            try {
-                $string =~ s/$regexp/$replacement/;
-            }
-            catch {
-                $self->logger_warn( '%s: %s', 'regexp', $_ );
-                return;
-            }
+            $string =~ s/$regexp/$replacement/;
+            return $string;
         }
-        return $string;
     }
 
     method builtin_substr (Undef|Str $string?, Undef|Str $from?, Undef|Str $length?, @ignored --> Str) {
@@ -2321,9 +2340,10 @@ EVAL_GRAMMAR
         }
         $replacement //= '';
 
-#
-# Perl does not like try/catch here and I really had to use eval with runtime error
-#
+        #
+        # Perl does not like try/catch here,
+        # I really have to use eval with runtime error
+        #
         $_ = $string;
         eval "tr/$chars/$replacement";
         if ($@) {
@@ -2706,9 +2726,12 @@ EVAL_GRAMMAR
             $prepareArguments
                 .= "\tmy \$listArgsQuoted = join(',', map {\$self->impl_quote(\$_)} \@args);\n";
         }
-   #
-   # Take care: a macro can very well try to access something outside of @args
-   # We do this only NOW, because the //= will eventually increase @args
+        #
+        # Take care: a macro can very well try to access
+        # something outside of @args
+        # We do this only NOW, because the //= will eventually
+        # increase @args
+        #
         if (%wantedArgumentIndice) {
             $prepareArguments .= "\n";
             foreach ( sort { $a <=> $b } keys %wantedArgumentIndice ) {
