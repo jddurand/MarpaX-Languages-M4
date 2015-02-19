@@ -845,9 +845,9 @@ EVAL_GRAMMAR
                     }
                 }
                 #
-                # If we are here, it is an error if eof is flagged
+                # If we are here, it is an error if End-Of-Input is flagged
                 #
-                if ( $self->_eof ) {
+                if ( $self->impl_eoi ) {
                     $self->logger_error('EOF in comment');
                     EOFInComment->throw('EOF in comment');
                 }
@@ -895,9 +895,9 @@ EVAL_GRAMMAR
                     }
                 }
                 #
-                # If we are here, it is an error if eof is flagged
+                # If we are here, it is an error if End-Of-Input is flagged
                 #
-                if ( $self->_eof ) {
+                if ( $self->impl_eoi ) {
                     $self->logger_error('EOF in string');
                     EOFInQuotedString->throw('EOF in string');
                 }
@@ -1100,12 +1100,12 @@ EVAL_GRAMMAR
             if ( $_ eq 'dnl' ) {
                 $ref{$_}->postMatchLength(
                     sub {
-                        my ( $self, $input, $pos ) = @_;
+                        my ( $self, $input, $pos, $maxPos ) = @_;
                         pos($input) = $pos;
                         if ( $input =~ /\G.*?\n/s ) {
                             return $+[0] - $-[0];
                         }
-                        elsif ( $self->_eof && $input =~ /\G[^\n]*\z/ ) {
+                        elsif ( $self->impl_eoi && $input =~ /\G[^\n]*\z/ ) {
                             $self->logger_warn( '%s: %s',
                                 'dnl', 'EOF without a newline' );
                             return $+[0] - $-[0];
@@ -1378,11 +1378,13 @@ EVAL_GRAMMAR
         $self->prefix_builtins('m4_');
     }
 
-    method _trigger__eof (Bool $eof, @args --> Undef) {
-        if ( $self->_m4wrap_count > 0 ) {
+    method _trigger_impl_eof (Bool $eof, @args --> Undef) {
+        if ( $eof ) {
+          while ( $self->_m4wrap_count > 0 ) {
             my @m4wrap = $self->_m4wrap_elements;
             $self->_set___m4wrap( [] );
-            $self->impl_parseBuffers( join( '', @m4wrap ) );
+            $self->impl_parse(join('', @m4wrap));
+          }
         }
         return;
     }
@@ -1460,14 +1462,20 @@ EVAL_GRAMMAR
         }
     );
 
-    has _eof => (
+    has impl_eof => (
         is      => 'rwp',
         isa     => Bool,
         trigger => 1,
         default => false
     );
 
-    has _pos => (
+    has impl_eoi => (
+        is      => 'rw',
+        isa     => Bool,
+        default => false
+    );
+
+    has impl_pos => (
         is      => 'rwp',
         isa     => PositiveOrZeroInt,
         default => 0
@@ -2833,22 +2841,17 @@ STUB
         return $codeRef;
     }
 
-    method impl_pos ( --> PositiveOrZeroInt) {
-        return $self->_pos;
-    }
-
-    method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
+    method impl_parse (Str $input --> ConsumerOf[M4Impl]) {
         try {
-            $self->_set__pos( $self->parser_parse($input) );
+            $self->_set_impl_pos( $self->parser_parse($input) );
         };
         return $self;
     }
 
     method impl_parseBuffers (Str @input --> ConsumerOf[M4Impl]) {
         foreach (@input) {
-            $self->impl_parseIncremental($_);
+            $self->impl_parse($_);
         }
-        $self->impl_eoi;
         return $self;
     }
 
@@ -2858,16 +2861,17 @@ STUB
     }
 
     method impl_valueRef (--> Ref['SCALAR']) {
+        if ( ! $self->impl_eof ) {
+            #
+            # Trigger EOF
+            #
+            $self->_set_impl_eof(true);
+        }
         return $self->_diversions_get(0)->sref;
     }
 
     method impl_value (--> Str) {
         return ${ $self->impl_valueRef };
-    }
-
-    method impl_eoi (--> ConsumerOf[M4Impl]) {
-        $self->_set__eof(true);
-        return $self;
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';

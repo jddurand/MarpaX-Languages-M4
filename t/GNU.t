@@ -46,7 +46,8 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $input = ${$inputRef};
   my $gnu = MarpaX::Languages::M4::Impl::GNU->new();
   $gnu->$init;
-  my $got = $gnu->impl_parseBuffers($input)->impl_value;
+  $gnu->impl_parseBuffers($input);
+  my $got = $gnu->impl_value;
   my $expected = ${$outputRef};
 
   $testName =~ s/\d+\s*//;
@@ -767,7 +768,7 @@ define(`foo', `like this')) while this text is ignored: undefine(`foo')
 See how `foo' was defined, foo?
 __! 058 dnl warning: output !__
 See how foo was defined, like this?
-__! 059 dnl warning at eof: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
+__! 059 dnl warning at eof: input( {my ($self) = @_; $self->impl_eoi(1); $self; }) !__
 m4wrap(`m4wrap(`2 hi
 ')0 hi dnl 1 hi')
 define(`hi', `HI')
@@ -896,7 +897,7 @@ hi" "HI"
 hi`hi'hi
 
 hiHIhi
-__! 068 changequote  - EOF within a quoted string: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
+__! 068 changequote  - EOF within a quoted string: input( {my ($self) = @_; $self->impl_eoi(1); $self; }) !__
 `hello world'
 `dangling quote
 __! 068 changequote  - EOF within a quoted string: output !__
@@ -969,7 +970,7 @@ __! 072 changecom - comments have precedence to arguments collection: output !__
 
 3:HI,,HI,HI:HI,,`'hi,HI:
 3:HI,,`'hi,HI:HI,,`'hi,HI:
-__! 073 changecom  - EOF within a comment: input( {my ($self) = @_; $self->impl_eoi; $self; }) !__
+__! 073 changecom  - EOF within a comment: input( {my ($self) = @_; $self->impl_eoi(1); $self; }) !__
 changecom(`/*', `*/')
 /*dangling comment
 __! 073 changecom  - EOF within a comment: output !__
