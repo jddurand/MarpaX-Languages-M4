@@ -1400,11 +1400,18 @@ EVAL_GRAMMAR
 
     method _trigger__eof (Bool $eof, @args --> Undef) {
         if ($eof) {
+            #
+            # First, m4wrap stuff is rescanned
+            #
             while ( $self->_m4wrap_count > 0 ) {
                 my @m4wrap = $self->_m4wrap_elements;
                 $self->_set___m4wrap( [] );
                 $self->impl_parseIncremental( join( '', @m4wrap ) );
             }
+            #
+            # Then, diverted thingies, that are not rescanned
+            #
+            $self->builtin_undivert();
         }
         return;
     }
@@ -2102,10 +2109,6 @@ EVAL_GRAMMAR
         return $self->_includeFile( true, $file );
     }
 
-    method DESTROY {
-                     # $self->builtin_undivert();
-    }
-
     method _apply_diversion (Int $number, ConsumerOf ['IO::Handle'] $fh --> Undef) {
         my $index
             = $self->_lastDiversionNumbers_first_index( sub { $_ == $number }
@@ -2229,7 +2232,7 @@ EVAL_GRAMMAR
                 # Undiverting the current diversion, or number 0,
                 # or a unknown diversion is silently ignored.
                 #
-                if (   $number == $self->divnum
+                if (   $number == $self->builtin_divnum
                     || $number == 0
                     || !$self->_diversions_exists($number) )
                 {
