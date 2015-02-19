@@ -1269,7 +1269,10 @@ EVAL_GRAMMAR
                 # If $#+ > 2, then $word_regexp has a $1.
                 # Else, it has no $1.
                 #
-                my $macroName = ($#+ > 2) ? substr( $_, $-[2], $+[2] - $-[2] ) : substr( $_, $-[1], $+[1] - $-[1] );
+                my $macroName
+                    = ( $#+ > 2 )
+                    ? substr( $_, $-[2], $+[2] - $-[2] )
+                    : substr( $_, $-[1], $+[1] - $-[1] );
                 my $indicesToSplit = substr( $_, $-[-1], $+[-1] - $-[-1] );
                 my @indices = grep { !Undef->check($_) && length("$_") > 0 }
                     split( /,/, $indicesToSplit );
@@ -1326,7 +1329,10 @@ EVAL_GRAMMAR
                 # If $#+ > 2, then $word_regexp has a $1.
                 # Else, it has no $1.
                 #
-                my $macroName = ($#+ > 2) ? substr( $_, $-[2], $+[2] - $-[2] ) : substr( $_, $-[1], $+[1] - $-[1] );
+                my $macroName
+                    = ( $#+ > 2 )
+                    ? substr( $_, $-[2], $+[2] - $-[2] )
+                    : substr( $_, $-[1], $+[1] - $-[1] );
                 my $value = substr( $_, $-[-1], $+[-1] - $-[-1] );
                 $self->builtin_define( $macroName, $value );
             }
@@ -2039,7 +2045,9 @@ EVAL_GRAMMAR
         );
 
         my @candidates;
-        {
+        if (File::Spec->file_name_is_absolute($file)) {
+          @candidates = ( $file );
+        } else {
             use filetest 'access';
             @candidates = grep { -r $_ }
                 map { File::Spec->catfile( $_, $file ) } @includes;
@@ -2363,7 +2371,7 @@ EVAL_GRAMMAR
             return '0';
         }
 
-        my $regexp = eval "qr/$regexpString/";
+        my $regexp = eval "qr/$regexpString/sm";
         if ($@) {
             $self->logger_error( '%s: %s', $self->impl_quote('regexp'), $@ );
             return '';
@@ -2377,62 +2385,85 @@ EVAL_GRAMMAR
             #
             # Expands to the index of first match in string
             #
-            my $index = ( $string =~ /$regexp/sm ) ? $-[0] : -1;
+            my $index = ( $string =~ $regexp ) ? $-[0] : -1;
             return "$index";
         }
         else {
-            if ( $string =~ /$regexp/sm ) {
-                #
-                # For security reasons there is
-                # no hope I'dd use the s//ee form...
-                #
-                # So I search myself for $& and $1, $2, etc...
-                # eventually ${&}, ${1}, ${2}, etc...
-                #
-                my @matches = ();
-                foreach ( 0 .. $#+ ) {
-                    push( @matches,
-                        substr( $string, $-[$_], $+[$_] - $-[$_] ) );
-                }
-                $string = $replacement;
-                foreach ( 0 .. $#matches ) {
-                    my $match = $matches[$_];
-                    my $regexpIndice = ( $_ == 0 ) ? '&' : $_;
-                    pos($string) = undef;
-                    $string
-                        =~ s/(?:\\\\|[^\\])*\K\$(?:$regexpIndice|\{$regexpIndice\})/"$match"/esg;
-                }
-                #
-                # Any remaining sub-expression ?
-                #
-                pos($string) = undef;
-                while ($string =~ /(?:\\\\|[^\\])*\K\$(?:\d+|\{\d+\})/s) {
-                  my $subExpression = substr($string, $-[0], $+[0] - $-[0], '');
-                  $self->logger_warn( '%s: sub-expression %s not present', $self->impl_quote('regexp'), $subExpression);
-                  pos($string) = undef;
-                }
-                #
-                # Treat any character following \ literally
-                #
-                while ($string =~ /(?:\\\\|[^\\])*(\\.)/s) {
-                  #
-                  # Per def it ends with \x, and x is at position $+[1]-1
-                  #
-                  print STDERR "substr($string, $+[1] - 2, 1, '');\n";
-                  substr($string, $+[1] - 2, 1, '');
-                }
-                #
-                # Ok, GNU behaviour.
-                #
-                if ($string =~ s/(?:\\\\|[^\\])*\K\\\z//) {
-                  $self->logger_warn( '%s: trailing \ ignored in replacement', $self->impl_quote('regexp'));
-                  substr($string, -1, 1, '');
-                }
+            #
+            # We are going to use the dangerous s///ee form because
+            # we want to interpret the content of $replacement
+            # Since this is a security issue, we simply apply the
+            # same logic as _expansion2CodeRef:
+            # quotemeta everything
+            # un-quotemeta only what we want
+            # The difference with _expansion2CodeRef is that we will
+            # take into account backslashes
+            #
+            my $safeReplacement = quotemeta($replacement);
+            #
+            # We allow only:
+            # * $&
+            # * $\d+
+            # and their ${...} form
+            #
+            # We want to warn about unexpanded thingies so, as in
+            # _expansion2CodeRef we will count expected
+            # replacements.
+            #
+            # the quotemeta vesion of $& is: \$\&
+            # Note: (?:\\\\|[^\\])* is eating all the double-backslashes
+            #
+            # From LEONT on SO:
+            # normal string: (?<!\\)(?>\\\\)*x
+            # quotedmeta string: (?<!\\\\)(?>\\\\\\\\)*x
+
+            my $max = 0;
+            $safeReplacement =~ s/(?<!\\\\)(?>\\\\\\\\)*\K\\\$\\&/\$match[0]/g;
+            $safeReplacement =~ s/(?<!\\\\)(?>\\\\\\\\)*\K\\\$(\d+)/
+            {
+             my $indice = substr($safeReplacement, $-[1], $+[1] - $-[1]);
+             if ($indice > $max) {
+               $max = $indice;
+             }
+             "\$match[$indice]";
             }
-            else {
-                $string = '';
+            /eg;
+            #
+            # The \$\{...\} versions
+            #
+            $safeReplacement
+                =~ s/(?<!\\\\)(?>\\\\\\\\)*\K\\\$\\\{\\&\\\}/\$match[0]/g;
+            $safeReplacement =~ s/(?<!\\\\)(?>\\\\\\\\)*\K\\\$\\\{(\d+)\\\}/
+            {
+             my $indice = substr($safeReplacement, $-[1], $+[1] - $-[1]);
+             if ($indice > $max) {
+               $max = $indice;
+             }
+             "\$match[$indice]";
+            }/eg;
+            if ( $string =~ $regexp) {
+              my @match;
+              foreach ( 0 .. $max ) {
+                if ($_ <= $#+) {
+                  $match[$_] = substr($string, $-[$_], $+[$_] - $-[$_]);
+                } else {
+                  $self->logger_warn( '%s: sub-expression number %d not present',
+                                      $self->impl_quote('regexp'), $_ );
+                  $match[$_] = '';
+                }
+              }
+              my $rc = eval "\"$safeReplacement\"";
+              if ($@) {
+                #
+                # This should never happen, because we sanitized it
+                #
+                $self->logger_error( '%s', $@);
+                $rc = '';
+              }
+              return $rc;
+            } else {
+              return '';
             }
-            return $string;
         }
     }
 

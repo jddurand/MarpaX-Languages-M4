@@ -34,7 +34,7 @@ BEGIN {
         || print "Bail out!\n";
 }
 
-my ($fhfoo, $filenamefoo) = tempfile();
+my $fhfoo = File::Temp->new();
 print $fhfoo "bar\n";
 close($fhfoo);
 
@@ -52,7 +52,7 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   #
   # For the special foo temporary file
   #
-  $input =~ s/%%%FOO%%%/$filenamefoo/g;
+  $input =~ s/%%%FOO%%%/$fhfoo/g;
   my $gnu = MarpaX::Languages::M4::Impl::GNU->new();
   #
   # Our include directory
@@ -68,6 +68,7 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   $testName =~ s/\d+\s*//;
   cmp_ok($gnu->$extraInit->impl_parse($input), 'eq', ${$outputRef}, $testName);
 }
+
 done_testing();
 
 __DATA__
@@ -1300,15 +1301,15 @@ __! 103 regexp: input !__
 regexp(`GNUs not Unix', `\b[a-z]\w+')
 regexp(`GNUs not Unix', `\bQ\w*')
 regexp(`GNUs not Unix', `\w(\w+)$', `*** $& *** $1 ***')
-regexp(`GNUs not Unix', `\bQ\w*', `*** $& *** 1 ***')
+regexp(`GNUs not Unix', `\bQ\w*', `*** $& *** $1 ***')
 __! 103 regexp: output !__
 5
 -1
 *** Unix *** nix ***
 
 __! 104 regexp warnings: input !__
-regexp(`abc', `(b)', `\\\${1}0a')
-regexp(`abc', `b', `$1\\')
+regexp(`abc', `(b)', `\${1}0a')
+regexp(`abc', `b', `$1')
 regexp(`abc', `((d)?)(c)', `$1$2$3$4$5$6')
 __! 104 regexp warnings: output !__
 \\b0a
@@ -1317,8 +1318,8 @@ c
 __! 104 regexp - ommiting regexp -;: input !__
 regexp(`abc')
 regexp(`abc', `')
-regexp(`abc', `', `\\def')
+regexp(`abc', `', `\def')
 __! 104 regexp - ommiting regexp -;: output !__
 0
 0
-\def
+\\def
