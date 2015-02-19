@@ -1161,3 +1161,15 @@ divert(`2')hello
 __! 090 divert - number > 10: output !__
 hello
 world
+__! 091 divert - is a common english word -;: input !__
+We decided to divert the stream for irrigation.
+define(`divert', `ifelse(`$#', `0', ``$0'', `builtin(`$0', $@)')')
+divert(`-1')
+Ignored text.
+divert(`0')
+We decided to divert the stream for irrigation.
+__! 091 divert - is a common english word -;: output !__
+We decided to  the stream for irrigation.
+
+
+We decided to divert the stream for irrigation.
