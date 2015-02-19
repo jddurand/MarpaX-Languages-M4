@@ -1,6 +1,7 @@
 #!perl
 use strict;
 use warnings FATAL   => 'all';
+use File::Temp qw/tempfile/;
 use Test::More;
 use Log::Handler;
 use Log::Any::Adapter;
@@ -33,6 +34,10 @@ BEGIN {
         || print "Bail out!\n";
 }
 
+my ($fhfoo, $filenamefoo) = tempfile();
+print $fhfoo "bar\n";
+close($fhfoo);
+
 foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $testName = $_;
   my $inputRef = __PACKAGE__->section_data($testName);
@@ -44,6 +49,10 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $outputRef = __PACKAGE__->section_data("$testName: output");
 
   my $input = ${$inputRef};
+  #
+  # For the special foo temporary file
+  #
+  $input =~ s/%%%FOO%%%/$filenamefoo/g;
   my $gnu = MarpaX::Languages::M4::Impl::GNU->new();
   #
   # Our include directory
@@ -1173,3 +1182,80 @@ We decided to  the stream for irrigation.
 
 
 We decided to divert the stream for irrigation.
+__! 092 undivert: input !__
+divert(`1')
+This text is diverted.
+divert
+This text is not diverted.
+undivert(`1')
+__! 092 undivert: output !__
+
+This text is not diverted.
+
+This text is diverted.
+
+__! 093 undivert - undivert into a diversion and to an empty string: input !__
+divert(`1')diverted text
+divert
+undivert()
+undivert(`0')
+undivert
+divert(`1')more
+divert(`2')undivert(`1')diverted text`'divert
+undivert(`1')
+undivert(`2')
+__! 093 undivert - undivert into a diversion and to an empty string: output !__
+
+
+
+diverted text
+
+
+
+more
+diverted text
+__! 094 undivert - cannot bring back a diverted text more than once: input !__
+divert(`1')
+This text is diverted first.
+divert(`0')undivert(`1')dnl
+undivert(`1')
+divert(`1')
+This text is also diverted but not appended.
+divert(`0')undivert(`1')dnl
+__! 094 undivert - cannot bring back a diverted text more than once: output !__
+
+This text is diverted first.
+
+
+This text is also diverted but not appended.
+__! 095 undivert - undiverting current diversion is silently ignored: input !__
+divert(`1')one
+divert(`2')two
+divert(`3')three
+divert(`2')undivert`'dnl
+divert`'undivert`'dnl
+__! 095 undivert - undiverting current diversion is silently ignored: output !__
+two
+one
+three
+__! 096 undivert - undiverting a named file: input !__
+define(`bar', `BAR')
+undivert(`%%%FOO%%%')
+include(`%%%FOO%%%')
+__! 096 undivert - undiverting a named file: output !__
+
+bar
+
+BAR
+
+__! 097 undivert - intermix files and diversion numbers: input !__
+divert(`1')diversion one
+divert(`2')undivert(`%%%FOO%%%')dnl
+divert(`3')diversion three
+divert`'dnl
+undivert(`1', `2', `%%%FOO%%%', `3')dnl
+__! 097 undivert - intermix files and diversion numbers: output !__
+diversion one
+bar
+bar
+diversion three
