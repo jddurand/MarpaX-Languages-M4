@@ -1410,7 +1410,8 @@ EVAL_GRAMMAR
             }
             #
             # Then, diverted thingies, that are not rescanned
-            #
+            # We make sure current diversion is number 0
+            $self->builtin_divert();
             $self->builtin_undivert();
         }
         return;

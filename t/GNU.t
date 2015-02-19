@@ -33,7 +33,7 @@ BEGIN {
         || print "Bail out!\n";
 }
 
-foreach (reverse grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
+foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $testName = $_;
   my $inputRef = __PACKAGE__->section_data($testName);
   my $extraInit = sub { return shift };
@@ -58,7 +58,6 @@ foreach (reverse grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_nam
 
   $testName =~ s/\d+\s*//;
   cmp_ok($gnu->$extraInit->impl_parse($input), 'eq', ${$outputRef}, $testName);
-  last;
 }
 done_testing();
 
