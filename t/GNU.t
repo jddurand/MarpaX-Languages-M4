@@ -33,7 +33,7 @@ BEGIN {
         || print "Bail out!\n";
 }
 
-foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
+foreach (reverse grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $testName = $_;
   my $inputRef = __PACKAGE__->section_data($testName);
   my $extraInit = sub { return shift };
@@ -58,6 +58,7 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
 
   $testName =~ s/\d+\s*//;
   cmp_ok($gnu->$extraInit->impl_parse($input), 'eq', ${$outputRef}, $testName);
+  last;
 }
 done_testing();
 
@@ -1128,3 +1129,36 @@ This is bar:  >>Include file start
 foo
 Include file end
 <<
+__! 087 divert: input !__
+divert(`1')
+This text is diverted.
+divert
+This text is not diverted.
+__! 087 divert: output !__
+
+This text is not diverted.
+
+This text is diverted.
+__! 088 divert - m4wrap precedence: input !__
+define(`text', `TEXT')
+divert(`1')`diverted text.'
+divert
+m4wrap(`Wrapped text precedes ')
+__! 088 divert - m4wrap precedence: output !__
+
+
+
+Wrapped TEXT precedes diverted text.
+__! 089 divert - discard: input !__
+divert(`-1')
+define(`foo', `Macro `foo'.')
+define(`bar', `Macro `bar'.')
+divert
+__! 089 divert - discard: output !__
+
+__! 090 divert - number > 10: input !__
+divert(eval(`1<<28'))world
+divert(`2')hello
+__! 090 divert - number > 10: output !__
+hello
+world
