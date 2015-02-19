@@ -117,8 +117,9 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
             0,
             $self->_band(
                 $expression2,
+                '&',
                 Bit::Vector->new_Hex(
-                    $self->bits, '1' . ( 'f' x $self->bits - 1 )
+                    $self->bits, '1' . ( 'f' x ($self->bits - 1) )
                 )
             )->to_Dec()
         );
@@ -132,8 +133,9 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
             0,
             $self->_band(
                 $expression2,
+                '&',
                 Bit::Vector->new_Hex(
-                    $self->bits, '1' . ( 'f' x $self->bits - 1 )
+                    $self->bits, '1' . ( 'f' x ($self->bits - 1) )
                 )
             )->to_Dec()
         );
