@@ -1258,8 +1258,19 @@ EVAL_GRAMMAR
         my %ref         = ();
         foreach ( @{$policy_paramcanbemacro} ) {
             if ( $_ =~ /^($word_regexp)(?:=(.*))/ ) {
-                my $macroName = $1;
-                my $indicesToSplit = $3 // '';
+                #
+                # If word_regexp has a $1 submatch, this is the macro name.
+                # Since we add another group on top, we detect the presence of
+                # word_regexp's $1 by comparing total number of groups v.s.
+                # the regexp writen upper.
+                #
+                my $nbSubGroups = $#+;
+                #
+                # If $#+ > 2, then $word_regexp has a $1.
+                # Else, it has no $1.
+                #
+                my $macroName = ($#+ > 2) ? substr( $_, $-[2], $+[2] - $-[2] ) : substr( $_, $-[1], $+[1] - $-[1] );
+                my $indicesToSplit = substr( $_, $-[-1], $+[-1] - $-[-1] );
                 my @indices = grep { !Undef->check($_) && length("$_") > 0 }
                     split( /,/, $indicesToSplit );
                 $ref{$macroName} = {};
@@ -1311,7 +1322,13 @@ EVAL_GRAMMAR
         my $word_regexp = $self->_word_regexp;
         foreach ( @{$arrayRef} ) {
             if ( $_ =~ /^($word_regexp)(?:=(.*))/ ) {
-                $self->builtin_define( $1, $3 || '' );
+                #
+                # If $#+ > 2, then $word_regexp has a $1.
+                # Else, it has no $1.
+                #
+                my $macroName = ($#+ > 2) ? substr( $_, $-[2], $+[2] - $-[2] ) : substr( $_, $-[1], $+[1] - $-[1] );
+                my $value = substr( $_, $-[-1], $+[-1] - $-[-1] );
+                $self->builtin_define( $macroName, $value );
             }
             else {
                 $self->logger_warn( '%s: %s: does not match word regexp',
@@ -2360,11 +2377,61 @@ EVAL_GRAMMAR
             #
             # Expands to the index of first match in string
             #
-            my $index = ( $string =~ /$regexp/ ) ? $-[0] : -1;
+            my $index = ( $string =~ /$regexp/sm ) ? $-[0] : -1;
             return "$index";
         }
         else {
-            $string =~ s/$regexp/$replacement/;
+            if ( $string =~ /$regexp/sm ) {
+                #
+                # For security reasons there is
+                # no hope I'dd use the s//ee form...
+                #
+                # So I search myself for $& and $1, $2, etc...
+                # eventually ${&}, ${1}, ${2}, etc...
+                #
+                my @matches = ();
+                foreach ( 0 .. $#+ ) {
+                    push( @matches,
+                        substr( $string, $-[$_], $+[$_] - $-[$_] ) );
+                }
+                $string = $replacement;
+                foreach ( 0 .. $#matches ) {
+                    my $match = $matches[$_];
+                    my $regexpIndice = ( $_ == 0 ) ? '&' : $_;
+                    pos($string) = undef;
+                    $string
+                        =~ s/(?:\\\\|[^\\])*\K\$(?:$regexpIndice|\{$regexpIndice\})/"$match"/esg;
+                }
+                #
+                # Any remaining sub-expression ?
+                #
+                pos($string) = undef;
+                while ($string =~ /(?:\\\\|[^\\])*\K\$(?:\d+|\{\d+\})/s) {
+                  my $subExpression = substr($string, $-[0], $+[0] - $-[0], '');
+                  $self->logger_warn( '%s: sub-expression %s not present', $self->impl_quote('regexp'), $subExpression);
+                  pos($string) = undef;
+                }
+                #
+                # Treat any character following \ literally
+                #
+                while ($string =~ /(?:\\\\|[^\\])*(\\.)/s) {
+                  #
+                  # Per def it ends with \x, and x is at position $+[1]-1
+                  #
+                  print STDERR "substr($string, $+[1] - 2, 1, '');\n";
+                  substr($string, $+[1] - 2, 1, '');
+                }
+                #
+                # Ok, GNU behaviour.
+                #
+                if ($string =~ s/(?:\\\\|[^\\])*\K\\\z//) {
+                  $self->logger_warn( '%s: trailing \ ignored in replacement', $self->impl_quote('regexp'));
+                  substr($string, -1, 1, '');
+                }
+            }
+            else {
+                $string = '';
+            }
             return $string;
         }
     }
@@ -2811,13 +2878,14 @@ EVAL_GRAMMAR
         $self->_checkIgnored( '__program__', @ignored );
         return $self->__program__;
     }
-#
-# $0 is replaced by $name
-# arguments are in the form $1, $2, etc... mapped to $args[0], $args[1], etc...
-# $# is the number of arguments
-# $* is all arguments separated by comma
-# $@ is all quoted arguments separated by comma
-#
+    #
+    # $0 is replaced by $name
+    # arguments are in the form $1, $2, etc...
+    # mapped to $args[0], $args[1], etc...
+    # $# is the number of arguments
+    # $* is all arguments separated by comma
+    # $@ is all quoted arguments separated by comma
+    #
     method _expansion2CodeRef (Str $name, Str $expansion --> CodeRef) {
         my $maxArgumentIndice    = -1;
         my %wantedArgumentIndice = ();
@@ -2826,17 +2894,23 @@ EVAL_GRAMMAR
         # Arguments and $0
         #
         $newExpansion =~ s/\\\$([0-9]+)/
-      if ($1 > $maxArgumentIndice) {
-	$maxArgumentIndice = $1;
-      }
-      if ($1 == 0) {
-	# "\$0";
-	quotemeta($name);
-      } else {
-	my $indice = $1 - 1;
-	$wantedArgumentIndice{$indice}++;
-	"\$args\[$indice\]";
-      }/eg;
+          {
+           #
+           # Writen like this to how that this is a BLOCK on the right-side of eval
+           #
+           my $dollarOne = substr($newExpansion, $-[1], $+[1] - $-[1]);
+           if ($dollarOne > $maxArgumentIndice) {
+             $maxArgumentIndice = $dollarOne;
+           }
+           if ($dollarOne == 0) {
+             # "\$0";
+             quotemeta($name);
+           } else {
+             my $indice = $dollarOne - 1;
+             $wantedArgumentIndice{$indice}++;
+             "\$args\[$indice\]";
+           }
+          }/eg;
         my $prepareArguments = "\n\tmy (\$self, \@args) = \@_;\n";
         $prepareArguments .= "\n";
         #

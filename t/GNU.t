@@ -1259,3 +1259,66 @@ diversion one
 bar
 bar
 diversion three
+__! 098 divnum: input !__
+Initial divnum
+divert(`1')
+Diversion one: divnum
+divert(`2')
+Diversion two: divnum
+__! 098 divnum: output !__
+Initial 0
+
+Diversion one: 1
+
+Diversion two: 2
+__! 099 composite cleardivert: input !__
+define(`cleardivert',
+`pushdef(`_n', divnum)divert(`-1')undivert($@)divert(_n)popdef(`_n')')
+__! 099 composite cleardivert: output !__
+
+__! 100 len: input !__
+len()
+len(`abcdef')
+__! 100 len: output !__
+0
+6
+__! 101 index: input !__
+index(`gnus, gnats, and armadillos', `nat')
+index(`gnus, gnats, and armadillos', `dag')
+__! 101 index: output !__
+7
+-1
+__! 102 index - empty substring: input !__
+index(`abc')
+index(`abc', `')
+index(`abc', `b')
+__! 102 index - empty substring: output !__
+0
+0
+1
+__! 103 regexp: input !__
+regexp(`GNUs not Unix', `\b[a-z]\w+')
+regexp(`GNUs not Unix', `\bQ\w*')
+regexp(`GNUs not Unix', `\w(\w+)$', `*** $& *** $1 ***')
+regexp(`GNUs not Unix', `\bQ\w*', `*** $& *** 1 ***')
+__! 103 regexp: output !__
+5
+-1
+*** Unix *** nix ***
+
+__! 104 regexp warnings: input !__
+regexp(`abc', `(b)', `\\\${1}0a')
+regexp(`abc', `b', `$1\\')
+regexp(`abc', `((d)?)(c)', `$1$2$3$4$5$6')
+__! 104 regexp warnings: output !__
+\\b0a
+
+c
+__! 104 regexp - ommiting regexp -;: input !__
+regexp(`abc')
+regexp(`abc', `')
+regexp(`abc', `', `\\def')
+__! 104 regexp - ommiting regexp -;: output !__
+0
+0
+\def
