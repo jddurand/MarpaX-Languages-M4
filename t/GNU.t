@@ -36,18 +36,17 @@ BEGIN {
 foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $testName = $_;
   my $inputRef = __PACKAGE__->section_data($testName);
-  my $init = sub {};
+  my $extraInit = sub { return shift };
   if ($testName =~ /: input\((.+)\)/) {
-    $init = eval "sub $1";
+    $extraInit = eval "sub { my (\$self) = \@_; $1; \$self; }";
   }
   $testName =~ s/: input.*//;
   my $outputRef = __PACKAGE__->section_data("$testName: output");
 
   my $input = ${$inputRef};
   my $gnu = MarpaX::Languages::M4::Impl::GNU->new();
-  $gnu->$init;
-  $gnu->impl_parseBuffers($input);
-  my $got = $gnu->impl_value;
+  $gnu->include(['inc']);
+  my $got = $gnu->$extraInit->impl_parse($input);
   my $expected = ${$outputRef};
 
   $testName =~ s/\d+\s*//;
@@ -406,7 +405,7 @@ undefine(foo)
 BAR
 
 foo
-__! 032 builtin does not depend on --prefix-builtin: input( {my ($self) = @_; $self->prefix_builtins('m4_'); $self }) !__
+__! 032 builtin does not depend on --prefix-builtin: input($self->prefix_builtins('m4_')) !__
 m4_builtin(`divnum')
 m4_builtin(`m4_divnum')
 m4_indir(`divnum')
@@ -533,7 +532,7 @@ one comparison: 1
 two comparisons: 2
 three comparisons: 3
 default answer: 4
-__! 042 shift - composites join/joinall: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 042 shift - composites join/joinall: input !__
 include(`join.m4')
 join,join(`-'),join(`-', `'),join(`-', `', `')
 joinall,joinall(`-'),joinall(`-', `'),joinall(`-', `', `')
@@ -556,7 +555,7 @@ __! 042 shift - composites join/joinall: output !__
 -1---2-
 1,2,3
 1
-__! 043 shift - composites quote/dquote/dquote_elt: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 043 shift - composites quote/dquote/dquote_elt: input !__
 include(`quote.m4')
 -quote-dquote-dquote_elt-
 -quote()-dquote()-dquote_elt()-
@@ -586,13 +585,13 @@ __! 044 shift - composite argn: output !__
 a
 
 k
-__! 045 composite forloop: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 045 composite forloop: input !__
 include(`forloop.m4')
 forloop(`i', `1', `8', `i ')
 __! 045 composite forloop: output !__
 
 1 2 3 4 5 6 7 8 
-__! 046 composite forloop - nested: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 046 composite forloop - nested: input !__
 include(`forloop.m4')
 forloop(`i', `1', `4', `forloop(`j', `1', `8', ` (i, j)')
 ')
@@ -603,7 +602,7 @@ __! 046 composite forloop - nested: output !__
  (3, 1) (3, 2) (3, 3) (3, 4) (3, 5) (3, 6) (3, 7) (3, 8)
  (4, 1) (4, 2) (4, 3) (4, 4) (4, 5) (4, 6) (4, 7) (4, 8)
 
-__! 047 composites foreach/foreachq: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 047 composites foreach/foreachq: input !__
 include(`foreach.m4')
 foreach(`x', (foo, bar, foobar), `Word was: x
 ')dnl
@@ -619,7 +618,7 @@ Word was: foobar
 Word was: foo
 Word was: bar
 Word was: foobar
-__! 048 composites foreach/foreachq - generate a shell case statement: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 048 composites foreach/foreachq - generate a shell case statement: input !__
 include(`foreach.m4')
 define(`_case', `  $1)
     $2=" $1";;
@@ -639,7 +638,7 @@ case $1 in
   c)
     varc=" c";;
 esac
-__! 049 composites foreach/foreachq - comparison: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 049 composites foreach/foreachq - comparison: input !__
 define(`a', `1')define(`b', `2')define(`c', `3')
 include(`foreach.m4')
 include(`foreachq.m4')
@@ -659,7 +658,7 @@ __! 049 composites foreach/foreachq - comparison: output !__
 a
 (b
 c)
-__! 050 composite foreachq limitation: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
+__! 050 composite foreachq limitation: input !__
 include(`foreach.m4')include(`foreachq.m4')
 foreach(`name', `(`a', `b')', ` defn(`name')')
 foreachq(`name', ``a', `b'', ` defn(`name')')
@@ -667,7 +666,7 @@ __! 050 composite foreachq limitation: output !__
 
  a b
  _arg1(`a', `b') _arg1(shift(`a', `b'))
-__! 051 composite stack: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 051 composite stack: input !__
 include(`stack.m4')
 pushdef(`a', `1')pushdef(`a', `2')pushdef(`a', `3')
 define(`show', ``$1'
@@ -708,7 +707,7 @@ arguments were bar
 blah
 arguments were a,b
 ifelse(`$#', `0', ``$0'', `arguments were $*')
-__! 053 composite curry: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
+__! 053 composite curry: input !__
 include(`curry.m4')include(`stack.m4')
 define(`reverse', `ifelse(`$#', `0', , `$#', `1', ``$1'',
                           `reverse(shift($@)), `$1'')')
@@ -721,7 +720,7 @@ __! 053 composite curry: output !__
 
 :1, 4:2, 4:3, 4
 3, 2, 1
-__! 054 composites copy/rename: input( {my ($self) = @_; $self->include(['inc']); $self; }) !__
+__! 054 composites copy/rename: input !__
 include(`curry.m4')include(`stack.m4')
 define(`rename', `copy($@)undefine(`$1')')dnl
 define(`copy', `ifdef(`$2', `errprint(`$2 already defined
@@ -768,7 +767,7 @@ define(`foo', `like this')) while this text is ignored: undefine(`foo')
 See how `foo' was defined, foo?
 __! 058 dnl warning: output !__
 See how foo was defined, like this?
-__! 059 dnl warning at eof: input( {my ($self) = @_; $self->impl_eoi(1); $self; }) !__
+__! 059 dnl warning at eof: input !__
 m4wrap(`m4wrap(`2 hi
 ')0 hi dnl 1 hi')
 define(`hi', `HI')
@@ -897,7 +896,7 @@ hi" "HI"
 hi`hi'hi
 
 hiHIhi
-__! 068 changequote  - EOF within a quoted string: input( {my ($self) = @_; $self->impl_eoi(1); $self; }) !__
+__! 068 changequote  - EOF within a quoted string: input !__
 `hello world'
 `dangling quote
 __! 068 changequote  - EOF within a quoted string: output !__
@@ -970,7 +969,7 @@ __! 072 changecom - comments have precedence to arguments collection: output !__
 
 3:HI,,HI,HI:HI,,`'hi,HI:
 3:HI,,`'hi,HI:HI,,`'hi,HI:
-__! 073 changecom  - EOF within a comment: input( {my ($self) = @_; $self->impl_eoi(1); $self; }) !__
+__! 073 changecom  - EOF within a comment: input !__
 changecom(`/*', `*/')
 /*dangling comment
 __! 073 changecom  - EOF within a comment: output !__
@@ -983,7 +982,7 @@ define(`1', `0')1
 __! 074 changeword: output !__
 
 0
-__! 075 changeword - prevent accidentical call of builtin: input( {my ($self) = @_; $self->_policy_cmdtounix(1); $self }) !__
+__! 075 changeword - prevent accidentical call of builtin: input($self->_policy_cmdtounix(1)) !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`_indir', defn(`indir'))
@@ -1057,7 +1056,7 @@ __! 079 m4wrap: output !__
 
 This is the first and last normal input line.
 This is the cleanup action.
-__! 080 m4wrap - emulate FIFO behaviour: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 080 m4wrap - emulate FIFO behaviour: input !__
 include(`wrapfifo.m4')
 m4wrap(`a`'m4wrap(`c
 ', `d')')m4wrap(`b')
@@ -1065,7 +1064,7 @@ __! 080 m4wrap - emulate FIFO behaviour: output !__
 
 
 abc
-__! 081 m4wrap - emulate LIFO behaviour: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 081 m4wrap - emulate LIFO behaviour: input !__
 include(`wraplifo.m4')
 m4wrap(`a`'m4wrap(`c
 ', `d')')m4wrap(`b')
@@ -1073,7 +1072,7 @@ __! 081 m4wrap - emulate LIFO behaviour: output !__
 
 
 bac
-__! 081 m4wrap - factorial: input( {my ($self) = @_; $self->include(['inc']); $self }) !__
+__! 081 m4wrap - factorial: input !__
 define(`f', `ifelse(`$1', `0', `Answer: 0!=1
 ', eval(`$1>1'), `0', `Answer: $2$1=eval(`$2$1')
 ', `m4wrap(`f(decr(`$1'), `$2$1*')')')')

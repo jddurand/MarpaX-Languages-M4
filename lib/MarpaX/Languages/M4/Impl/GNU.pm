@@ -847,7 +847,7 @@ EVAL_GRAMMAR
                 #
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
-                if ( $self->impl_eoi ) {
+                if ( $self->_eoi ) {
                     $self->logger_error('EOF in comment');
                     EOFInComment->throw('EOF in comment');
                 }
@@ -897,7 +897,7 @@ EVAL_GRAMMAR
                 #
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
-                if ( $self->impl_eoi ) {
+                if ( $self->_eoi ) {
                     $self->logger_error('EOF in string');
                     EOFInQuotedString->throw('EOF in string');
                 }
@@ -1105,7 +1105,7 @@ EVAL_GRAMMAR
                         if ( $input =~ /\G.*?\n/s ) {
                             return $+[0] - $-[0];
                         }
-                        elsif ( $self->impl_eoi && $input =~ /\G[^\n]*\z/ ) {
+                        elsif ( $self->_eoi && $input =~ /\G[^\n]*\z/ ) {
                             $self->logger_warn( '%s: %s',
                                 'dnl', 'EOF without a newline' );
                             return $+[0] - $-[0];
@@ -1378,12 +1378,12 @@ EVAL_GRAMMAR
         $self->prefix_builtins('m4_');
     }
 
-    method _trigger_impl_eof (Bool $eof, @args --> Undef) {
+    method _trigger__eof (Bool $eof, @args --> Undef) {
         if ( $eof ) {
           while ( $self->_m4wrap_count > 0 ) {
             my @m4wrap = $self->_m4wrap_elements;
             $self->_set___m4wrap( [] );
-            $self->impl_parse(join('', @m4wrap));
+            $self->impl_parseIncremental(join('', @m4wrap));
           }
         }
         return;
@@ -1462,15 +1462,15 @@ EVAL_GRAMMAR
         }
     );
 
-    has impl_eof => (
-        is      => 'rwp',
+    has _eof => (
+        is      => 'rw',
         isa     => Bool,
         trigger => 1,
         default => false
     );
 
-    has impl_eoi => (
-        is      => 'rw',
+    has _eoi => (
+        is      => 'rwp',
         isa     => Bool,
         default => false
     );
@@ -2841,17 +2841,10 @@ STUB
         return $codeRef;
     }
 
-    method impl_parse (Str $input --> ConsumerOf[M4Impl]) {
+    method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
         try {
             $self->_set_impl_pos( $self->parser_parse($input) );
         };
-        return $self;
-    }
-
-    method impl_parseBuffers (Str @input --> ConsumerOf[M4Impl]) {
-        foreach (@input) {
-            $self->impl_parse($_);
-        }
         return $self;
     }
 
@@ -2860,13 +2853,28 @@ STUB
         return $self;
     }
 
+    method impl_parse (Str $input --> Str) {
+        $self->impl_eoi;
+        return $self->impl_parseIncremental($input)->impl_value;
+    }
+
+    method impl_eoi (--> ConsumerOf[M4Impl]) {
+        $self->_set__eoi(true);
+        return $self;
+    }
+
     method impl_valueRef (--> Ref['SCALAR']) {
-        if ( ! $self->impl_eof ) {
-            #
-            # Trigger EOF
-            #
-            $self->_set_impl_eof(true);
-        }
+        #
+        # If not already done, say user input is finished
+        #
+        $self->impl_eoi;
+        #
+        # Trigger EOF
+        #
+        $self->_eof(true);
+        #
+        # Return a reference to the value
+        #
         return $self->_diversions_get(0)->sref;
     }
 

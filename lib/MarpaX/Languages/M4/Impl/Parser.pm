@@ -203,9 +203,6 @@ COMMA ~ ',' _WS_any
         # Protect the case of empty string
         #
         if ( $pos > $maxPos ) {
-            if ($self->impl_eoi) {
-              $self->_set_impl_eof(true);
-            }
             return undef;
         }
         #
@@ -540,9 +537,6 @@ COMMA ~ ',' _WS_any
                         # Protect the case of empty string
                         #
                         if ( $rc{pos} > $maxPos ) {
-                            if ($self->impl_eoi) {
-                              $self->_set_impl_eof(true);
-                            }
                             return undef;
                         }
                         goto again;
