@@ -2222,6 +2222,15 @@ EVAL_GRAMMAR
 
     method builtin_undivert (Str @diversions --> Str) {
 
+        #
+        # Undiverting the empty string is the same as specifying diversion 0
+        #
+        foreach ( 0 .. $#diversions ) {
+            if ( length( $diversions[$_] ) <= 0 ) {
+                $diversions[$_] = '0';
+            }
+        }
+
         if ( !@diversions ) {
             @diversions = $self->_diversions_sortedKeys;
         }
