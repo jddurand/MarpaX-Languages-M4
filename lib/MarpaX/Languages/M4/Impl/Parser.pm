@@ -543,9 +543,9 @@ COMMA ~ ',' _WS_any
                     }
                 }
                 else {
-                    $self->logger_debug(
-                        '[%d..%d/%d] %s is not an acceptable macro call',
-                        $rc{pos}, $rc{pos}, $maxPos, $lexemeValue );
+                    # $self->logger_debug(
+                    #     '[%d..%d/%d] %s is not an acceptable macro call',
+                    #     $rc{pos}, $rc{pos}, $maxPos, $lexemeValue );
                 }
             }
             #

@@ -29,6 +29,7 @@ class MarpaX::Languages::M4::Impl::GNU {
     use Encode::Locale;
     use Encode;
     use Env::Path qw/M4PATH/;
+    use Errno;
     use File::Find;
     use File::Spec;
     use File::Temp;
@@ -353,6 +354,14 @@ EVAL_GRAMMAR
         doc =>
             q{Convert any command output from platform's native end-of-line character set to Unix style (LF). Default to a false value.}
     );
+    option policy_inctounix => (
+        is      => 'rw',
+        isa     => Bool,
+        default => false,
+        trigger => 1,
+        doc =>
+            q{Convert any included file from platform's native end-of-line character set to Unix style (LF). Default to a false value.}
+    );
     option policy_tokens_priority => (
         is          => 'rw',
         isa         => ArrayRef [Str],
@@ -668,6 +677,12 @@ EVAL_GRAMMAR
     # POLICY MAPPED ATTRIBUTES
     # ---------------------------------------------------------------
     has _policy_cmdtounix => (
+        is      => 'rw',
+        isa     => Bool,
+        default => false,
+    );
+
+    has _policy_inctounix => (
         is      => 'rw',
         isa     => Bool,
         default => false,
@@ -1194,6 +1209,11 @@ EVAL_GRAMMAR
         return;
     }
 
+    method _trigger_policy_inctounix (Bool $policy_inctounix --> Undef) {
+        $self->_policy_inctounix($policy_inctounix);
+        return;
+    }
+
     method _trigger_policy_integer_type (Str $policy_integer_type --> Undef) {
         $self->_policy_integer_type($policy_integer_type);
         return;
@@ -1379,12 +1399,12 @@ EVAL_GRAMMAR
     }
 
     method _trigger__eof (Bool $eof, @args --> Undef) {
-        if ( $eof ) {
-          while ( $self->_m4wrap_count > 0 ) {
-            my @m4wrap = $self->_m4wrap_elements;
-            $self->_set___m4wrap( [] );
-            $self->impl_parseIncremental(join('', @m4wrap));
-          }
+        if ($eof) {
+            while ( $self->_m4wrap_count > 0 ) {
+                my @m4wrap = $self->_m4wrap_elements;
+                $self->_set___m4wrap( [] );
+                $self->impl_parseIncremental( join( '', @m4wrap ) );
+            }
         }
         return;
     }
@@ -1969,6 +1989,20 @@ EVAL_GRAMMAR
     method _includeFile (Bool $silent, Str $file? --> Str) {
 
         if ( length($file) <= 0 ) {
+            if ( !$silent ) {
+                #
+                # Fake a ENOENT
+                #
+                if ( exists &Errno::ENOENT ) {
+                    $! = &Errno::ENOENT;
+                    $self->logger_error( 'cannot open %s: %s',
+                        $self->impl_quote($file), $! );
+                }
+                else {
+                    $self->logger_error( 'cannot open %s',
+                        $self->impl_quote($file) );
+                }
+            }
             return '';
         }
         my @paths = ();
@@ -2031,6 +2065,9 @@ EVAL_GRAMMAR
                     return;
                 };
                 if ( !Undef->check($content) ) {
+                    if ( $self->_policy_inctounix ) {
+                        $content =~ s/\R/\n/g;
+                    }
                     return $content;
                 }
             }
@@ -2864,9 +2901,9 @@ STUB
     }
 
     method impl_valueRef (--> Ref['SCALAR']) {
-        #
-        # If not already done, say user input is finished
-        #
+            #
+            # If not already done, say user input is finished
+            #
         $self->impl_eoi;
         #
         # Trigger EOF

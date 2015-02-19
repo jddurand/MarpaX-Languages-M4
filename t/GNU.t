@@ -45,12 +45,19 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
 
   my $input = ${$inputRef};
   my $gnu = MarpaX::Languages::M4::Impl::GNU->new();
+  #
+  # Our include directory
+  #
   $gnu->include(['inc']);
-  my $got = $gnu->$extraInit->impl_parse($input);
-  my $expected = ${$outputRef};
+  #
+  # Global test settings so that the test-suite works on all platforms:
+  # the test suite below assumes LF line-ending.
+  #
+  $gnu->policy_cmdtounix(1);
+  $gnu->policy_inctounix(1);
 
   $testName =~ s/\d+\s*//;
-  cmp_ok($got, 'eq', $expected, $testName);
+  cmp_ok($gnu->$extraInit->impl_parse($input), 'eq', ${$outputRef}, $testName);
 }
 done_testing();
 
@@ -982,7 +989,7 @@ define(`1', `0')1
 __! 074 changeword: output !__
 
 0
-__! 075 changeword - prevent accidentical call of builtin: input($self->_policy_cmdtounix(1)) !__
+__! 075 changeword - prevent accidentical call of builtin !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`_indir', defn(`indir'))
@@ -1093,3 +1100,31 @@ __! 083 m4wrap - transition between recursion levels: input !__
 m4wrap(`m4wrap(`)')len(abc')
 __! 083 m4wrap - transition between recursion levels: output !__
 
+__! 084 include - warnings: input !__
+include(`none')
+include()
+sinclude(`none')
+sinclude()
+__! 084 include - warnings: output !__
+
+
+
+
+__! 085 include - incl.m4: input !__
+define(`foo', `FOO')
+include(`incl.m4')
+__! 085 include - incl.m4: output !__
+
+Include file start
+FOO
+Include file end
+
+__! 086 include - incl.m4 v2: input !__
+define(`bar', include(`incl.m4'))
+This is `bar':  >>bar<<
+__! 086 include - incl.m4 v2: output !__
+
+This is bar:  >>Include file start
+foo
+Include file end
+<<
