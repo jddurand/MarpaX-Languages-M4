@@ -1335,3 +1335,21 @@ substr(`abc',)
 _! 107 substr warning: output !__
 abc
 abc
+_! 108 translit: input !__
+translit(`GNUs not Unix', `G-', `&!')
+translit(`GNUs-not-Unix', `G-', `&!')
+translit(`GNUs-not-Unix', `GU', `&')
+translit(`GNUs not Unix', `A-Z')
+translit(`GNUs not Unix', `a-z', `A-Z')
+translit(`GNUs not Unix', `A-Z', `z-a')
+translit(`+,-12345', `+--1-5', `<;>a-c-a')
+translit(`abcdef', `aabdef', `bcged')
+_! 108 translit: output !__
+&NUs not Unix
+&NUs!not!Unix
+&Ns-not-nix
+s not nix
+GNUS NOT UNIX
+tmfs not fnix
+<;>abcba
+bgced

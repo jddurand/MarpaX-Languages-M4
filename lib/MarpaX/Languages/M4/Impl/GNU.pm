@@ -2496,7 +2496,36 @@ EVAL_GRAMMAR
             : substr( $string, $from );
     }
 
-    method builtin_translit (Undef|Str $string?, Undef|Str $chars?, Undef|Str $replacement?, @ignored --> Str) {
+    method _expandRanges(Str $range --> Str) {
+      my $rc = '';
+      my @chars = split(//, $range);
+      for (my $from = undef, my $i = 0; $i <= $#chars; $from = ord($chars[$i++])) {
+        my $s = $chars[$i];
+        if ($s eq '-' && defined($from)) {
+          my $to = (++$i <= $#chars) ? ord($chars[$i]) : undef;
+          if (! defined($to)) {
+            #
+            # Trailing dash
+            #
+            $rc .= '-';
+            last;
+          } elsif ($from <= $to) {
+            while ($from++ < $to) {
+              $rc .= chr($from);
+            }
+          } else {
+            while (--$from >= $to) {
+              $rc .= chr($from);
+            }
+          }
+        } else {
+          $rc .= $chars[$i];
+        }
+      }
+      return $rc;
+    }
+
+    method builtin_translit (Undef|Str $string?, Undef|Str $from?, Undef|Str $to?, @ignored --> Str) {
         if ( Undef->check($string) ) {
             $self->logger_error(
                 'too few arguments to builtin %s',
@@ -2504,7 +2533,7 @@ EVAL_GRAMMAR
             );
             return '';
         }
-        if ( Undef->check($chars) ) {
+        if ( Undef->check($from) ) {
             $self->logger_error(
                 'too few arguments to builtin %s',
                 $self->impl_quote('translit')
@@ -2513,25 +2542,58 @@ EVAL_GRAMMAR
         }
         $self->_checkIgnored( 'translit', @ignored );
 
-        $string //= '';
-        if ( Undef->check($chars) ) {
-            $self->logger_warn( '%s: missing second argument', 'translit' );
-            return $string;
-        }
-        $replacement //= '';
-
-        #
-        # Perl does not like try/catch here,
-        # I really have to use eval with runtime error
-        #
-        $_ = $string;
-        eval "tr/$chars/$replacement";
-        if ($@) {
-            $self->logger_warn( '%s: %s', 'translit', $@ );
+        my $fromLength = length($from);
+        if ( $fromLength <= 0) {
             return '';
         }
 
-        return $_;
+        #
+        # We duplicate the algorithm of GNU m4: translit
+        # is part of M4 official spec, so we cannot use
+        # perl's tr, which is not stricly equivalent.
+        # De-facto, we will get GNU specific extensions.
+        #
+        $to //= '';
+        if (index($to, '-') >= 0) {
+          $to = $self->_expandRanges($to);
+        }
+        #
+        # In case of small $from, let's go to the range algorithm
+        # anyway.
+        # GNU m4 implementation is correct doing direct
+        # transformation if there is only one or two bytes.
+        # Well, for us, I'd say one of two characters.
+
+        if (index($from, '-') >= 0) {
+          $from = $self->_expandRanges($from);
+        }
+
+        my %map = ();
+        my $toMaxIndice = length($to) - 1;
+        my $ito = 0;
+        foreach (split(//, $from)) {
+          if (! exists($map{$_})) {
+            if ($ito <= $toMaxIndice) {
+              $map{$_} = substr($to, $ito, 1);
+            } else {
+              $map{$_} = '';
+            }
+          }
+          if ($ito <= $toMaxIndice) {
+            $ito++;
+          }
+        }
+
+        my $rc = '';
+        foreach (split(//, $string)) {
+          if (exists($map{$_})) {
+            $rc .= $map{$_};
+          } else {
+            $rc .= $_;
+          }
+        }
+
+        return $rc;
     }
 
     #
