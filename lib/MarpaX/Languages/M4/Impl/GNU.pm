@@ -2362,6 +2362,19 @@ EVAL_GRAMMAR
         return index( $string, $substring );
     }
 
+    method _regexpDollarOneToIndice(Str $dollarOne --> PositiveOrZeroInt) {
+      $dollarOne =~ s/^\\\{//;
+      #
+      # Note: int('&') will return 0
+      #
+      return int($dollarOne);
+    }
+
+    method _regexpIndiceToReplacement(PositiveOrZeroInt $indice, HashRef $wantedIndicesRef) {
+      $wantedIndicesRef->{$indice}++;
+      return "\$match\[$indice\]";
+    }
+
     method builtin_regexp (Undef|Str $string?, Undef|Str $regexpString?, Undef|Str $replacement?, @ignored --> Str) {
         if ( Undef->check($string) || Undef->check($regexpString) ) {
             $self->logger_error(
@@ -2389,83 +2402,56 @@ EVAL_GRAMMAR
             return "$index";
         }
         else {
-            #
-            # We are going to use the dangerous s///ee form because
-            # we want to interpret the content of $replacement
-            # Since this is a security issue, we simply apply the
-            # same logic as _expansion2CodeRef:
-            # quotemeta everything
-            # un-quotemeta only what we want
-            # The difference with _expansion2CodeRef is that we will
-            # take into account backslashes
-            #
-            my $safeReplacement = quotemeta($replacement);
-            #
-            # We allow only:
-            # * $&
-            # * $\d+
-            # and their ${...} form
-            #
-            # We want to warn about unexpanded thingies so, as in
-            # _expansion2CodeRef we will count expected
-            # replacements.
-            #
-            # the quotemeta vesion of $& is: \$\&
-            # Note: (?:\\\\|[^\\])* is eating all the double-backslashes
-            #
-            # From LEONT on SO:
-            # normal string: (?<!\\)(?>\\\\)*x
-            # quotedmeta string: (?<!\\\\)(?>\\\\\\\\)*x
-
-            my $max = 0;
-            $safeReplacement =~ s/(?<!\\\\)(?>\\\\\\\\)*\K\\\$\\&/\$match[0]/g;
-            $safeReplacement =~ s/(?<!\\\\)(?>\\\\\\\\)*\K\\\$(\d+)/
-            {
-             my $indice = substr($safeReplacement, $-[1], $+[1] - $-[1]);
-             if ($indice > $max) {
-               $max = $indice;
-             }
-             "\$match[$indice]";
+          #
+          # Sanitize
+          #
+          my $safeReplacement = quotemeta($replacement);
+          #
+          # We allow only:
+          # * $&                       quotemeta: \$\&
+          # * $digits                  quotemeta: \$digits
+          # * ${&}                     quotemeta: \$\{\&\}
+          # * ${digits}                quotemeta: \$\{digits\}
+          #
+          # We want to warn about unexpanded thingies so, as in
+          # _expansion2CodeRef we will count expected
+          # replacements.
+          #
+          my $maxRegexpIndice    = -1;
+          my %wantedRegexpIndice = ();
+          $safeReplacement = $self->_allowBlockInSanitizedString($safeReplacement,
+                                                                 qr/\\\$((?:\\\&|\\\{\\\&\\\})|(?:[0-9]+|\\\{[0-9]+\\\}))/,
+                                                                 \&_regexpDollarOneToIndice,
+                                                                 \&_regexpIndiceToReplacement,
+                                                                 \%wantedRegexpIndice,
+                                                                 \$maxRegexpIndice);
+          if ( $string =~ $regexp) {
+            my @match = ();
+            foreach (0..$maxRegexpIndice) {
+              if ($_ <= $#+) {
+                $match[$_] = substr($string, $-[$_], $+[$_] - $-[$_]);
+              } else {
+                $self->logger_warn( '%s: sub-expression number %d not present',
+                                    $self->impl_quote('regexp'), $_ );
+                $match[$_] = '';
+              }
             }
-            /eg;
-            #
-            # The \$\{...\} versions
-            #
-            $safeReplacement
-                =~ s/(?<!\\\\)(?>\\\\\\\\)*\K\\\$\\\{\\&\\\}/\$match[0]/g;
-            $safeReplacement =~ s/(?<!\\\\)(?>\\\\\\\\)*\K\\\$\\\{(\d+)\\\}/
-            {
-             my $indice = substr($safeReplacement, $-[1], $+[1] - $-[1]);
-             if ($indice > $max) {
-               $max = $indice;
-             }
-             "\$match[$indice]";
-            }/eg;
-            if ( $string =~ $regexp) {
-              my @match;
-              foreach ( 0 .. $max ) {
-                if ($_ <= $#+) {
-                  $match[$_] = substr($string, $-[$_], $+[$_] - $-[$_]);
-                } else {
-                  $self->logger_warn( '%s: sub-expression number %d not present',
-                                      $self->impl_quote('regexp'), $_ );
-                  $match[$_] = '';
-                }
-              }
-              my $rc = eval "\"$safeReplacement\"";
-              if ($@) {
-                #
-                # This should never happen, because we sanitized it
-                #
-                $self->logger_error( '%s', $@);
-                $rc = '';
-              }
-              return $rc;
-            } else {
+            my $rc = eval "\"$safeReplacement\"";
+            if ($@) {
+              #
+              # Should not happen, we have sanitized the replacement string
+              #
+              $self->logger_error( '%s: Internal error %s',
+                                   $self->impl_quote('regexp'), $@ );
               return '';
+            } else {
+              return $rc;
             }
+          } else {
+            return '';
+          }
         }
-    }
+      }
 
     method builtin_substr (Undef|Str $string?, Undef|Str $from?, Undef|Str $length?, @ignored --> Str) {
         if ( Undef->check($string) ) {
@@ -2903,6 +2889,23 @@ EVAL_GRAMMAR
     method builtin___line__ (Str @ignored --> Str) {
         $self->_checkIgnored( '__line__', @ignored );
         return $self->__line__;
+    }
+
+    method _allowBlockInSanitizedString(Str $string, RegexpRef $regexp, CodeRef $dollarOneToIndiceRef, CodeRef $indiceToReplacementRef, HashRef $wantedIndicesRef, Ref['SCALAR'] $maxArgumentIndiceRef --> Str) {
+
+      $string =~ s/$regexp/
+          {
+           #
+           # Writen like this to show that this is a BLOCK on the right-side of eval
+           #
+           my $indice = $self->$dollarOneToIndiceRef(substr($string, $-[1], $+[1] - $-[1]));
+           if ($indice > ${$maxArgumentIndiceRef}) {
+             ${$maxArgumentIndiceRef} = $indice;
+           }
+           $self->$indiceToReplacementRef($indice, $wantedIndicesRef);
+          }/eg;
+
+      return $string;
     }
 
     method builtin___program__ (Str @ignored --> Str) {

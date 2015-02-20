@@ -1315,11 +1315,11 @@ __! 104 regexp warnings: output !__
 \\b0a
 
 c
-__! 104 regexp - ommiting regexp -;: input !__
+__! 105 regexp - ommiting regexp -;: input !__
 regexp(`abc')
 regexp(`abc', `')
 regexp(`abc', `', `\def')
-__! 104 regexp - ommiting regexp -;: output !__
+__! 105 regexp - ommiting regexp -;: output !__
 0
 0
 \\def
