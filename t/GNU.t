@@ -1323,3 +1323,15 @@ __! 105 regexp - ommiting regexp -;: output !__
 0
 0
 \\def
+_! 106 substr: input !__
+substr(`gnus, gnats, and armadillos', `6')
+substr(`gnus, gnats, and armadillos', `6', `5')
+_! 106 substr: output !__
+gnats, and armadillos
+gnats
+_! 107 substr warning: input !__
+substr(`abc')
+substr(`abc',)
+_! 107 substr warning: output !__
+abc
+abc

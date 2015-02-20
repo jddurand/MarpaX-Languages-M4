@@ -2470,6 +2470,13 @@ EVAL_GRAMMAR
         }
         $self->_checkIgnored( 'substr', @ignored );
 
+        if (length($from) <= 0) {
+            $self->logger_warn(
+                '%s: empty string treated as zero',
+                'substr' );
+            $from = 0;
+        }
+
         if ( !PositiveOrZeroInt->check($from) ) {
             $self->logger_error(
                 '%s: %s: does not look like a positive or zero integer',
