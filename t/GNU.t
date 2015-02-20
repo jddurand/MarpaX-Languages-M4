@@ -1338,7 +1338,6 @@ abc
 _! 108 translit: input !__
 translit(`GNUs not Unix', `-G', `&!')
 translit(`GNUs not Unix', `G-', `&!')
-translit(`GNUs-not-Unix', `G-', `&!')
 translit(`GNUs-not-Unix', `GU', `&')
 translit(`GNUs not Unix', `A-Z')
 translit(`GNUs not Unix', `a-z', `A-Z')
@@ -1348,7 +1347,6 @@ translit(`abcdef', `aabdef', `bcged')
 _! 108 translit: output !__
 !NUs not Unix
 &NUs not Unix
-&NUs!not!Unix
 &Ns-not-nix
 s not nix
 GNUS NOT UNIX
