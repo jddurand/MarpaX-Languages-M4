@@ -57,16 +57,16 @@ class MarpaX::Languages::M4::Impl::Macro {
         handles     => { macro_postMatchLengthExecute => 'execute' }
     );
 
-    method macro_name(--> Str) {
-        return  $self->name;
+    method macro_name (--> Str) {
+        return $self->name;
     }
 
-    method macro_expansion(--> Str | M4Macro) {
-        return  $self->expansion;
+    method macro_expansion (--> Str | M4Macro) {
+        return $self->expansion;
     }
 
-    method macro_needParams(--> Bool ) {
-        return  $self->needParams;
+    method macro_needParams (--> Bool ) {
+        return $self->needParams;
     }
 
     method macro_isBuiltin (--> Bool) {
