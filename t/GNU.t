@@ -1437,3 +1437,13 @@ _! 114 format - forloop: output !__
      9 squared is         81
     10 squared is        100
 
+_! 115 incr/decr: input !__
+incr(`4')
+decr(`7')
+incr()
+decr()
+_! 115 incr/decr: output !__
+5
+6
+1
+-1

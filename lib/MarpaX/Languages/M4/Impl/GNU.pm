@@ -2782,18 +2782,16 @@ EVAL_GRAMMAR
     }
 
     method builtin_incr (Undef|Str $number?, Str @ignored --> Str) {
-        if ( Undef->check($number) ) {
-            $self->logger_error(
-                'too few arguments to builtin %s',
-                $self->impl_quote('incr')
-            );
-            return '';
-        }
         $self->_checkIgnored( 'incr', @ignored );
-        $number //= 0;
+        $number //= '';
+        if ( length($number) <= 0 ) {
+            $self->logger_error( 'empty string treated as 0 in builtin %s',
+                $self->impl_quote('incr') );
+            $number = 0;
+        }
         if ( !Int->check($number) ) {
             $self->logger_error( '%s: %s: does not look like an integer',
-                'incr', $number );
+                'incr', $self->impl_quote($number) );
             return '';
         }
         my $rc = '';
@@ -2819,18 +2817,16 @@ EVAL_GRAMMAR
     }
 
     method builtin_decr (Undef|Str $number?, Str @ignored --> Str) {
-        if ( Undef->check($number) ) {
-            $self->logger_error(
-                'too few arguments to builtin %s',
-                $self->impl_quote('decr')
-            );
-            return '';
-        }
         $self->_checkIgnored( 'decr', @ignored );
-        $number //= 0;
+        $number //= '';
+        if ( length($number) <= 0 ) {
+            $self->logger_error( 'empty string treated as 0 in builtin %s',
+                $self->impl_quote('decr') );
+            $number = 0;
+        }
         if ( !Int->check($number) ) {
             $self->logger_error( '%s: %s: does not look like an integer',
-                'incr', $number );
+                'decr', $self->impl_quote($number) );
             return '';
         }
         my $rc = '';
@@ -2848,7 +2844,7 @@ EVAL_GRAMMAR
                 $rc = $v2->to_Dec();
             }
             catch {
-                $self->logger_warn( '%s: %s', 'incr', $! );
+                $self->logger_warn( '%s: %s', 'decr', $! );
                 return;
             }
         }
