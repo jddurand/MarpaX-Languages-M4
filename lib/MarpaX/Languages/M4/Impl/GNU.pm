@@ -3079,7 +3079,7 @@ EVAL_GRAMMAR
             return;
         };
 
-        return $self->impl_quote($tmp);
+        return $self->impl_quote($tmp->filename);
     }
 
     method builtin_mkstemp (Str @args --> Str) {
