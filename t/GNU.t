@@ -2,6 +2,7 @@
 use strict;
 use warnings FATAL   => 'all';
 use File::Temp qw/tempfile/;
+use File::Spec;
 use Test::More;
 use Log::Handler;
 use Log::Any::Adapter;
@@ -38,6 +39,8 @@ my $fhfoo = File::Temp->new();
 print $fhfoo "bar\n";
 close($fhfoo);
 
+my $echo = File::Spec->catfile('inc', 'echo.pl');
+
 foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $testName = $_;
   my $inputRef = __PACKAGE__->section_data($testName);
@@ -53,6 +56,7 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   # For the special foo temporary file
   #
   $input =~ s/%%%FOO%%%/$fhfoo/g;
+  $input =~ s/%%%ECHO%%%/$echo/g;
   my $gnu = MarpaX::Languages::M4::Impl::GNU->new();
   #
   # Our include directory
@@ -1005,7 +1009,7 @@ ifdef(`changeword', `', `errprint(` skipping: no changeword support
 define(`_indir', defn(`indir'))
 changeword(`_[_a-zA-Z0-9]*')
 esyscmd(`foo')
-_indir(`esyscmd', `echo hi')
+_indir(`esyscmd', `perl %%%ECHO%%% hi')
 __! 075 changeword - prevent accidentical call of builtin: output !__
 
 
