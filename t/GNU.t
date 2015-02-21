@@ -1667,3 +1667,10 @@ errprint(`1')errprint(`2',`3
 _! 129 errprint: output !__
 
 
+_! 130 file/line/program: input !__
+errprint(__program__:__file__:__line__: `input error
+')
+errprint(__program__:__file__:__line__: `input error
+')
+_! 130 file/line/program: output !__
+
