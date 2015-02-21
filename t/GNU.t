@@ -49,7 +49,12 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
     $extraInit = eval "sub { my (\$self) = \@_; $1; \$self; }";
   }
   $testName =~ s/: input.*//;
-  my $outputRef = __PACKAGE__->section_data("$testName: output");
+  my $testIsCmp = 0;
+  my $outputRef = __PACKAGE__->section_data("$testName: ANYoutput");
+  if (! defined($outputRef)) {
+    $outputRef = __PACKAGE__->section_data("$testName: output");
+    $testIsCmp = 1;
+  }
 
   my $input = ${$inputRef};
   #
@@ -70,7 +75,11 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   $gnu->policy_inctounix(1);
 
   $testName =~ s/\d+\s*//;
-  cmp_ok($gnu->$extraInit->impl_parse($input), 'eq', ${$outputRef}, $testName);
+  if ($testIsCmp) {
+    cmp_ok($gnu->$extraInit->impl_parse($input), 'eq', ${$outputRef}, $testName);
+  } else {
+    ok(length($gnu->$extraInit->impl_parse($input)) > 0, $testName);
+  }
 }
 
 done_testing();
@@ -1637,3 +1646,16 @@ non-zero
 127
 
 0
+_! 128 maketemp: input !__
+define(`tmp', `oops')
+maketemp(`/tmp/fooXXXXXX')
+ifdef(`mkstemp', `define(`maketemp', defn(`mkstemp'))',
+      `define(`mkstemp', defn(`maketemp'))dnl
+errprint(`warning: potentially insecure maketemp implementation
+')')
+mkstemp(`doc')
+_! 128 maketemp: ANYoutput !__
+
+/tmp/fooa07346
+
+docQv83Uw
