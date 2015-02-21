@@ -124,6 +124,31 @@ class MarpaX::Languages::M4::Impl::GNU {
     our $DEFAULT_WORD_REGEXP = '[_a-zA-Z][_a-zA-Z0-9]*';
 
     #
+    # The list of GNU extensions is known in advanced and is fixed.
+    #
+    our %GNU_EXTENSIONS = (
+        __file__    => 1,
+        __line__    => 1,
+        __program__ => 1,
+        builtin     => 1,
+        changeword  => 1,
+        debugmode   => 1,
+        debugfile   => 1,
+        esyscmd     => 1,
+        format      => 1,
+        indir       => 1,
+        patsubst    => 1,
+        regexp      => 1,
+        __gnu__     => 1,
+        __os2__     => 1,
+        os2         => 1,
+        __unix__    => 1,
+        unix        => 1,
+        __windows__ => 1,
+        windows     => 1,
+    );
+
+    #
     # Comments are recognized in preference to macros.
     # Comments are recognized in preference to argument collection.
     # Macros are recognized in preference to the begin-quote string.
@@ -570,6 +595,24 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
     # RUNTIME DEFAULT OPTIONS
     # ---------------------------------------------------------------
+    option gnu => (
+        is      => 'rw',
+        isa     => Bool,
+        default => false,
+        short   => 'g',
+        trigger => 1,
+        doc     => q{Enable all extensions.}
+    );
+
+    option traditional => (
+        is      => 'rw',
+        isa     => Bool,
+        default => false,
+        short   => 'G',
+        trigger => 1,
+        doc     => q{Suppress all extensions.}
+    );
+
     option debugmode => (
         is      => 'rw',
         isa     => Str,
@@ -668,10 +711,6 @@ EVAL_GRAMMAR
         doc =>
             "Word perl regular expression. Default: \"$DEFAULT_WORD_REGEXP\"."
     );
-
-    # ---------------------------------------------------------------
-    # BUILDERS
-    # ---------------------------------------------------------------
 
     # ---------------------------------------------------------------
     # POLICY MAPPED ATTRIBUTES
@@ -996,7 +1035,11 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
     # PRIVATE ATTRIBUTES
     # ---------------------------------------------------------------
-
+    has _no_gnu_extensions => (
+        is      => 'rw',
+        isa     => Bool,
+        default => false,
+    );
     has _lastSysExitCode => ( is => 'rw', isa => Int, default => 0 );
 
     has __file__ => ( is => 'rw', isa => Str, default => '' );
@@ -1096,6 +1139,13 @@ EVAL_GRAMMAR
             /
             )
         {
+
+            if (   $self->_no_gnu_extensions
+                && exists( $GNU_EXTENSIONS{$_} )
+                && $GNU_EXTENSIONS{$_} )
+            {
+                next;
+            }
             $ref{$_} = MarpaX::Languages::M4::Impl::Macro->new(
                 name      => $_,
                 expansion => 'TO BE REPLACED',
@@ -1133,35 +1183,33 @@ EVAL_GRAMMAR
             }
         }
         if ( is_os_type('Windows') ) {
-            foreach (qw/__windows__ windows/) {
-                $ref{$_} = MarpaX::Languages::M4::Impl::Macro->new(
-                    name      => $_,
-                    expansion => "<$_>",
-                    stub      => sub { return ''; }
-                );
-            }
+            my $name = $self->_no_gnu_extensions ? 'windows' : '__windows__';
+            $ref{$name} = MarpaX::Languages::M4::Impl::Macro->new(
+                name      => $name,
+                expansion => "<$_>",
+                stub      => sub { return ''; }
+            );
             #
             # A priori I assume this is reliable
             #
             if ( $^O eq 'os2' ) {
-                foreach (qw/__os2__ os2/) {
-                    $ref{$_} = MarpaX::Languages::M4::Impl::Macro->new(
-                        name      => $_,
-                        expansion => "<$_>",
-                        stub      => sub { return ''; }
-                    );
-                }
-            }
-        }
-        if ( is_os_type('Unix') ) {
-            foreach (qw/__unix__ unix/) {
-                $ref{$_} = MarpaX::Languages::M4::Impl::Macro->new(
-                    name      => $_,
+                my $name = $self->_no_gnu_extensions ? 'os2' : '__os2__';
+                $ref{$name} = MarpaX::Languages::M4::Impl::Macro->new(
+                    name      => $name,
                     expansion => "<$_>",
                     stub      => sub { return ''; }
                 );
             }
         }
+        if ( is_os_type('Unix') ) {
+            my $name = $self->_no_gnu_extensions ? 'unix' : '__unix__';
+            $ref{$name} = MarpaX::Languages::M4::Impl::Macro->new(
+                name      => $name,
+                expansion => "<$_>",
+                stub      => sub { return ''; }
+            );
+        }
+
         return \%ref;
     }
 
@@ -1178,6 +1226,14 @@ EVAL_GRAMMAR
     # ----------------------------------------------------
     # Triggers
     # ----------------------------------------------------
+    method _trigger_traditional {
+        $self->_no_gnu_extensions(true);
+    }
+
+    method _trigger_gnu {
+        $self->_no_gnu_extensions(false);
+    }
+
     method _trigger_policy_wordCharacterPerCharacter (Bool $policy_wordCharacterPerCharacter --> Undef) {
         $self->_set__wordCharacterPerCharacter(
             $policy_wordCharacterPerCharacter);
@@ -2045,9 +2101,10 @@ EVAL_GRAMMAR
         );
 
         my @candidates;
-        if (File::Spec->file_name_is_absolute($file)) {
-          @candidates = ( $file );
-        } else {
+        if ( File::Spec->file_name_is_absolute($file) ) {
+            @candidates = ($file);
+        }
+        else {
             use filetest 'access';
             @candidates = grep { -r $_ }
                 map { File::Spec->catfile( $_, $file ) } @includes;
@@ -2362,17 +2419,17 @@ EVAL_GRAMMAR
         return index( $string, $substring );
     }
 
-    method _regexpDollarOneToIndice(Str $dollarOne --> PositiveOrZeroInt) {
-      $dollarOne =~ s/^\\\{//;
-      #
-      # Note: int('&') will return 0
-      #
-      return int($dollarOne);
+    method _regexpDollarOneToIndice (Str $dollarOne --> PositiveOrZeroInt) {
+        $dollarOne =~ s/^\\\{//;
+        #
+        # Note: int('&') will return 0
+        #
+        return int($dollarOne);
     }
 
-    method _regexpIndiceToReplacement(PositiveOrZeroInt $indice, HashRef $wantedIndicesRef) {
-      $wantedIndicesRef->{$indice}++;
-      return "\$match\[$indice\]";
+    method _regexpIndiceToReplacement (PositiveOrZeroInt $indice, HashRef $wantedIndicesRef) {
+        $wantedIndicesRef->{$indice}++;
+        return "\$match\[$indice\]";
     }
 
     method builtin_regexp (Undef|Str $string?, Undef|Str $regexpString?, Undef|Str $replacement?, @ignored --> Str) {
@@ -2392,8 +2449,6 @@ EVAL_GRAMMAR
 
         $self->_checkIgnored( 'regexp', @ignored );
 
-        $string //= '';
-
         if ( Undef->check($replacement) ) {
             #
             # Expands to the index of first match in string
@@ -2402,56 +2457,63 @@ EVAL_GRAMMAR
             return "$index";
         }
         else {
-          #
-          # Sanitize
-          #
-          my $safeReplacement = quotemeta($replacement);
-          #
-          # We allow only:
-          # * $&                       quotemeta: \$\&
-          # * $digits                  quotemeta: \$digits
-          # * ${&}                     quotemeta: \$\{\&\}
-          # * ${digits}                quotemeta: \$\{digits\}
-          #
-          # We want to warn about unexpanded thingies so, as in
-          # _expansion2CodeRef we will count expected
-          # replacements.
-          #
-          my $maxRegexpIndice    = -1;
-          my %wantedRegexpIndice = ();
-          $safeReplacement = $self->_allowBlockInSanitizedString($safeReplacement,
-                                                                 qr/\\\$((?:\\\&|\\\{\\\&\\\})|(?:[0-9]+|\\\{[0-9]+\\\}))/,
-                                                                 \&_regexpDollarOneToIndice,
-                                                                 \&_regexpIndiceToReplacement,
-                                                                 \%wantedRegexpIndice,
-                                                                 \$maxRegexpIndice);
-          if ( $string =~ $regexp) {
-            my @match = ();
-            foreach (0..$maxRegexpIndice) {
-              if ($_ <= $#+) {
-                $match[$_] = substr($string, $-[$_], $+[$_] - $-[$_]);
-              } else {
-                $self->logger_warn( '%s: sub-expression number %d not present',
-                                    $self->impl_quote('regexp'), $_ );
-                $match[$_] = '';
-              }
+            #
+            # Sanitize
+            #
+            my $safeReplacement = quotemeta($replacement);
+            #
+            # We allow only:
+            # * $&                       quotemeta: \$\&
+            # * $digits                  quotemeta: \$digits
+            # * ${&}                     quotemeta: \$\{\&\}
+            # * ${digits}                quotemeta: \$\{digits\}
+            #
+            # We want to warn about unexpanded thingies so, as in
+            # _expansion2CodeRef we will count expected
+            # replacements.
+            #
+            my $maxRegexpIndice    = -1;
+            my %wantedRegexpIndice = ();
+            $safeReplacement = $self->_allowBlockInSanitizedString(
+                $safeReplacement,
+                qr/\\\$((?:\\\&|\\\{\\\&\\\})|(?:[0-9]+|\\\{[0-9]+\\\}))/,
+                \&_regexpDollarOneToIndice,
+                \&_regexpIndiceToReplacement,
+                \%wantedRegexpIndice,
+                \$maxRegexpIndice
+            );
+            if ( $string =~ $regexp ) {
+                my @match = ();
+                foreach ( 0 .. $maxRegexpIndice ) {
+                    if ( $_ <= $#+ ) {
+                        $match[$_]
+                            = substr( $string, $-[$_], $+[$_] - $-[$_] );
+                    }
+                    else {
+                        $self->logger_warn(
+                            '%s: sub-expression number %d not present',
+                            $self->impl_quote('regexp'), $_ );
+                        $match[$_] = '';
+                    }
+                }
+                my $rc = eval "\"$safeReplacement\"";
+                if ($@) {
+                 #
+                 # Should not happen, we have sanitized the replacement string
+                 #
+                    $self->logger_error( '%s: Internal error %s',
+                        $self->impl_quote('regexp'), $@ );
+                    return '';
+                }
+                else {
+                    return $rc;
+                }
             }
-            my $rc = eval "\"$safeReplacement\"";
-            if ($@) {
-              #
-              # Should not happen, we have sanitized the replacement string
-              #
-              $self->logger_error( '%s: Internal error %s',
-                                   $self->impl_quote('regexp'), $@ );
-              return '';
-            } else {
-              return $rc;
+            else {
+                return '';
             }
-          } else {
-            return '';
-          }
         }
-      }
+    }
 
     method builtin_substr (Undef|Str $string?, Undef|Str $from?, Undef|Str $length?, @ignored --> Str) {
         if ( Undef->check($string) ) {
@@ -2470,9 +2532,8 @@ EVAL_GRAMMAR
         }
         $self->_checkIgnored( 'substr', @ignored );
 
-        if (length($from) <= 0) {
-            $self->logger_warn(
-                '%s: empty string treated as zero',
+        if ( length($from) <= 0 ) {
+            $self->logger_warn( '%s: empty string treated as zero',
                 'substr' );
             $from = 0;
         }
@@ -2496,33 +2557,41 @@ EVAL_GRAMMAR
             : substr( $string, $from );
     }
 
-    method _expandRanges(Str $range --> Str) {
-      my $rc = '';
-      my @chars = split(//, $range);
-      for (my $from = undef, my $i = 0; $i <= $#chars; $from = ord($chars[$i++])) {
-        my $s = $chars[$i];
-        if ($s eq '-' && defined($from)) {
-          my $to = (++$i <= $#chars) ? ord($chars[$i]) : undef;
-          if (! defined($to)) {
-            #
-            # Trailing dash
-            #
-            $rc .= '-';
-            last;
-          } elsif ($from <= $to) {
-            while ($from++ < $to) {
-              $rc .= chr($from);
+    method _expandRanges (Str $range --> Str) {
+        my $rc = '';
+        my @chars = split( //, $range );
+        for (
+            my $from = undef, my $i = 0;
+            $i <= $#chars;
+            $from = ord( $chars[ $i++ ] )
+            )
+        {
+            my $s = $chars[$i];
+            if ( $s eq '-' && defined($from) ) {
+                my $to = ( ++$i <= $#chars ) ? ord( $chars[$i] ) : undef;
+                if ( !defined($to) ) {
+                    #
+                    # Trailing dash
+                    #
+                    $rc .= '-';
+                    last;
+                }
+                elsif ( $from <= $to ) {
+                    while ( $from++ < $to ) {
+                        $rc .= chr($from);
+                    }
+                }
+                else {
+                    while ( --$from >= $to ) {
+                        $rc .= chr($from);
+                    }
+                }
             }
-          } else {
-            while (--$from >= $to) {
-              $rc .= chr($from);
+            else {
+                $rc .= $chars[$i];
             }
-          }
-        } else {
-          $rc .= $chars[$i];
         }
-      }
-      return $rc;
+        return $rc;
     }
 
     method builtin_translit (Undef|Str $string?, Undef|Str $from?, Undef|Str $to?, @ignored --> Str) {
@@ -2543,7 +2612,7 @@ EVAL_GRAMMAR
         $self->_checkIgnored( 'translit', @ignored );
 
         my $fromLength = length($from);
-        if ( $fromLength <= 0) {
+        if ( $fromLength <= 0 ) {
             return '';
         }
 
@@ -2554,8 +2623,8 @@ EVAL_GRAMMAR
         # De-facto, we will get GNU specific extensions.
         #
         $to //= '';
-        if (index($to, '-') >= 0) {
-          $to = $self->_expandRanges($to);
+        if ( index( $to, '-' ) >= 0 ) {
+            $to = $self->_expandRanges($to);
         }
         #
         # In case of small $from, let's go to the range algorithm
@@ -2564,33 +2633,35 @@ EVAL_GRAMMAR
         # transformation if there is only one or two bytes.
         # Well, for us, I'd say one of two characters.
 
-        if (index($from, '-') >= 0) {
-          $from = $self->_expandRanges($from);
+        if ( index( $from, '-' ) >= 0 ) {
+            $from = $self->_expandRanges($from);
         }
 
-        my %map = ();
+        my %map         = ();
         my $toMaxIndice = length($to) - 1;
-        my $ito = 0;
-        foreach (split(//, $from)) {
-          if (! exists($map{$_})) {
-            if ($ito <= $toMaxIndice) {
-              $map{$_} = substr($to, $ito, 1);
-            } else {
-              $map{$_} = '';
+        my $ito         = 0;
+        foreach ( split( //, $from ) ) {
+            if ( !exists( $map{$_} ) ) {
+                if ( $ito <= $toMaxIndice ) {
+                    $map{$_} = substr( $to, $ito, 1 );
+                }
+                else {
+                    $map{$_} = '';
+                }
             }
-          }
-          if ($ito <= $toMaxIndice) {
-            $ito++;
-          }
+            if ( $ito <= $toMaxIndice ) {
+                $ito++;
+            }
         }
 
         my $rc = '';
-        foreach (split(//, $string)) {
-          if (exists($map{$_})) {
-            $rc .= $map{$_};
-          } else {
-            $rc .= $_;
-          }
+        foreach ( split( //, $string ) ) {
+            if ( exists( $map{$_} ) ) {
+                $rc .= $map{$_};
+            }
+            else {
+                $rc .= $_;
+            }
         }
 
         return $rc;
@@ -2599,63 +2670,80 @@ EVAL_GRAMMAR
     #
     # Same thing than regexp but with a /g modifier
     #
-    method builtin_patsubst (Undef|Str $string?, Undef|Str $regexp?, Undef|Str $replacement?, @ignored --> Str) {
-        if ( Undef->check($string) ) {
+    method builtin_patsubst (Undef|Str $string?, Undef|Str $regexpString?, Undef|Str $replacement?, @ignored --> Str) {
+        if ( Undef->check($string) || Undef->check($regexpString) ) {
             $self->logger_error(
                 'too few arguments to builtin %s',
                 $self->impl_quote('patsubst')
             );
+            return '0';
+        }
+
+        my $regexp = eval "qr/$regexpString/sm";
+        if ($@) {
+            $self->logger_error( '%s: %s', $self->impl_quote('patsubst'),
+                $@ );
             return '';
         }
-        if ( Undef->check($regexp) ) {
-            $self->logger_error(
-                'too few arguments to builtin %s',
-                $self->impl_quote('patsubst')
-            );
-            return $string;
-        }
 
-        $self->_checkIgnored( 'regexp', @ignored );
+        $self->_checkIgnored( 'patsubst', @ignored );
 
-        $string //= '';
+        #
+        # If not supplied, default replacement is deletion
+        $replacement //= '';
 
-        if ( Undef->check($replacement) ) {
-            #
-            # Expands to the index of first match in string
-            #
-            if ( Undef->check($regexp) ) {
-                $self->logger_warn( '%s: too few arguments', 'regexp' );
-                return '0';
-            }
-            my $index = '';
-            try {
-                if ( $string =~ /$regexp/g ) {
-                    $index = $-[0];
-                }
-                catch {
-                    $self->logger_warn( '%s: %s: %s', 'regexp', $regexp, $_ );
-                    return;
-                }
-            }
-            return $index;
-        }
-        else {
-            #
-            # This should not happen but who knows
-            #
-            if ( Undef->check($regexp) ) {
-                $self->logger_warn( '%s: undefined regular expression',
-                    'regexp' );
-                return '0';
-            }
-            try {
-                $string =~ s/$regexp/$replacement/g;
-            }
-            catch {
-                $self->logger_warn( '%s: %s', 'regexp', $_ );
-                return;
-            }
-        }
+        #
+        # This is quite the same as builtin_regexp
+        #
+        #
+        # Sanitize
+        #
+        my $safeReplacement = quotemeta($replacement);
+        #
+        # We allow only:
+        # * $&                       quotemeta: \$\&
+        # * $digits                  quotemeta: \$digits
+        # * ${&}                     quotemeta: \$\{\&\}
+        # * ${digits}                quotemeta: \$\{digits\}
+        #
+        # We want to warn about unexpanded thingies so, as in
+        # _expansion2CodeRef we will count expected
+        # replacements.
+        #
+        my $maxRegexpIndice    = -1;
+        my %wantedRegexpIndice = ();
+        $safeReplacement = $self->_allowBlockInSanitizedString(
+            $safeReplacement,
+            qr/\\\$((?:\\\&|\\\{\\\&\\\})|(?:[0-9]+|\\\{[0-9]+\\\}))/,
+            \&_regexpDollarOneToIndice,
+            \&_regexpIndiceToReplacement,
+            \%wantedRegexpIndice,
+            \$maxRegexpIndice
+        );
+        $string =~ s/$regexp/
+          {
+           my @match = ();
+           foreach (0..$maxRegexpIndice) {
+             if ($_ <= $#+) {
+               $match[$_] = substr($string, $-[$_], $+[$_] - $-[$_]);
+             } else {
+               $self->logger_warn( '%s: sub-expression number %d not present',
+                                   $self->impl_quote('patsubst'), $_ );
+               $match[$_] = '';
+             }
+           }
+           my $rc = eval "\"$safeReplacement\"";
+           if ($@) {
+             #
+             # Should not happen, we have sanitized the replacement string
+             #
+             $self->logger_error( '%s: Internal error %s',
+                                  $self->impl_quote('patsubst'), $@ );
+             '';
+           } else {
+             $rc;
+           }
+          }/eg;
         return $string;
     }
 
@@ -2960,9 +3048,9 @@ EVAL_GRAMMAR
         return $self->__line__;
     }
 
-    method _allowBlockInSanitizedString(Str $string, RegexpRef $regexp, CodeRef $dollarOneToIndiceRef, CodeRef $indiceToReplacementRef, HashRef $wantedIndicesRef, Ref['SCALAR'] $maxArgumentIndiceRef --> Str) {
+    method _allowBlockInSanitizedString (Str $string, RegexpRef $regexp, CodeRef $dollarOneToIndiceRef, CodeRef $indiceToReplacementRef, HashRef $wantedIndicesRef, Ref['SCALAR'] $maxArgumentIndiceRef --> Str) {
 
-      $string =~ s/$regexp/
+        $string =~ s/$regexp/
           {
            #
            # Writen like this to show that this is a BLOCK on the right-side of eval
@@ -2974,7 +3062,7 @@ EVAL_GRAMMAR
            $self->$indiceToReplacementRef($indice, $wantedIndicesRef);
           }/eg;
 
-      return $string;
+        return $string;
     }
 
     method builtin___program__ (Str @ignored --> Str) {
