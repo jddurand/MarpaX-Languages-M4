@@ -1659,3 +1659,11 @@ _! 128 maketemp: ANYoutput !__
 /tmp/fooa07346
 
 docQv83Uw
+_! 129 errprint: input !__
+errprint(`Invalid arguments to forloop
+')
+errprint(`1')errprint(`2',`3
+')
+_! 129 errprint: output !__
+
+
