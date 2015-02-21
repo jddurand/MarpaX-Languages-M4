@@ -2888,12 +2888,17 @@ EVAL_GRAMMAR
         if ( !PositiveInt->check($radix) ) {
             $self->logger_error(
                 '%s: %s: does not look like a positive integer',
-                $self->impl_quote('eval'), $self->impl_quote($radix) );
+                $self->impl_quote('eval'),
+                $self->impl_quote($radix)
+            );
             return '';
         }
         if ( $radix < 1 || $radix > 36 ) {
-            $self->logger_error( '%s: %s: should be in the range [1..36]',
-                $self->impl_quote('eval'), $self->impl_quote($radix) );
+            $self->logger_error(
+                '%s: %s: should be in the range [1..36]',
+                $self->impl_quote('eval'),
+                $self->impl_quote($radix)
+            );
             return '';
         }
         #
@@ -2949,7 +2954,7 @@ EVAL_GRAMMAR
         return $rc;
     }
 
-    method _syscmd (Str $macroName, Bool $divert, Undef|Str $command?, Str @ignored --> Str) {
+    method _syscmd (Str $macroName, Bool $appendValue, Undef|Str $command?, Str @ignored --> Str) {
         if ( Undef->check($command) ) {
             $self->logger_error(
                 'too few arguments to builtin %s',
@@ -3016,8 +3021,8 @@ EVAL_GRAMMAR
                     if ( length($stderr) > 0 ) {
                         $self->logger_error( '%s', $stderr );
                     }
-                    if ($divert) {
-                        $self->_diversions_get(-1)->print($stdout);
+                    if ($appendValue) {
+                        $self->impl_appendValue($stdout);
                         return '';
                     }
                     else {

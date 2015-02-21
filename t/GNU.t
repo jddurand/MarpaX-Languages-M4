@@ -1595,3 +1595,45 @@ _! 124 platform detection: output !__
 
 
 1
+_! 125 syscmd: input !__
+define(`foo', `FOO')
+syscmd(`perl inc/echo.pl foo')
+_! 125 syscmd: output !__
+
+foo
+
+_! 126 esyscmd: input !__
+define(`foo', `FOO')
+esyscmd(`perl inc/echo.pl foo')
+_! 126 esyscmd: output !__
+
+FOO
+
+_! 127 sysval: input !__
+sysval
+syscmd(`perl inc/false.pl')
+ifelse(sysval, `0', `zero', `non-zero')
+syscmd(`perl inc/exit.pl 2')
+sysval
+syscmd(`perl inc/true.pl')
+sysval
+esyscmd(`perl inc/false.pl')
+ifelse(sysval, `0', `zero', `non-zero')
+esyscmd(`perl inc/dnlAndExit.pl 127')
+sysval
+esyscmd(`perl inc/true.pl')
+sysval
+_! 127 sysval: output !__
+0
+
+non-zero
+
+2
+
+0
+
+non-zero
+
+127
+
+0
