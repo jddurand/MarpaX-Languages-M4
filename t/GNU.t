@@ -1378,3 +1378,23 @@ _! 110 patsubst - composites upcase/downcase/capitalize: output !__
 GNUS NOT UNIX
 gnus not unix
 Gnus Not Unix
+_! 111 patsubst - cont'ed: input !__
+define(`patreg',
+`patsubst($@)
+regexp($@)')dnl
+patreg(`bar foo baz Foo', `foo|Foo', `FOO')
+patreg(`aba abb 121', `(.)(.)\1', `${2}${1}${2}')
+_! 111 patsubst - cont'ed: output !__
+bar FOO baz FOO
+FOO
+bab abb 212
+bab
+_! 112 patsubst - warning: input !__
+dnl Take care of backslash interpretation in the test suite
+patsubst(`abc')
+patsubst(`abc', `')
+patsubst(`abc', `', `\-')
+_! 112 patsubst - warning: output !__
+abc
+abc
+\\-a\-b\-c\-

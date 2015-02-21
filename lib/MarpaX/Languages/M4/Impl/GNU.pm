@@ -2668,15 +2668,23 @@ EVAL_GRAMMAR
     }
 
     #
-    # Same thing than regexp but with a /g modifier
+    # Almost same thing as regexp but with a /g modifier
     #
     method builtin_patsubst (Undef|Str $string?, Undef|Str $regexpString?, Undef|Str $replacement?, @ignored --> Str) {
-        if ( Undef->check($string) || Undef->check($regexpString) ) {
+        if ( Undef->check($string) ) {
             $self->logger_error(
                 'too few arguments to builtin %s',
                 $self->impl_quote('patsubst')
             );
-            return '0';
+            return '';
+        }
+
+        if ( Undef->check($regexpString) ) {
+            $self->logger_error(
+                'too few arguments to builtin %s',
+                $self->impl_quote('patsubst')
+            );
+            return $string;
         }
 
         my $regexp = eval "qr/$regexpString/sm";
