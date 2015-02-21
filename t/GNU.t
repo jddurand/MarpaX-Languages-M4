@@ -1353,3 +1353,28 @@ GNUS NOT UNIX
 tmfs not fnix
 <;>abcba
 bgced
+_! 109 patsubst: input !__
+patsubst(`GNUs not Unix', `^', `OBS: ')
+dnl # Perl has no notion of begin-word v.s. end-word
+patsubst(`GNUs not Unix', `\b(\w)', `OBS: $1')
+patsubst(`GNUs not Unix', `\w*', `($&)')
+patsubst(`GNUs not Unix', `\w+', `($&)')
+patsubst(`GNUs not Unix', `[A-Z][a-z]+')
+patsubst(`GNUs not Unix', `not', `NOT')
+_! 109 patsubst: output !__
+OBS: GNUs not Unix
+OBS: GNUs OBS: not OBS: Unix
+(GNUs)() (not)() (Unix)()
+(GNUs) (not) (Unix)
+GN not 
+GNUs NOT Unix
+_! 110 patsubst - composites upcase/downcase/capitalize: input !__
+include(`capitalize.m4')
+upcase(`GNUs not Unix')
+downcase(`GNUs not Unix')
+capitalize(`GNUs not Unix')
+_! 110 patsubst - composites upcase/downcase/capitalize: output !__
+
+GNUS NOT UNIX
+gnus not unix
+Gnus Not Unix
