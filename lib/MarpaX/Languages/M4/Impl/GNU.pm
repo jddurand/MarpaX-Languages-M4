@@ -19,6 +19,13 @@ use MarpaX::Languages::M4::Impl::Parser;
 # This is achieved in the parser implementation, that is maintaining itself
 # the next position for scanning.
 #
+#
+# Note: GNU-like extension but with different semantics:
+# ------------------------------------------------------
+# regexp   Perl regexp implementation, replacement string limited to & and digits.
+# patsubst Perl regexp implementation, replacement string limited to & and digits.
+# format   Perl sprintf implementation.
+#
 
 class MarpaX::Languages::M4::Impl::GNU {
     extends 'MarpaX::Languages::M4::Impl::Parser';

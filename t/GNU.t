@@ -1398,3 +1398,42 @@ _! 112 patsubst - warning: output !__
 abc
 abc
 \\-a\-b\-c\-
+_! 113 format: input !__
+dnl the followings are a priori portable and will give the
+dnl same result regardless from Perl or with GNU M4
+define(`foo', `The brown fox jumped over the lazy dog')
+format(`The string "%s" uses %d characters', foo, len(foo))
+format(`%*.*d', `-1', `-1', `1')
+format(`%.0f', `56789.9876')
+len(format(`%-*X', `5000', `1'))
+dnl The followings are not.
+dnl ifelse(format(`%010F', `infinity'), `       INF', `success',
+dnl        format(`%010F', `infinity'), `  INFINITY', `success',
+dnl        format(`%010F', `infinity'))
+dnl ifelse(format(`%.1A', `1.999'), `0X1.0P+1', `success',
+dnl        format(`%.1A', `1.999'), `0X2.0P+0', `success',
+dnl        format(`%.1A', `1.999'))
+dnl format(`%g', `0xa.P+1')
+_! 113 format: output !__
+
+The string "The brown fox jumped over the lazy dog" uses 38 characters
+1
+56790
+5000
+_! 114 format - forloop: input !__
+include(`forloop.m4')
+forloop(`i', `1', `10', `format(`%6d squared is %10d
+', i, eval(i**2))')
+_! 114 format - forloop: output !__
+
+     1 squared is          1
+     2 squared is          4
+     3 squared is          9
+     4 squared is         16
+     5 squared is         25
+     6 squared is         36
+     7 squared is         49
+     8 squared is         64
+     9 squared is         81
+    10 squared is        100
+
