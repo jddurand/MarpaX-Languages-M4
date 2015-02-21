@@ -250,7 +250,6 @@ COMMA ~ ',' _WS_any
 
     again:
         while ( $rc{pos} <= $maxPos ) {
-
             # $self->logger_debug( '[%d..%d/%d] 20 first characters: %s',
             #     $rc{pos}, $rc{pos}, $maxPos,
             #     substr( ${$inputRef}, $rc{pos}, 20 ) );

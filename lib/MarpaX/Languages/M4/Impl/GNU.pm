@@ -3254,6 +3254,10 @@ STUB
         return ${ $self->impl_valueRef };
     }
 
+    method impl_line (@args --> Str) {
+        return $self->__line__(@args);
+    }
+
     with 'MarpaX::Languages::M4::Role::Impl';
     with 'MooX::Role::Logger';
 }
