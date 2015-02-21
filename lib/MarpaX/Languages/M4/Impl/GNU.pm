@@ -1190,24 +1190,30 @@ EVAL_GRAMMAR
                 );
             }
         }
-        if ( is_os_type('Windows') ) {
-            my $name = $self->_no_gnu_extensions ? 'windows' : '__windows__';
+        if ( !$self->_no_gnu_extensions ) {
+            my $name = '__gnu__';
             $ref{$name} = MarpaX::Languages::M4::Impl::Macro->new(
                 name      => $name,
                 expansion => "<$_>",
                 stub      => sub { return ''; }
             );
+        }
+        if ( is_os_type('Windows') ) {
             #
             # A priori I assume this is reliable
             #
+            my $name;
             if ( $^O eq 'os2' ) {
-                my $name = $self->_no_gnu_extensions ? 'os2' : '__os2__';
-                $ref{$name} = MarpaX::Languages::M4::Impl::Macro->new(
-                    name      => $name,
-                    expansion => "<$_>",
-                    stub      => sub { return ''; }
-                );
+                $name = $self->_no_gnu_extensions ? 'os2' : '__os2__';
             }
+            else {
+                $name = $self->_no_gnu_extensions ? 'windows' : '__windows__';
+            }
+            $ref{$name} = MarpaX::Languages::M4::Impl::Macro->new(
+                name      => $name,
+                expansion => "<$_>",
+                stub      => sub { return ''; }
+            );
         }
         if ( is_os_type('Unix') ) {
             my $name = $self->_no_gnu_extensions ? 'unix' : '__unix__';
@@ -2882,12 +2888,12 @@ EVAL_GRAMMAR
         if ( !PositiveInt->check($radix) ) {
             $self->logger_error(
                 '%s: %s: does not look like a positive integer',
-                $self->impl_quote('eval'), $radix );
+                $self->impl_quote('eval'), $self->impl_quote($radix) );
             return '';
         }
         if ( $radix < 1 || $radix > 36 ) {
             $self->logger_error( '%s: %s: should be in the range [1..36]',
-                $self->impl_quote('eval'), $radix );
+                $self->impl_quote('eval'), $self->impl_quote($radix) );
             return '';
         }
         #
@@ -2899,7 +2905,7 @@ EVAL_GRAMMAR
         if ( !PositiveOrZeroInt->check($width) ) {
             $self->logger_error(
                 '%s: %s: width does not look like a positive or zero integer',
-                $self->impl_quote('eval'), $radix
+                $self->impl_quote('eval'), $self->impl_quote($width)
             );
             return '';
         }

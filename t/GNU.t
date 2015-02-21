@@ -1563,3 +1563,31 @@ a
 
 
 0
+_! 122 extensions: input !__
+__gnu__
+__gnu__(`ignored')
+Extensions are ifdef(`__gnu__', `active', `inactive')
+_! 122 extensions: output !__
+
+
+Extensions are active
+_! 123 traditional: input($self->traditional(1)) !__
+__gnu__
+__gnu__(`ignored')
+Extensions are ifdef(`__gnu__', `active', `inactive')
+_! 123 traditional: output !__
+__gnu__
+__gnu__(ignored)
+Extensions are inactive
+_! 124 platform detection: input !__
+define(`provided', `0')
+ifdef(`__unix__', `define(`provided', incr(provided))')
+ifdef(`__windows__', `define(`provided', incr(provided))')
+ifdef(`__os2__', `define(`provided', incr(provided))')
+provided
+_! 124 platform detection: output !__
+
+
+
+
+1
