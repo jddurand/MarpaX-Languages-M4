@@ -25,8 +25,9 @@ use MarpaX::Languages::M4::Impl::Parser;
 # regexp   Perl regexp implementation, replacement string limited to & and digits.
 # patsubst Perl regexp implementation, replacement string limited to & and digits.
 # format   Perl sprintf implementation.
+# incr     C.f. policy_integer_type, defaults to a 32 bits integer. "native" policy uses int, like GNU.
+# decr     C.f. policy_integer_type, defaults to a 32 bits integer. "native" policy uses int, like GNU.
 #
-
 class MarpaX::Languages::M4::Impl::GNU {
     extends 'MarpaX::Languages::M4::Impl::Parser';
 
@@ -246,41 +247,41 @@ Expression ::=
     | ('(') Expression (')') assoc => group
     # Catch common invalid operations for a nice error message
     # Uncatched stuff will have the Marpa native exception.
-   || '++'  Expression                          action => _invalidOp
-    | '+='  Expression                          action => _invalidOp
-    | '--'  Expression                          action => _invalidOp
-    | '-='  Expression                          action => _invalidOp
-    | '*='  Expression                          action => _invalidOp
-    | '/='  Expression                          action => _invalidOp
-    | '%='  Expression                          action => _invalidOp
-    | '>>=' Expression                          action => _invalidOp
-    | '<<=' Expression                          action => _invalidOp
-    | '^='  Expression                          action => _invalidOp
-    | '&='  Expression                          action => _invalidOp
-    | '|='  Expression                          action => _invalidOp
+   || '++' (Expression)                         action => _invalidOp
+    | (Expression) '+='  (Expression)           action => _invalidOp
+    | (Expression) '--'  (Expression)           action => _invalidOp
+    | (Expression) '-='  (Expression)           action => _invalidOp
+    | (Expression) '*='  (Expression)           action => _invalidOp
+    | (Expression) '/='  (Expression)           action => _invalidOp
+    | (Expression) '%='  (Expression)           action => _invalidOp
+    | (Expression) '>>=' (Expression)           action => _invalidOp
+    | (Expression) '<<=' (Expression)           action => _invalidOp
+    | (Expression) '^='  (Expression)           action => _invalidOp
+    | (Expression) '&='  (Expression)           action => _invalidOp
+    | (Expression) '|='  (Expression)           action => _invalidOp
    || '+' Expression                            action => _noop
     | '-' Expression                            action => _neg
     | '~' Expression                            action => _bneg
     | '!' Expression                            action => _lneg
    || Expression '**' Expression assoc => right action => _exp
-   || Expression '*' Expression                 action => _mul
-    | Expression ('/') Expression               action => _div
-    | Expression '%' Expression                 action => _mod
-   || Expression '+' Expression                 action => _add
-    | Expression '-' Expression                 action => _sub
+   || Expression '*'  Expression                action => _mul
+    | Expression '/'  Expression                action => _div
+    | Expression '%'  Expression                action => _mod
+   || Expression '+'  Expression                action => _add
+    | Expression '-'  Expression                action => _sub
    || Expression '<<' Expression                action => _left
     | Expression '>>' Expression                action => _right
-   || Expression '>' Expression                 action => _gt
+   || Expression '>'  Expression                action => _gt
     | Expression '>=' Expression                action => _ge
-    | Expression '<' Expression                 action => _lt
+    | Expression '<'  Expression                action => _lt
     | Expression '<=' Expression                action => _le
    || Expression '==' Expression                action => _eq
     # Special case of '=' aliased to '=='
-    | Expression '=' Expression                 action => _eq2
+    | Expression '='  Expression                action => _eq2
     | Expression '!=' Expression                action => _ne
-   || Expression '&' Expression                 action => _band
-   || Expression '^' Expression                 action => _bxor
-   || Expression '|' Expression                 action => _bor
+   || Expression '&'  Expression                action => _band
+   || Expression '^'  Expression                action => _bxor
+   || Expression '|'  Expression                action => _bor
    || Expression '&&' Expression                action => _land
    || Expression '||' Expression                action => _lor
 
@@ -2790,8 +2791,11 @@ EVAL_GRAMMAR
             $number = 0;
         }
         if ( !Int->check($number) ) {
-            $self->logger_error( '%s: %s: does not look like an integer',
-                'incr', $self->impl_quote($number) );
+            $self->logger_error(
+                '%s: %s: does not look like an integer',
+                $self->impl_quote('incr'),
+                $self->impl_quote($number)
+            );
             return '';
         }
         my $rc = '';
@@ -2809,7 +2813,7 @@ EVAL_GRAMMAR
                 $rc = $v2->to_Dec();
             }
             catch {
-                $self->logger_warn( '%s: %s', 'incr', $! );
+                $self->logger_warn( '%s: %s', $self->impl_quote('incr'), $! );
                 return;
             }
         }
@@ -2825,8 +2829,11 @@ EVAL_GRAMMAR
             $number = 0;
         }
         if ( !Int->check($number) ) {
-            $self->logger_error( '%s: %s: does not look like an integer',
-                'decr', $self->impl_quote($number) );
+            $self->logger_error(
+                '%s: %s: does not look like an integer',
+                $self->impl_quote('decr'),
+                $self->impl_quote($number)
+            );
             return '';
         }
         my $rc = '';
@@ -2844,7 +2851,7 @@ EVAL_GRAMMAR
                 $rc = $v2->to_Dec();
             }
             catch {
-                $self->logger_warn( '%s: %s', 'decr', $! );
+                $self->logger_warn( '%s: %s', $self->impl_quote('decr'), $! );
                 return;
             }
         }
@@ -2863,29 +2870,50 @@ EVAL_GRAMMAR
 
         if ( Undef->check($expression) ) {
             $self->logger_error( '%s: empty string treated  as zero',
-                'eval' );
+                $self->impl_quote('eval') );
             return 0;
         }
-        $radix //= 10;
+        #
+        # Validate radix
+        #
+        if ( Undef->check($radix) || length($radix) <= 0 ) {
+            $radix = 10;
+        }
         if ( !PositiveInt->check($radix) ) {
             $self->logger_error(
                 '%s: %s: does not look like a positive integer',
-                'eval', $radix );
+                $self->impl_quote('eval'), $radix );
             return '';
         }
         if ( $radix < 1 || $radix > 36 ) {
             $self->logger_error( '%s: %s: should be in the range [1..36]',
-                'eval', $radix );
+                $self->impl_quote('eval'), $radix );
             return '';
         }
-        $width //= 1;
-        if ( !PositiveInt->check($radix) ) {
+        #
+        # Validate width
+        #
+        if ( Undef->check($width) || length($width) <= 0 ) {
+            $width = 1;
+        }
+        if ( !PositiveOrZeroInt->check($width) ) {
             $self->logger_error(
-                '%s: %s: does not look like a positive integer',
-                'eval', $radix );
+                '%s: %s: width does not look like a positive or zero integer',
+                $self->impl_quote('eval'), $radix
+            );
             return '';
         }
-
+        #
+        # Check expression
+        #
+        if ( length($expression) <= 0 ) {
+            $self->logger_error( '%s: empty string treated as zero',
+                $self->impl_quote('eval') );
+            $expression = 0;
+        }
+        #
+        # Eval
+        #
         my $rc = '';
         try {
             local $MarpaX::Languages::M4::Impl::GNU::INTEGER_BITS
@@ -2894,14 +2922,21 @@ EVAL_GRAMMAR
             my $valuep = $EVAL_G->parse(
                 \$expression,
                 {   semantics_package =>
-                        'MarpaX::Languages::M4::Impl::GNU::Eval'
+                        'MarpaX::Languages::M4::Impl::GNU::Eval',
                 }
             );
             $rc = MarpaX::Languages::M4::Impl::GNU::BaseConversion->to_base(
                 $radix, ${$valuep}, $width );
         }
         catch {
-            $self->logger_error( '%s: %s', 'eval', $_ );
+   #
+   # Okay, when we use Marpa::R2::Context::bail() it is adding
+   # something like e.g.:
+   # User bailed at line 37 in file "lib/MarpaX/Languages/M4/Impl/GNU/Eval.pm"
+   # we strip this line if any
+   #
+            $_ =~ s/^User bailed.*?\n//;
+            $self->logger_error( '%s: %s', $self->impl_quote('eval'), $_ );
             return;
         };
 

@@ -33,8 +33,10 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
         return $expression->to_Dec();
     }
 
-    method _invalidOp (Str $op, ConsumerOf['Bit::Vector'] $expression) {
-        Marpa::R2::Context::bail("Invalid operand: $op");
+    method _invalidOp (Str $op) {
+        Marpa::R2::Context::bail( 'Invalid operator in '
+                . $self->SELF->impl_quote('eval') . ': '
+                . $self->SELF->impl_quote($op) );
     }
 
     method _noop (Str $op, ConsumerOf['Bit::Vector'] $expression) {
@@ -47,15 +49,19 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
 
     method _exp (ConsumerOf['Bit::Vector'] $expression1, Str $op, ConsumerOf['Bit::Vector'] $expression2) {
         if ( $expression2->to_Dec() < 0 ) {
-            Marpa::R2::Context::bail( "Negative exponent: "
-                    . $expression1->to_Dec . " $op "
-                    . $expression2->to_Dec );
+            Marpa::R2::Context::bail( 'Negative exponent in '
+                    . $self->SELF->impl_quote('eval') . ': '
+                    . $self->SELF->impl_quote( $expression1->to_Dec ) . ' '
+                    . $self->SELF->impl_quote($op) . ' '
+                    . $self->SELF->impl_quote( $expression2->to_Dec ) );
         }
 
         if ( $expression1->to_Dec() == 0 && $expression2->to_Dec() == 0 ) {
-            Marpa::R2::Context::bail( "Divide by zero: "
-                    . $expression1->to_Dec . " $op "
-                    . $expression2->to_Dec );
+            Marpa::R2::Context::bail( 'Divide by zero in '
+                    . $self->SELF->impl_quote('eval') . ': '
+                    . $self->SELF->impl_quote( $expression1->to_Dec ) . ' '
+                    . $self->SELF->impl_quote($op) . ' '
+                    . $self->SELF->impl_quote( $expression2->to_Dec ) );
         }
 
         my $s = $expression1->Shadow;
@@ -83,13 +89,23 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
 
     method _div (ConsumerOf['Bit::Vector'] $expression1, Str $op, ConsumerOf['Bit::Vector'] $expression2) {
         my $s = $expression1->Shadow;
-        $s->Divide( $expression1, $expression2, $expression1->Shadow );
+        try {
+            $s->Divide( $expression1, $expression2, $expression1->Shadow );
+        }
+        catch {
+            $s = undef;
+        };
         return $s;
     }
 
     method _mod (ConsumerOf['Bit::Vector'] $expression1, Str $op, ConsumerOf['Bit::Vector'] $expression2) {
         my $s = $expression1->Shadow;
-        $expression1->Shadow->Divide( $expression1, $expression2, $s );
+        try {
+            $expression1->Shadow->Divide( $expression1, $expression2, $s );
+        }
+        catch {
+            $s = undef;
+        };
         return $s;
     }
 
@@ -113,33 +129,20 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
     # implementation-defined overflow when casting unsigned to
     # a signed is a silent twos-complement wrap-around. */
     method _left (ConsumerOf['Bit::Vector'] $expression1, Str $op, ConsumerOf['Bit::Vector'] $expression2) {
-        $expression1->Insert(
-            0,
-            $self->_band(
-                $expression2,
-                '&',
-                Bit::Vector->new_Hex(
-                    $self->bits, '1' . ( 'f' x ($self->bits - 1) )
-                )
-            )->to_Dec()
-        );
+        $expression1->Insert( 0, $expression2->to_Dec() % $self->bits );
         return $expression1;
     }
 
     method _right (ConsumerOf['Bit::Vector'] $expression1, Str $op, ConsumerOf['Bit::Vector'] $expression2) {
-        my $u1 = Bit::Vector->new( $self->bits );
-        $u1->Abs($expression1);
-        $u1->Delete(
-            0,
-            $self->_band(
-                $expression2,
-                '&',
-                Bit::Vector->new_Hex(
-                    $self->bits, '1' . ( 'f' x ($self->bits - 1) )
-                )
-            )->to_Dec()
-        );
-        return ( $expression1->Sign() < 0 ) ? $self->_neg($u1) : $u1;
+        my $u1 = $expression1->Clone;
+        if ( $expression1->Sign < 0 ) {
+            $u1->Complement($u1);
+        }
+        $u1->Delete( 0, $expression2->to_Dec() % $self->bits );
+        if ( $expression1->Sign < 0 ) {
+            $u1->Complement($u1);
+        }
+        return $u1;
     }
 
     method _gt (ConsumerOf['Bit::Vector'] $expression1, Str $op, ConsumerOf['Bit::Vector'] $expression2) {
@@ -168,7 +171,7 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
     }
 
     method _eq2 (ConsumerOf['Bit::Vector'] $expression1, Str $op, ConsumerOf['Bit::Vector'] $expression2) {
-        $self->SELF->logger_warn('Warning: recommend == instead oft =');
+        $self->SELF->logger_warn('Warning: recommend == instead of =');
         return $self->_eq( $expression1, $op, $expression2 );
     }
 
@@ -191,7 +194,7 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
 
     method _bor (ConsumerOf['Bit::Vector'] $expression1, Str $op, ConsumerOf['Bit::Vector'] $expression2) {
         my $s = $expression1->Shadow;
-        $s->Union( $_[1], $_[2] );
+        $s->Union( $expression1, $expression2 );
         return $s;
     }
 #
@@ -215,9 +218,11 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
             $rc = $expression1;
         }
         else {
-            Marpa::R2::Context::bail( "Undefined right-hand expression : "
-                    . $expression1->to_Dec
-                    . " $op <undef>" );
+            Marpa::R2::Context::bail( 'Undefined right-hand expression in '
+                    . $self->SELF->impl_quote('eval') . ': '
+                    . $self->SELF->impl_quote( $expression1->to_Dec )
+                    . ' '
+                    . $self->SELF->impl_quote($op) );
         }
         return $rc;
     }
@@ -234,9 +239,11 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
             $rc = Bit::Vector->new_Dec( $self->bits, 1 );
         }
         else {
-            Marpa::R2::Context::bail( "Undefined right-hand expression : "
-                    . $expression1->to_Dec
-                    . " $op <undef>" );
+            Marpa::R2::Context::bail( 'Undefined right-hand expression in '
+                    . $self->SELF->impl_quote('eval') . ': '
+                    . $self->SELF->impl_quote( $expression1->to_Dec )
+                    . ' '
+                    . $self->SELF->impl_quote($op) );
         }
         return $rc;
     }
@@ -248,32 +255,36 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
     }
 
     method _octal (Str $lexeme) {
-        return Bit::Vector->new_Dec( $self->bits, oct( $_[1] ) );
+        return Bit::Vector->new_Dec( $self->bits, oct($lexeme) );
     }
 
+    # oct() supportx 0x notation
     method _hex (Str $lexeme) {
-        return Bit::Vector->new_Dec( $self->bits, oct( $_[1] ) );
-    }    # oct() supportx 0x notation
+        return Bit::Vector->new_Dec( $self->bits, oct($lexeme) );
+    }
 
+    # oct() supportx 0b notation
     method _binary (Str $lexeme) {
-        return Bit::Vector->new_Dec( $self->bits, oct( $_[1] ) );
-    }    # oct() supportx 0b notation
+        return Bit::Vector->new_Dec( $self->bits, oct($lexeme) );
+    }
 
     method _radix (Str $lexeme) {
-                    #
-                    # Per def this is this regexp
-                    #
+                      #
+                      # Per def this is this regexp
+                      #
         $lexeme =~ /0r([\d]+):([\da-zA-Z]+)/;
         my $radix = substr( $lexeme, $-[1], $+[1] - $-[1] );
         my $digits = lc( substr( $lexeme, $-[2], $+[2] - $-[2] ) )
-            ;       # Because max base is 36
+            ;         # Because max base is 36
         if ( $radix == 1 ) {
 
-  # For radix 1, leading zeros are ignored, and all remaining digits must be 1
+            # For radix 1, leading zeros are ignored,
+            # and all remaining digits must be 1
             $digits =~ s/^0*//;
             if ( $digits =~ /[^1]/ ) {
                 Marpa::R2::Context::bail(
-                    "$lexeme: for radix 1, digits must be eventual zeroes followed by 1's"
+                    $self->SELF->impl_quote($lexeme) . ': '
+                        . 'for radix 1, digits must be eventual zeroes followed by 1\'s'
                 );
             }
         }

@@ -1447,3 +1447,119 @@ _! 115 incr/decr: output !__
 6
 1
 -1
+_! 116 eval: input !__
+eval(`2 = 2')
+eval(`++0')
+eval(`0 |= 1')
+_! 116 eval: output !__
+1
+
+
+_! 117 eval cont'ed: input !__
+eval(`1 == 2 > 0')
+eval(`(1 == 2) > 0')
+eval(`! 0 * 2')
+eval(`! (0 * 2)')
+eval(`1 | 1 ^ 1')
+eval(`(1 | 1) ^ 1')
+eval(`+ + - ~ ! ~ 0')
+eval(`2 || 1 / 0')
+eval(`0 || 1 / 0')
+eval(`0 && 1 % 0')
+eval(`2 && 1 % 0')
+_! 117 eval cont'ed: output !__
+1
+0
+2
+1
+1
+0
+1
+1
+
+0
+
+_! 118 eval cont'ed 2: input !__
+eval(`2 ** 3 ** 2')
+eval(`(2 ** 3) ** 2')
+eval(`0 ** 1')
+eval(`2 ** 0')
+eval(`0 ** 0')
+eval(`4 ** -2')
+_! 118 eval cont'ed 2: output !__
+512
+64
+0
+1
+
+
+_! 119 eval cont'ed 3: input !__
+eval(`-3 * 5')
+eval(`-99 / 10')
+eval(`-99 % 10')
+eval(`99 % -10')
+eval(index(`Hello world', `llo') >= 0)
+eval(`0r1:0111 + 0b100 + 0r3:12')
+define(`square', `eval(`($1) ** 2')')
+square(`9')
+square(square(`5')` + 1')
+define(`foo', `666')
+eval(`foo / 6')
+eval(foo / 6)
+_! 119 eval cont'ed 3: output !__
+-15
+-9
+-9
+9
+1
+12
+
+81
+676
+
+
+111
+_! 120 eval cont'ed 4: input !__
+define(`max_int', eval(`0x7fffffff'))
+define(`min_int', incr(max_int))
+eval(min_int` < 0')
+eval(max_int` > 0')
+ifelse(eval(min_int` / -1'), min_int, `overflow occurred')
+min_int
+eval(`0x80000000 % -1')
+eval(`-4 >> 1')
+eval(`-4 >> 33')
+_! 120 eval cont'ed 4: output !__
+
+
+1
+1
+overflow occurred
+-2147483648
+0
+-2
+-2
+_! 121 eval and radix: input !__
+eval(`666', `10')
+eval(`666', `11')
+eval(`666', `6')
+eval(`666', `6', `10')
+eval(`-666', `6', `10')
+eval(`10', `', `0')
+`0r1:'eval(`10', `1', `11')
+eval(`10', `16')
+eval(`1', `37')
+eval(`1', , `-1')
+eval()
+_! 121 eval and radix: output !__
+666
+556
+3030
+0000003030
+-0000003030
+10
+0r1:01111111111
+a
+
+
+0
