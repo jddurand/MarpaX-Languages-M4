@@ -212,6 +212,7 @@ COMMA ~ ',' _WS_any
         #
         # In the context of a macroArguments, unquoted parenthesis
         # have higher priorities over everything, except quoted string
+        # and comment.
         #
         if ( $g == $BYMACROARGUMENTS_G ) {
             unshift( @lexemeNames, 'NOPARAM', 'LPAREN', 'RPAREN', 'COMMA' );
