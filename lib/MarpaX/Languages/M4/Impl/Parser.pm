@@ -1,5 +1,4 @@
 use Moops;
-use MarpaX::Languages::M4::Impl::Value;
 
 # PODCLASSNAME
 
