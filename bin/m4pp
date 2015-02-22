@@ -28,6 +28,7 @@ sub _logging_cb {
   my ($method, $self, $format, @params) = @_;
 
   my $level = $logging_levels{$method};
+  print STDERR "$format @args\n";
   #
   # If level is >= error, then check debugfile
   #
@@ -38,7 +39,13 @@ sub _logging_cb {
   open($fh, '>>&STDERR');
   my $fhName = 'STDERR';
   if ($level >= $logging_levels{error}) {
-    my $debugfile = $self->impl_debugfile;
+    #
+    # If called within new_with_options(), $impl
+    # is not yet setted
+    #
+    my $thisSelf = $impl || $MarpaX::Languages::M4::SELF;
+    print STDERR "\$thisSelf = " . (defined($thisSelf) ? $thisSelf : '<undef>') . "\n";
+    my $debugfile = $thisSelf->impl_debugfile;
     if (defined($debugfile)) {
       if (! open($fh, '>>', $debugfile)) {
         #
@@ -55,7 +62,7 @@ sub _logging_cb {
     binmode $fh, ":encoding(console_out)" if -t $fh;
   }
 
-  printf $fh "$format\n", @params;
+  printf $fh $format, @params;
   if (! close($fh)) {
     warn "Cannot close $fhName, $!";
   }

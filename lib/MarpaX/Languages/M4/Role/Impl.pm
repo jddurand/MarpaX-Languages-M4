@@ -19,7 +19,7 @@ role MarpaX::Languages::M4::Role::Impl {
     requires 'impl_valueRef';
     requires 'impl_parseIncremental';
     requires 'impl_parse';
-    requires 'impl_pos';
+    requires 'impl_unparsed';
     requires 'impl_setEoi';
     requires 'impl_line';
     requires 'impl_debugfile';

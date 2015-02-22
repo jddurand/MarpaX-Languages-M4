@@ -116,18 +116,13 @@ class MarpaX::Languages::M4::Impl::GNU {
     use Perl::OSType ':all';
     use Types::Common::Numeric -all;
 
-    our @DEBUG_FLAGS                 = qw/a c e f i l p q t x/;
-    our @DEFAULT_DEBUG_FLAGS         = qw/a e q/;
-    our $DEFAULT_QUOTE_START         = '`';
-    our $DEFAULT_QUOTE_END           = "'";
-    our $DEFAULT_COM_START           = '#';
-    our $DEFAULT_COM_END             = "\n";
-    our $DEFAULT_WORD_REGEXP         = '[_a-zA-Z][_a-zA-Z0-9]*';
-    our $DEFAULT_WARN_MACRO_SEQUENCE = '\$(?:\{[^\}]*\}|[0-9][0-9]+)';
+    # --------
+    # Defaults
+    # --------
 
-    #
-    # The list of GNU extensions is known in advanced and is fixed.
-    #
+    # ------------------------------------------------------------
+    # The list of GNU extensions is known in advanced and is fixed
+    # ------------------------------------------------------------
     our %GNU_EXTENSIONS = (
         __file__    => 1,
         __line__    => 1,
@@ -156,71 +151,6 @@ class MarpaX::Languages::M4::Impl::GNU {
     # Macros are recognized in preference to the begin-quote string.
     # Quotes are recognized in preference to argument collection.
     #
-    our $TOKENS_PRIORITY_DEFAULT_VALUE
-        = [qw/COMMENT WORD QUOTEDSTRING CHARACTER/];
-    our $TOKENS_PRIORITY_TYPE = ArrayRef [M4Token];
-
-    our $INTEGER_TYPE_TYPE = Enum [qw/native bitvector/];
-    our $INTEGER_TYPE_DEFAULT_VALUE = 'bitvector';
-
-    our $INTEGER_BITS_TYPE          = PositiveInt;
-    our $INTEGER_BITS_DEFAULT_VALUE = Bit::Vector->Word_Bits;
-
-    our $M4WRAP_TYPE = Enum [qw/LIFO FIFO/];
-    our $M4WRAP_DEFAULT_VALUE = 'LIFO';
-
-    our $DIVERT_TYPE_TYPE = Enum [qw/memory file/];
-    our $DIVERT_TYPE_DEFAULT_VALUE = 'memory';
-
-    our $NEED_PARAM_TYPE = ArrayRef [Str];
-    our $NEED_PARAM_DEFAULT_VALUE = [
-        qw/
-            define
-            undefine
-            defn
-            pushdef
-            popdef
-            indir
-            builtin
-            ifdef
-            ifelse
-            shift
-            changeword
-            m4wrap
-            include
-            sinclude
-            len
-            index
-            regexp
-            substr
-            translit
-            patsubst
-            format
-            incr
-            decr
-            eval
-            syscmd
-            esyscmd
-            mkstemp
-            maketemp
-            errprint
-            /
-    ];
-
-    our $PARAMCANBEMACRO_PARAM_TYPE = ArrayRef [Str];
-    our $PARAMCANBEMACRO_DEFAULT_VALUE = {
-        define => {
-            0 => true,    # To trigger a warning
-            1 => true
-        },
-        pushdef => { 1 => true },
-        indir   => {
-            '*' => true    # To trigger a warning
-        },
-        builtin => {
-            '*' => true    # To trigger a warning
-        },
-    };
 
     #
     # Eval: constants for radix and the grammar
@@ -363,72 +293,163 @@ EVAL_GRAMMAR
     }
 
     # ---------------------------------------------------------------
-    # POLICY OPTIONS
-    # EVERY POLICY named policy_xxx maps to an internal attribute
-    # _policy_xxx, that is modified using a trigger. Therefore the default
-    # option value is the default value of the _xxx attribute.
-    # Type constraint is done via the trigger.
-    # We rely on automatic coercion from Str to a subtype if any.
-    # The only exception is when the option is a boolean: we type
-    # the option as such, and add the negativable extra-option.
+    # OPTIONS
     # ---------------------------------------------------------------
-    option policy_cmdtounix => (
+    # * Options always have triggers
+    # * If an option xxx maps to an internal attribute _xxx,
+    #   this attribute is always rwp + lazy + builder
+    # ---------------------------------------------------------------
+
+    # =========================
+    # --cmdtounix
+    # =========================
+    option cmdtounix => (
         is      => 'rw',
         isa     => Bool,
-        default => false,
         trigger => 1,
         doc =>
             q{Convert any command output from platform's native end-of-line character set to Unix style (LF). Default to a false value.}
     );
-    option policy_inctounix => (
+    has _cmdtounix => ( is => 'rwp', isa => Bool, lazy => 1, builder => 1 );
+
+    method _trigger_cmdtounix (Bool $cmdtounix, @rest --> Undef) {
+        $self->_set__cmdtounix($cmdtounix);
+        return;
+    }
+
+    method _build__cmdtounix {false}
+
+    # =========================
+    # --inctounix
+    # =========================
+    option inctounix => (
         is      => 'rw',
         isa     => Bool,
-        default => false,
         trigger => 1,
         doc =>
             q{Convert any included file from platform's native end-of-line character set to Unix style (LF). Default to a false value.}
     );
-    option policy_tokens_priority => (
+    has _inctounix => ( is => 'rwp', isa => Bool, lazy => 1, builder => 1 );
+
+    method _trigger_inctounix (Bool $inctounix, @rest --> Undef) {
+        $self->_set__inctounix($inctounix);
+        return;
+    }
+
+    method _build__inctounix {false}
+
+    # =========================
+    # --tokens-priority
+    # =========================
+    our $DEFAULT_TOKENS_PRIORITY = [qw/COMMENT WORD QUOTEDSTRING CHARACTER/];
+    option tokens_priority => (
         is          => 'rw',
         isa         => ArrayRef [Str],
-        default     => sub { [] },
-        format      => 's',
-        repeatable  => 1,
+        format      => 's@',
         autosplit   => ',',
         trigger     => 1,
         handles_via => 'Array',
-        handles     => { policy_tokens_priority_elements => 'elements', },
+        handles     => { tokens_priority_elements => 'elements' },
         doc =>
             "Tokens priority. If setted, it is highly recommended to list all allowed values, that are : \"WORD\", \"MACRO\", \"QUOTEDSTRING\", and \"COMMENT\". The order of appearance on the command-line will be the prefered order when parsing M4 input. Multiple values can be given in the same switch if separated by the comma character ','. Unlisted values will keep their relative order from the default, which is: "
             . join( ',',
-            @{$TOKENS_PRIORITY_DEFAULT_VALUE}
+            @{$DEFAULT_TOKENS_PRIORITY}
                 . ". Please note that when doing arguments collection, the parser forces unquoted parenthesis and comma to have higher priority to quoted strings and comments."
             )
     );
+    has _tokens_priority => (
+        is          => 'rwp',
+        lazy        => 1,
+        builder     => 1,
+        isa         => ArrayRef [M4Token],
+        handles_via => 'Array',
+        handles     => {
+            _tokens_priority_elements => 'elements',
+            _tokens_priority_count    => 'count',
+            _tokens_priority_get      => 'get'
+        },
+    );
 
-    option policy_integer_type => (
+    method _trigger_tokens_priority (ArrayRef[Str] $tokens_priority, @rest --> Undef) {
+        my %tokens_priority = ();
+        my $currentMaxIndex = $#{$tokens_priority};
+        foreach ( 0 .. $currentMaxIndex ) {
+            $tokens_priority{ $tokens_priority->[$_] } = $_;
+        }
+        foreach ( 0 .. $self->_tokens_priority_count - 1 ) {
+            my $lexeme = $self->_tokens_priority_get($_);
+            if ( !exists( $tokens_priority{$lexeme} ) ) {
+                $tokens_priority{$lexeme} = ++$currentMaxIndex;
+            }
+        }
+
+        $self->_set__tokens_priority(
+            [   sort { $tokens_priority{$a} <=> $tokens_priority{$b} }
+                    keys %tokens_priority
+            ]
+        );
+        return;
+    }
+
+    method _build__tokens_priority {$DEFAULT_TOKENS_PRIORITY}
+
+    # =========================
+    # --integer-type
+    # =========================
+    option integer_type => (
         is      => 'rw',
-        default => '',
         isa     => Str,
         trigger => 1,
         format  => 's',
         doc =>
-            q{Integer type. Possible values: "native" (will use what your hardware provides), "bitvector" (will use s/w-driven bit-per-bit manipulations, this is the only portable option value). Default: "bitvector".}
+            q{Integer type. Possible values: "native" (will use what your hardware provides), "bitvector" (will use s/w-driven bit-per-bit manipulations; this is the only portable option value). Default: "bitvector".}
+    );
+    has _integer_type => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => Enum [qw/native bitvector/]
     );
 
-    option policy_integer_bits => (
+    method _trigger_integer_type (Str $integer_type, @rest --> Undef) {
+        $self->_set__integer_type($integer_type);
+        return;
+    }
+
+    method _build__integer_type {'bitvector'}
+
+    # =========================
+    # --integer-bits
+    # =========================
+    our $INTEGER_BITS_DEFAULT_VALUE = Bit::Vector->Word_Bits;
+    option integer_bits => (
         is      => 'rw',
-        isa     => Str,
+        isa     => PositiveInt,
         trigger => 1,
-        default => '',
         format  => 'i',
         doc =>
             "Number of bits for integer arithmetic. Possible values: any positive integer. Default is \"unsigned int\" C-type number of bits from the libc used to build this version of perl. Meaningul only when policy_integer_type is \"bitvector\". Default: $INTEGER_BITS_DEFAULT_VALUE."
     );
 
-    option policy_m4wrap => (
+    has _integer_bits => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => PositiveInt,
+    );
+
+    method _trigger_integer_bits (Str $integer_bits, @rest --> Undef) {
+        $self->_set__integer_bits($integer_bits);
+        return;
+    }
+
+    method _build__integer_bits {$INTEGER_BITS_DEFAULT_VALUE}
+
+    # =========================
+    # --m4wrap-order
+    # =========================
+    option m4wrap_order => (
         is      => 'rw',
-        default => '',
         isa     => Str,
         trigger => 1,
         format  => 's',
@@ -436,9 +457,25 @@ EVAL_GRAMMAR
             q{M4wrap unbuffer mode. Possible values: "LIFO" (Last In, First Out), "FIFO" (First In, First Out). Default: "LIFO".}
     );
 
-    option policy_divert_type => (
+    has _m4wrap_order => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => Enum [qw/LIFO FIFO/]
+    );
+
+    method _trigger_m4wrap_order (Str $m4wrap_order, @rest --> Undef) {
+        $self->_set__m4wrap_order($m4wrap_order);
+        return;
+    }
+
+    method _build__m4wrap_order {'LIFO'}
+
+    # =========================
+    # --divert-type
+    # =========================
+    option divert_type => (
         is      => 'rw',
-        default => '',
         trigger => 1,
         isa     => Str,
         format  => 's',
@@ -446,41 +483,133 @@ EVAL_GRAMMAR
             q{Divertion type. Possible values: "memory" (all diversions are kept in memory), "temp" (all diversions are kept in temporary files). Default: "memory".}
     );
 
-    option policy_wordregexp_iteration => (
-        is          => 'rw',
-        isa         => Bool,
-        default     => true,
-        trigger     => 1,
-        negativable => 1,
-        doc =>
-            q{Word-regexp policy. If true, a word is constructed character-per-character, i.e. the word-regexp is done iteratively: first on one character, then on two characters if previous one matched, and so on. The iteration will always stop if a macro is recognized. If false, the regexp is applied only once to the full buffer at current position. Default is a true value.}
+    has _divert_type => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => Enum [qw/memory file/]
     );
 
-    option policy_need_param => (
+    method _trigger_divert_type (Str $divert_type, @rest --> Undef) {
+        $self->_set__divert_type($divert_type);
+        return;
+    }
+
+    method _build__divert_type {'memory'}
+
+    # =========================
+    # --builtin-need-param
+    # =========================
+    our $NEED_PARAM_DEFAULT_VALUE = [
+        qw/
+            define
+            undefine
+            defn
+            pushdef
+            popdef
+            indir
+            builtin
+            ifdef
+            ifelse
+            shift
+            changeword
+            m4wrap
+            include
+            sinclude
+            len
+            index
+            regexp
+            substr
+            translit
+            patsubst
+            format
+            incr
+            decr
+            eval
+            syscmd
+            esyscmd
+            mkstemp
+            maketemp
+            errprint
+            /
+    ];
+    option builtin_need_param => (
         is          => 'rw',
         isa         => ArrayRef [Str],
-        default     => sub { [] },
         trigger     => 1,
-        format      => 's',
-        repeatable  => 1,
+        format      => 's@',
         autosplit   => ',',
         handles_via => 'Array',
-        handles     => { policy_need_param_elements => 'elements', },
+        handles     => { builtin_need_param_elements => 'elements', },
         doc =>
             "Recognized-only-with-parameters policy. Repeatable option. Multiple values can be given in the same switch if separated by the comma character ','. Says if a macro is recognized only if it is immediately followed by a left parenthesis. Every option value is subject to the value of word_regexp: if it matches word_regexp at the beginning, then the option is considered. Any attempt to set it on the command-line will completely overwrite the default. Default: "
             . join( ',', @{$NEED_PARAM_DEFAULT_VALUE} ) . '.'
     );
 
-    option policy_paramcanbemacro => (
+    has _builtin_need_param => (
+        is          => 'rwp',
+        lazy        => 1,
+        builder     => 1,
+        isa         => HashRef [Bool],
+        handles_via => 'Hash',
+        handles     => {
+            _builtin_need_param_set    => 'set',
+            _builtin_need_param_get    => 'get',
+            _builtin_need_param_exists => 'exists',
+            _builtin_need_param_keys   => 'keys',
+            _builtin_need_param_delete => 'delete'
+        },
+    );
+
+    method _trigger_builtin_need_param (ArrayRef[Str] $builtin_need_param, @rest --> Undef) {
+        my $word_regexp = $self->_word_regexp;
+        foreach ( @{$builtin_need_param} ) {
+            if ( $_ =~ /^$word_regexp$/ ) {
+                if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
+                    $self->_builtin_need_param_set(
+                        substr( $_, $-[1], $+[1] - $-[1] ), true );
+                }
+                else {
+                    $self->_builtin_need_param_set( $_, true );
+                }
+            }
+            else {
+                $self->logger_warn( '%s: %s: does not match word regexp',
+                    'builtin_need_param', $_ );
+            }
+        }
+        return;
+    }
+
+    method _build__builtin_need_param {
+        my %ref = map { $_ => true } @{$NEED_PARAM_DEFAULT_VALUE};
+        \%ref;
+    }
+
+    # =========================
+    # --param-can-be-macro
+    # =========================
+    our $PARAMCANBEMACRO_DEFAULT_VALUE = {
+        define => {
+            0 => true,    # To trigger a warning
+            1 => true
+        },
+        pushdef => { 1 => true },
+        indir   => {
+            '*' => true    # To trigger a warning
+        },
+        builtin => {
+            '*' => true    # To trigger a warning
+        },
+    };
+    option param_can_be_macro => (
         is          => 'rw',
         isa         => ArrayRef [Str],
-        default     => sub { [] },
         trigger     => 1,
-        format      => 's',
-        repeatable  => 1,
+        format      => 's@',
         autosplit   => ',',
         handles_via => 'Array',
-        handles     => { policy_paramcanbemacro_elements => 'elements', },
+        handles     => { param_can_be_macro_elements => 'elements', },
         doc =>
             "Can-a-macro-parameter-be-an-internal-macro-token policy. Repeatable option. Multiple values can be given in the same switch if separated by the comma character ','. Says if a macro parameter can be an internal token, i.e. a reference to another macro. Every option value is subject to the value of word_regexp: if it matches word_regexp at the beginning, then the option is considered. On the command-line, the format has to be: word-regexp=?numbersOrStarSeparatedByColon?. For example: --policy_paramcanbemacro popdef,ifelse=,define=1,xxx=3:4,yyy=* says that popdef and ifelse do not accept any parameter as macro, but parameter at indice 1 of the define macro can be such internal token, as well as indices 3 and 4 of xxx macro, and any indices of macro yyy. Any attempt to set it on the command-line will completely overwrite the default. Default: "
             . join(
@@ -499,49 +628,220 @@ EVAL_GRAMMAR
             . '.'
     );
 
+    has _param_can_be_macro => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => HashRef [ HashRef [ PositiveOrZeroInt | Enum [qw/*/] ] ],
+        handles_via => 'Hash',
+        handles     => {
+            _param_can_be_macro_set    => 'set',
+            _param_can_be_macro_get    => 'get',
+            _param_can_be_macro_exists => 'exists',
+            _param_can_be_macro_keys   => 'keys',
+            _param_can_be_macro_delete => 'delete'
+        },
+    );
+
+    method _trigger_param_can_be_macro (ArrayRef[Str] $param_can_be_macro, @rest --> Undef) {
+        my $word_regexp = $self->_word_regexp;
+        my %ref         = ();
+        foreach ( @{$param_can_be_macro} ) {
+            if ( $_ =~ /^($word_regexp)(?:=(.*))/ ) {
+                #
+                # If word_regexp has a $1 submatch, this is the macro name.
+                # Since we add another group on top, we detect the presence of
+                # word_regexp's $1 by comparing total number of groups v.s.
+                # the regexp writen upper.
+                #
+                my $nbSubGroups = $#+;
+                #
+                # If $#+ > 2, then $word_regexp has a $1.
+                # Else, it has no $1.
+                #
+                my $macroName
+                    = ( $#+ > 2 )
+                    ? substr( $_, $-[2], $+[2] - $-[2] )
+                    : substr( $_, $-[1], $+[1] - $-[1] );
+                my $indicesToSplit = substr( $_, $-[-1], $+[-1] - $-[-1] );
+                my @indices = grep { !Undef->check($_) && length("$_") > 0 }
+                    split( /,/, $indicesToSplit );
+                $ref{$macroName} = {};
+                foreach (@indices) {
+                    if ( PositiveOrZeroInt->check($_)
+                        || ( Str->check($_) && $_ eq '*' ) )
+                    {
+                        $ref{$macroName}->{$_} = true;
+                    }
+                    else {
+                        $self->logger_warn(
+                            '%s: %s: %s does not look like a positive or zero integer, or star character',
+                            'policy_paramcanbemacro', $macroName, $_
+                        );
+                    }
+                }
+            }
+            else {
+                $self->logger_warn( '%s: %s does not match a word regexp',
+                    'policy_paramcanbemacro', $_ );
+            }
+        }
+        $self->_set__param_can_be_macro( \%ref );
+        return;
+    }
+
+    sub _build__param_can_be_macro {
+        $PARAMCANBEMACRO_DEFAULT_VALUE;
+    }    #__METHOD 17
+
+    # =========================
+    # --interactive
+    # =========================
+    option interactive => (
+        is      => 'rw',
+        isa     => Bool,
+        short   => 'i',
+        trigger => 1,
+        doc     => q{Read STDIN and parse it line by line, until EOF.}
+    );
+
+    method _trigger_interactive {
+        my $buf;
+        my $unparsed;
+
+        autoflush STDOUT 1;
+
+        #
+        # If interactive mode is triggered via new_with_options()
+        # the caller is likely to not have $self yet.
+        #
+        local $MarpaX::Languages::M4::SELF = $self;
+        while ( defined( $_ = <STDIN> ) ) {
+            if ( !defined($buf) ) {
+                $buf = $_;
+            }
+            else {
+                $buf = $self->impl_unparsed . $_;
+            }
+            $self->impl_parseIncremental($buf);
+            print $self->impl_value;
+            ${ $self->impl_valueRef } = '';
+        }
+    }
+
+    # =========================
+    # --version
+    # =========================
     option version => (
         is      => 'rw',
         isa     => Bool,
-        default => false,
+        short   => 'v',
         trigger => 1,
         doc =>
             q{Print the version number of the program on standard output, then immediately exit.}
     );
 
+    method _trigger_version {
+        my $CURRENTVERSION;
+        {
+           #
+           # Because $VERSION is generated by dzil, not available in dev. tree
+           #
+            no strict 'vars';
+            $CURRENTVERSION = $VERSION;
+        }
+        $CURRENTVERSION ||= 'dev';
+
+        print "Version $CURRENTVERSION\n";
+        exit(EXIT_SUCCESS);
+    }
+
+    # =========================
+    # --prefix-builtins
+    # =========================
     option prefix_builtins => (
         is      => 'rw',
-        isa     => Str,
-        format  => 's',
-        default => '',
-        doc     => q{Prefix of all builtin macros. Default is empty.}
+        isa     => Bool,
+        short   => 'P',
+        trigger => 1,
+        doc =>
+            q{Prefix of all builtin macros with 'm4_'. Default: a false value.}
     );
 
+    has _prefix_builtins => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => Str,
+    );
+
+    method _trigger_prefix_builtins (Bool $prefix_builtins, @rest --> Undef) {
+        $self->_set__prefix_builtins('m4_');
+        return;
+    }
+    method _build__prefix_builtins {''}
+
+    # =========================
+    # --fatal-warnings
+    # =========================
     option fatal_warnings => (
-        is      => 'rw',
-        isa     => Bool,
-        default => false,
-        short   => 'E',
-        trigger => 1,
+        is         => 'rw',
+        isa        => PositiveInt,
+        repeatable => 1,
+        repeatable => 1,
+        short      => 'E',
+        trigger    => 1,
         doc =>
             q{If unspecified, have no effect. If specified once, impl_rc() will return EXIT_FAILURE. If specified more than once, any warning is fatal. Default: a false value.}
     );
 
-    option silent => (
-        is          => 'rw',
-        isa         => Bool,
-        default     => false,
-        negativable => 1,
-        short       => 's',
-        doc =>
-            q{Silent mode. Negativable option. If true all warnings will disappear. Default: a false value.}
+    has _fatal_warnings => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => PositiveOrZeroInt
     );
 
+    method _trigger_fatal_warnings (PositiveInt $fatal_warnings, @rest --> Undef) {
+        $self->_set__fatal_warnings($fatal_warnings);
+        return;
+    }
+
+    method _build__fatal_warnings {0}
+
+    # =========================
+    # --silent
+    # =========================
+    option silent => (
+        is      => 'rw',
+        default => false,
+        short   => 'Q',
+        doc =>
+            q{Silent mode. If true all warnings will disappear. Default: a false value.}
+    );
+
+    has _silent => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+    );
+
+    method _trigger_silent (Bool $silent, @rest --> Undef) {
+        $self->_set__silent($silent);
+        return;
+    }
+
+    method _build__silent {false}
+
+    # =========================
+    # --trace
+    # =========================
     option trace => (
         is          => 'rw',
         isa         => ArrayRef [Str],
         default     => sub { [] },
-        format      => 's',
-        repeatable  => 1,
+        format      => 's@',
+        short       => 't',
         autosplit   => ',',
         trigger     => 1,
         handles_via => 'Array',
@@ -550,24 +850,73 @@ EVAL_GRAMMAR
             q{Trace mode. Repeatable option. Multiple values can be given in the same switch if separated by the comma character ','. Every option value will set trace on the macro sharing this name. Default is empty.}
     );
 
+    has _trace => (
+        is          => 'rwp',
+        lazy        => 1,
+        builder     => 1,
+        isa         => HashRef [Bool],
+        handles_via => 'Hash',
+        handles     => {
+            _trace_set    => 'set',
+            _trace_get    => 'get',
+            _trace_exists => 'exists',
+            _trace_keys   => 'keys',
+            _trace_delete => 'delete'
+        }
+    );
+
+    method _trigger_trace (ArrayRef[Str] $arrayRef, @rest --> Undef) {
+        foreach ( @{$arrayRef} ) {
+            $self->_trace_set($_);
+        }
+        return;
+    }
+    method _build__trace { {} }
+
+    # =========================
+    # --define
+    # =========================
     option define => (
         is          => 'rw',
         isa         => ArrayRef [Str],
-        default     => sub { [] },
         handles_via => 'Array',
         handles     => { define_elements => 'elements', },
-        format      => 's',
+        format      => 's@',
         short       => 'D',
-        repeatable  => 1,
         trigger     => 1,
         doc =>
             q{Macro definition. Repeatable option. Every option value is subject to the value of word_regexp: if it matches word_regexp at the beginning, then a macro is declared. For example: --define myMacro. Or --word_regexp x= --define x=. Default expansion is void, unless the matched name is followed by '=', then any remaining character will be the expansion of this new macro. For example: --define myMacro=myExpansion. Or --word_regexp x= --define x==myExpansion. Default is empty.}
     );
 
+    method _trigger_define (ArrayRef[Str] $arrayRef, @rest --> Undef) {
+        my $word_regexp = $self->_word_regexp;
+        foreach ( @{$arrayRef} ) {
+            if ( $_ =~ /^($word_regexp)(?:=(.*))/ ) {
+                #
+                # If $#+ > 2, then $word_regexp has a $1.
+                # Else, it has no $1.
+                #
+                my $macroName
+                    = ( $#+ > 2 )
+                    ? substr( $_, $-[2], $+[2] - $-[2] )
+                    : substr( $_, $-[1], $+[1] - $-[1] );
+                my $value = substr( $_, $-[-1], $+[-1] - $-[-1] );
+                $self->builtin_define( $macroName, $value );
+            }
+            else {
+                $self->logger_warn( '%s: %s: does not match word regexp',
+                    'define', $_ );
+            }
+        }
+        return;
+    }
+
+    # =========================
+    # --undefine
+    # =========================
     option undefine => (
         is          => 'rw',
         isa         => ArrayRef [Str],
-        default     => sub { [] },
         handles_via => 'Array',
         handles     => { undefine_elements => 'elements', },
         format      => 's',
@@ -578,58 +927,130 @@ EVAL_GRAMMAR
             q{Macro undefinition. Repeatable option. Every option value is subject to the value of word_regexp: if it matches word_regexp at the beginning, then a macro is deleted if it exists. Default is empty.}
     );
 
+    method _trigger_undefine (ArrayRef[Str] $arrayRef, @rest --> Undef) {
+        my $word_regexp = $self->_word_regexp;
+        foreach ( @{$arrayRef} ) {
+            if ( $_ =~ /^$word_regexp$/ ) {
+                if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
+                    $self->builtin_undefine(
+                        substr( $_, $-[1], $+[1] - $-[1] ) );
+                }
+                else {
+                    $self->builtin_undefine($_);
+                }
+            }
+            else {
+                $self->logger_warn( '%s: %s: does not match word regexp',
+                    'undefine', $_ );
+            }
+        }
+        return;
+    }
+
+    # =========================
+    # --prepend-include
+    # =========================
     option prepend_include => (
-        is          => 'rw',
-        isa         => ArrayRef [Str],
-        default     => sub { [] },
-        format      => 's',
-        short       => 'B',
-        repeatable  => 1,
-        trigger     => 1,
-        handles_via => 'Array',
-        handles     => { prepend_include_elements => 'elements', },
+        is      => 'rw',
+        isa     => ArrayRef [Str],
+        format  => 's@',
+        short   => 'B',
+        trigger => 1,
         doc =>
             q{Include directory. Repeatable option. Will be used in reverse order and before current directory when searching for a file to include. Default is empty.}
     );
 
-    option include => (
-        is          => 'rw',
+    has _prepend_include => (
+        is          => 'rwp',
+        lazy        => 1,
+        builder     => 1,
         isa         => ArrayRef [Str],
-        default     => sub { [] },
-        format      => 's',
-        short       => 'I',
-        repeatable  => 1,
         handles_via => 'Array',
-        handles     => { include_elements => 'elements', },
+        handles     => { _prepend_include_elements => 'elements', },
+    );
+
+    method _trigger_prepend_include (ArrayRef[Str] $prepend_include, @rest --> Undef) {
+        $self->_set__prepend_include($prepend_include);
+        return;
+    }
+    method _build__prepend_include { [] }
+
+    # =========================
+    # --include
+    # =========================
+    option include => (
+        is      => 'rw',
+        isa     => ArrayRef [Str],
+        format  => 's@',
+        short   => 'I',
+        trigger => 1,
         doc =>
             q{Include directory. Repeatable option. Will be used in order and after current directory when searching for a file to include. Default is empty.}
     );
 
-    # ---------------------------------------------------------------
-    # RUNTIME DEFAULT OPTIONS
-    # ---------------------------------------------------------------
+    has _include => (
+        is          => 'rwp',
+        lazy        => 1,
+        builder     => 1,
+        isa         => ArrayRef [Str],
+        handles_via => 'Array',
+        handles     => { _include_elements => 'elements', },
+    );
+
+    method _trigger_include (ArrayRef[Str] $include, @rest --> Undef) {
+        $self->_set__include($include);
+        return;
+    }
+    method _build__include { [] }
+
+    # =========================
+    # --gnu
+    # =========================
     option gnu => (
         is      => 'rw',
         isa     => Bool,
-        default => false,
         short   => 'g',
         trigger => 1,
         doc     => q{Enable all extensions.}
     );
 
+    has _no_gnu_extensions => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => Bool
+    );
+
+    method _trigger_gnu (Bool $gnu, @rest --> Undef) {
+        $self->_set__no_gnu_extensions( !$gnu );
+        return;
+    }
+    method _build__no_gnu_extensions {false}
+
+    # =========================
+    # --traditional
+    # =========================
     option traditional => (
         is      => 'rw',
         isa     => Bool,
-        default => false,
         short   => 'G',
         trigger => 1,
         doc     => q{Suppress all extensions.}
     );
 
+    method _trigger_traditional (Bool $traditional, @rest --> Undef) {
+        $self->_set__no_gnu_extensions($traditional);
+        return;
+    }
+
+    # =========================
+    # --debugmode
+    # =========================
+    our @DEBUG_FLAGS         = qw/a c e f i l p q t x/;
+    our @DEFAULT_DEBUG_FLAGS = qw/a e q/;
     option debugmode => (
         is      => 'rw',
         isa     => Str,
-        default => 'aeq',
         trigger => 1,
         format  => 's',
         short   => 'd',
@@ -639,85 +1060,267 @@ EVAL_GRAMMAR
             . join( '', @DEFAULT_DEBUG_FLAGS ) . '".'
     );
 
+    has _debug => (
+        is          => 'rwp',
+        lazy        => 1,
+        builder     => 1,
+        isa         => HashRef [Bool],
+        handles_via => 'Hash',
+        handles     => {
+            _debug_set    => 'set',
+            _debug_get    => 'get',
+            _debug_exists => 'exists',
+            _debug_keys   => 'keys',
+            _debug_delete => 'delete'
+        }
+    );
+
+    method _trigger_debugmode (Str $flags, @rest --> Undef) {
+
+        map { $self->_debug_set( $_, false ) } @DEBUG_FLAGS;
+
+        if ( length($flags) <= 0 ) {
+            map { $self->_debug_set( $_, true ) } @DEFAULT_DEBUG_FLAGS;
+        }
+        else {
+            #
+            # Only know debug flags are accepted
+            #
+            my $ok = 1;
+            my @flags = split( //, $flags );
+            foreach ( @flags, 'V' ) {
+                if ( !$self->_debug_exists($_) && $_ ne 'V' ) {
+                    $self->logger_warn( '%s: unknown debug flag: %c',
+                        'debugmode', $_ );
+                    $ok = 0;
+                    last;
+                }
+            }
+            if ( !$ok ) {
+                return;
+            }
+            if ( index( $flags, 'V' ) >= 0 ) {
+                #
+                # Everything is on
+                #
+                map { $self->_debug_set( $_, true ) } @DEBUG_FLAGS;
+            }
+            else {
+                map { $self->_debug_set( $_, false ) } @DEBUG_FLAGS;
+                map { $self->_debug_set( $_, true ) } @flags;
+            }
+        }
+
+        return;
+    }
+
+    method _build__debug {
+        my %ref = ();
+        map { $ref{$_} = false } @DEBUG_FLAGS;
+        map { $ref{$_} = true } @DEFAULT_DEBUG_FLAGS;
+        return \%ref;
+    }
+
+    # =========================
+    # --debugfile
+    # =========================
     option debugfile => (
         is      => 'rw',
-        isa     => Undef | Str,
-        default => undef,
+        isa     => Str,
+        trigger => 1,
         format  => 's',
         short   => 'o',
         doc =>
             q{Debug file. An empty value disable debug output. A null value redirects to standard error. Default is a null value.}
     );
 
+    has _debugfile => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => Undef | Str,
+    );
+
+    method _trigger_debugfile (Str $debugfile, @rest --> Undef) {
+        $self->_set__debugfile($debugfile);
+    }
+
+    method _build__debugfile {undef}
+
+    # =========================
+    # --quote-start
+    # =========================
+    our $DEFAULT_QUOTE_START = '`';
     option quote_start => (
         is      => 'rw',
         isa     => Str,
-        default => $DEFAULT_QUOTE_START,
         trigger => 1,
         format  => 's',
         doc =>
-            "Quote start. An empty option value disables support of quoted string. Default: \"$DEFAULT_QUOTE_START\"."
+            "Quote start. An empty option value is ignored. Default: \"$DEFAULT_QUOTE_START\"."
     );
 
+    has _quote_start => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        trigger => 1,
+        isa     => Str,
+    );
+
+    has _quoteStartLength => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => PositiveOrZeroInt
+    );
+
+    method _trigger_quote_start (Str $quote_start, @rest --> Undef) {
+        if ( length($quote_start) > 0 ) {
+            $self->_set__quote_start($quote_start);
+        }
+    }
+
+    method _trigger__quote_start (Str $quote_start, @rest --> Undef) {
+        $self->_set__quoteStartLength( length($quote_start) );
+    }
+
+    method _build__quote_start      {$DEFAULT_QUOTE_START}
+    method _build__quoteStartLength { length($DEFAULT_QUOTE_START) }
+
+    # =========================
+    # --quote-end
+    # =========================
+    our $DEFAULT_QUOTE_END = '\'';
     option quote_end => (
         is      => 'rw',
         isa     => Str,
-        default => $DEFAULT_QUOTE_END,
         trigger => 1,
         format  => 's',
-        doc     => "Quote end. Default: \"$DEFAULT_QUOTE_END\"."
+        doc =>
+            "Quote end. An empty option value is ignored. Default: \"$DEFAULT_QUOTE_END\"."
     );
 
-#
-# We cache quote length to avoid unnecessary calls to length() in parser_isQuotedstring()
-#
-    has _quoteStartLength => (
+    has _quote_end => (
         is      => 'rwp',
-        isa     => PositiveOrZeroInt,
-        default => length($DEFAULT_QUOTE_START)
+        lazy    => 1,
+        builder => 1,
+        trigger => 1,
+        isa     => Str,
     );
+
     has _quoteEndLength => (
         is      => 'rwp',
-        isa     => PositiveOrZeroInt,
-        default => length($DEFAULT_QUOTE_END)
+        lazy    => 1,
+        builder => 1,
+        isa     => PositiveOrZeroInt
     );
 
-    option com_start => (
+    method _trigger_quote_end (Str $quote_end, @rest --> Undef) {
+        if ( length($quote_end) > 0 ) {
+            $self->_set__quote_end($quote_end);
+        }
+    }
+
+    method _trigger__quote_end (Str $quote_end, @rest --> Undef) {
+        $self->_set__quoteEndLength( length($quote_end) );
+    }
+
+    method _build__quote_end      {$DEFAULT_QUOTE_END}
+    method _build__quoteEndLength { length($DEFAULT_QUOTE_END) }
+
+    # =========================
+    # --comment-start
+    # =========================
+    our $DEFAULT_COMMENT_START = '#';
+    option comment_start => (
         is      => 'rw',
         isa     => Str,
-        default => $DEFAULT_COM_START,
         trigger => 1,
         format  => 's',
-        doc     => "Comment start. Default: \"$DEFAULT_COM_START\"."
+        doc =>
+            "Comment start. An empty option value is ignored. Default: \"$DEFAULT_COMMENT_START\"."
     );
 
-    option com_end => (
+    has _comment_start => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        trigger => 1,
+        isa     => Str,
+    );
+
+    has _commentStartLength => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => PositiveOrZeroInt
+    );
+
+    method _trigger_comment_start (Str $comment_start, @rest --> Undef) {
+        if ( length($comment_start) > 0 ) {
+            $self->_set__comment_start($comment_start);
+        }
+    }
+
+    method _trigger__comment_start (Str $comment_start, @rest --> Undef) {
+        $self->_set__commentStartLength( length($comment_start) );
+    }
+
+    method _build__comment_start {$DEFAULT_COMMENT_START}
+
+    sub _build__commentStartLength {
+        length($DEFAULT_COMMENT_START);
+    }    #__METHOD 52
+
+    # =========================
+    # --comment-end
+    # =========================
+    our $DEFAULT_COMMENT_END = "\n";
+    option comment_end => (
         is      => 'rw',
         isa     => Str,
-        default => $DEFAULT_COM_END,
         trigger => 1,
         format  => 's',
-        doc     => "Comment end. Default: the newline character."
+        doc =>
+            "Comment end. An empty option value is ignored. Default value: the newline character."
     );
 
-    #
-    # Ditto for comment
-    #
-    has _comStartLength => (
+    has _comment_end => (
         is      => 'rwp',
-        isa     => PositiveOrZeroInt,
-        default => length($DEFAULT_COM_START)
-    );
-    has _comEndLength => (
-        is      => 'rwp',
-        isa     => PositiveOrZeroInt,
-        default => length($DEFAULT_COM_END)
+        lazy    => 1,
+        builder => 1,
+        trigger => 1,
+        isa     => Str,
     );
 
+    has _commentEndLength => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => PositiveOrZeroInt
+    );
+
+    method _trigger_comment_end (Str $comment_end, @rest --> Undef) {
+        if ( length($comment_end) > 0 ) {
+            $self->_set__comment_end($comment_end);
+        }
+    }
+
+    method _trigger__comment_end (Str $comment_end, @rest --> Undef) {
+        $self->_set__commentEndLength( length($comment_end) );
+    }
+
+    method _build__comment_end      {$DEFAULT_COMMENT_END}
+    method _build__commentEndLength { length($DEFAULT_COMMENT_END) }
+
+    # =========================
+    # --word-regexp
+    # =========================
+    our $DEFAULT_WORD_REGEXP = '[_a-zA-Z][_a-zA-Z0-9]*';
     option word_regexp => (
         is      => 'rw',
         isa     => Str,
-        default => $DEFAULT_WORD_REGEXP,
         trigger => 1,
         format  => 's',
         short   => 'W',
@@ -725,6 +1328,31 @@ EVAL_GRAMMAR
             "Word perl regular expression. Default: \"$DEFAULT_WORD_REGEXP\"."
     );
 
+    has _word_regexp => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => RegexpRef
+    );
+
+    method _trigger_word_regexp (Str $regexp, @rest --> Undef) {
+        try {
+            $self->_set__word_regexp(qr/^$regexp/s);
+        }
+        catch {
+            $self->logger_error( '%s: %s', $self->impl_quote($regexp), $_ );
+            return;
+        };
+
+        return;
+    }
+
+    method _build__word_regexp {qr/^$DEFAULT_WORD_REGEXP/}
+
+    # =========================
+    # --warn-macro-sequence
+    # =========================
+    our $DEFAULT_WARN_MACRO_SEQUENCE = '\$(?:\{[^\}]*\}|[0-9][0-9]+)';
     option warn_macro_sequence => (
         is      => 'rw',
         isa     => Str,
@@ -735,93 +1363,32 @@ EVAL_GRAMMAR
             "Issue a warning if a macro defined via builtins define or pushdef is matching this regexp. An empty string disables the check. Default: \"$DEFAULT_WARN_MACRO_SEQUENCE\"."
     );
 
-    # ---------------------------------------------------------------
-    # POLICY MAPPED ATTRIBUTES
-    # ---------------------------------------------------------------
-    has _policy_cmdtounix => (
-        is      => 'rw',
-        isa     => Bool,
-        default => false,
+    has _warn_macro_sequence => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => Undef | RegexpRef
     );
 
-    has _policy_inctounix => (
-        is      => 'rw',
-        isa     => Bool,
-        default => false,
-    );
+    method _trigger_warn_macro_sequence (Str $regexp, @rest --> Undef) {
+        if ( length($regexp) <= 0 ) {
+            $self->_set__warn_macro_sequence(undef);
+            return;
+        }
+        try {
+            $self->_set__warn_macro_sequence(qr/$regexp/s);
+        }
+        catch {
+            $self->logger_error( '%s: %s', $self->impl_quote($regexp), $_ );
+            return;
+        };
 
-    has _wordregexp_iteration => (
-        is      => 'rw',
-        isa     => Bool,
-        default => true,
-    );
+        return;
+    }
 
-    has _policy_tokens_priority => (
-        is          => 'rw',
-        isa         => $TOKENS_PRIORITY_TYPE,
-        default     => sub {$TOKENS_PRIORITY_DEFAULT_VALUE},
-        handles_via => 'Array',
-        handles     => {
-            _policy_tokens_priority_elements => 'elements',
-            _policy_tokens_priority_count    => 'count',
-            _policy_tokens_priority_get      => 'get'
-        },
-    );
-
-    has _policy_integer_type => (
-        is      => 'rw',
-        isa     => $INTEGER_TYPE_TYPE,
-        default => $INTEGER_TYPE_DEFAULT_VALUE,
-    );
-
-    has _policy_integer_bits => (
-        is      => 'rw',
-        isa     => $INTEGER_BITS_TYPE,
-        default => $INTEGER_BITS_DEFAULT_VALUE,
-    );
-
-    has _policy_m4wrap => (
-        is      => 'rw',
-        isa     => $M4WRAP_TYPE,
-        default => $M4WRAP_DEFAULT_VALUE,
-    );
-
-    has _policy_divert_type => (
-        is      => 'rw',
-        isa     => $DIVERT_TYPE_TYPE,
-        default => $DIVERT_TYPE_DEFAULT_VALUE,
-    );
-
-    has _policy_need_param => (
-        is      => 'rw',
-        isa     => HashRef [Bool],
-        default => sub {
-            my %ref = map { $_ => true } @{$NEED_PARAM_DEFAULT_VALUE};
-            \%ref;
-        },
-        handles_via => 'Hash',
-        handles     => {
-            _policy_need_param_set    => 'set',
-            _policy_need_param_get    => 'get',
-            _policy_need_param_exists => 'exists',
-            _policy_need_param_keys   => 'keys',
-            _policy_need_param_delete => 'delete'
-        },
-    );
-
-    has _policy_paramcanbemacro => (
-        is  => 'rw',
-        isa => HashRef [ HashRef [ PositiveOrZeroInt | Enum [qw/*/] ] ],
-        default     => sub {$PARAMCANBEMACRO_DEFAULT_VALUE},
-        handles_via => 'Hash',
-        handles     => {
-            _policy_paramcanbemacro_set    => 'set',
-            _policy_paramcanbemacro_get    => 'get',
-            _policy_paramcanbemacro_exists => 'exists',
-            _policy_paramcanbemacro_keys   => 'keys',
-            _policy_paramcanbemacro_delete => 'delete'
-        },
-    );
+    sub _build__warn_macro_sequence {
+        qr/$DEFAULT_WARN_MACRO_SEQUENCE/;
+    }    #__METHOD 60
 
     # ---------------------------------------------------------------
     # PARSER REQUIRED METHODS
@@ -829,63 +1396,46 @@ EVAL_GRAMMAR
 
     method parser_isWord (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         pos($input) = $pos;
-        if ( $self->_wordregexp_iteration ) {
-            my $word_regexpIncremental = $self->_word_regexpIncremental;
-            my $lastPos                = $pos;
-            my $lexemeLength           = 0;
-            my $lexemeValue;
-            my $thisInput = substr( $input, $pos, 1 );
-            while ( $lastPos <= $maxPos ) {
-                if ( $thisInput =~ $word_regexpIncremental ) {
-                    my $thisLength = $+[0] - $-[0];
-                    if ( $lexemeLength > 0 && $lexemeLength == $thisLength ) {
-                        #
-                        # We went one character too far
-                        #
-                        last;
-                    }
-                    $lexemeLength = $thisLength;
+
+        my $word_regexp  = $self->_word_regexp;
+        my $lastPos      = $pos;
+        my $lexemeLength = 0;
+        my $lexemeValue;
+        my $thisInput = substr( $input, $pos, 1 );
+        while ( $lastPos <= $maxPos ) {
+            if ( $thisInput =~ $word_regexp ) {
+                my $thisLength = $+[0] - $-[0];
+                if ( $lexemeLength > 0 && $lexemeLength == $thisLength ) {
                     #
-                    # Take care: Undef->check() is likely to modify %-
+                    # We went one character too far
                     #
-                    my ( $beg, $end ) = ( $-[1], $+[1] );
-                    #
-                    # It is perfectly legal to have an empty string
-                    # as word "value"
-                    #
-                    if ( !Undef->check($beg) && !Undef->check($end) ) {
-                        $lexemeValue
-                            = substr( $thisInput, $beg, $end - $beg );
-                    }
-                    else {
-                        $lexemeValue
-                            = substr( $thisInput, $-[0], $lexemeLength );
-                    }
-                    $thisInput .= substr( $input, ++$lastPos, 1 );
-                }
-                else {
                     last;
                 }
-            }
-            if ( $lexemeLength > 0 ) {
-                ${$lexemeLengthRef} = $lexemeLength;
-                ${$lexemeValueRef}  = $lexemeValue;
-                return true;
-            }
-        }
-        else {
-            if ( $input =~ $self->_word_regexpGlobal ) {
-                ${$lexemeLengthRef} = $+[0] - $-[0];
-                if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
-                    ${$lexemeValueRef}
-                        = substr( $input, $-[1], $+[1] - $-[1] );
+                $lexemeLength = $thisLength;
+                #
+                # Take care: Undef->check() is likely to modify %-
+                #
+                my ( $beg, $end ) = ( $-[1], $+[1] );
+                #
+                # It is perfectly legal to have an empty string
+                # as word "value"
+                #
+                if ( !Undef->check($beg) && !Undef->check($end) ) {
+                    $lexemeValue = substr( $thisInput, $beg, $end - $beg );
                 }
                 else {
-                    ${$lexemeValueRef}
-                        = substr( $input, $-[0], ${$lexemeLengthRef} );
+                    $lexemeValue = substr( $thisInput, $-[0], $lexemeLength );
                 }
-                return true;
+                $thisInput .= substr( $input, ++$lastPos, 1 );
             }
+            else {
+                last;
+            }
+        }
+        if ( $lexemeLength > 0 ) {
+            ${$lexemeLengthRef} = $lexemeLength;
+            ${$lexemeValueRef}  = $lexemeValue;
+            return true;
         }
         return false;
     }
@@ -895,17 +1445,17 @@ EVAL_GRAMMAR
         #
         # We want to catch EOF in comment. So we do it ourself.
         #
-        my $comStart       = $self->com_start;
-        my $comEnd         = $self->com_end;
-        my $comStartLength = $self->_comStartLength;
-        my $comEndLength   = $self->_comEndLength;
-        if ( $comStartLength > 0 && $comEndLength > 0 ) {
+        my $comStart           = $self->_comment_start;
+        my $comEnd             = $self->_comment_end;
+        my $commentStartLength = $self->_commentStartLength;
+        my $commentEndLength   = $self->_commentEndLength;
+        if ( $commentStartLength > 0 && $commentEndLength > 0 ) {
 
             if ( index( $input, $comStart, $pos ) == $pos ) {
-                my $lastPos = $pos + $comStartLength;
+                my $lastPos = $pos + $commentStartLength;
                 while ( $lastPos <= $maxPos ) {
                     if ( index( $input, $comEnd, $lastPos ) == $lastPos ) {
-                        $lastPos += $comEndLength;
+                        $lastPos += $commentEndLength;
                         ${$lexemeLengthRef} = $lastPos - $pos;
                         ${$lexemeValueRef}
                             = substr( $input, $pos, ${$lexemeLengthRef} );
@@ -932,8 +1482,8 @@ EVAL_GRAMMAR
         # We cannot rely on a balanced regexp a-la-Regexp::Common
         # because if end-string is a prefix of start-string, it has precedence
         #
-        my $quoteStart       = $self->quote_start;
-        my $quoteEnd         = $self->quote_end;
+        my $quoteStart       = $self->_quote_start;
+        my $quoteEnd         = $self->_quote_end;
         my $quoteStartLength = $self->_quoteStartLength;
         my $quoteEndLength   = $self->_quoteEndLength;
         if ( $quoteStartLength > 0 && $quoteEndLength > 0 ) {
@@ -1020,7 +1570,7 @@ EVAL_GRAMMAR
     }
 
     method parser_tokensPriority {
-        return $self->_policy_tokens_priority_elements;
+        return $self->_tokens_priority_elements;
     }
 
     # ---------------------------------------------------------------
@@ -1053,11 +1603,6 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
     # PRIVATE ATTRIBUTES
     # ---------------------------------------------------------------
-    has _no_gnu_extensions => (
-        is      => 'rw',
-        isa     => Bool,
-        default => false,
-    );
     has _lastSysExitCode => ( is => 'rw', isa => Int, default => 0 );
 
     has __file__ => ( is => 'rw', isa => Str, default => '' );
@@ -1065,33 +1610,6 @@ EVAL_GRAMMAR
 
     # Saying directly $0 failed in taint mode
     has __program__ => ( is => 'rw', isa => Str, default => sub {$0} );
-
-    has _trace => (
-        is          => 'rwp',
-        isa         => HashRef [Bool],
-        default     => sub { {} },
-        handles_via => 'Hash',
-        handles     => {
-            _trace_set    => 'set',
-            _trace_get    => 'get',
-            _trace_exists => 'exists',
-            _trace_keys   => 'keys',
-            _trace_delete => 'delete'
-        }
-    );
-
-    has _debug => (
-        is          => 'lazy',
-        isa         => HashRef [Bool],
-        handles_via => 'Hash',
-        handles     => {
-            _debug_set    => 'set',
-            _debug_get    => 'get',
-            _debug_exists => 'exists',
-            _debug_keys   => 'keys',
-            _debug_delete => 'delete'
-        }
-    );
 
     has _value => (
         is      => 'rwp',
@@ -1102,33 +1620,17 @@ EVAL_GRAMMAR
     # ----------------------------------------------------
     # builders
     # ----------------------------------------------------
-    method _build__debug {
-        my %ref = ();
-        map { $ref{$_} = false } @DEBUG_FLAGS;
-        map { $ref{$_} = true } @DEFAULT_DEBUG_FLAGS;
-        return \%ref;
-    }
 
-    method _build__com_regexp {
-        return __PACKAGE__->_generate_com_regexp( $DEFAULT_COM_START,
-            $DEFAULT_COM_END );
-    }
+    method _build_quote_start {$DEFAULT_QUOTE_START}
 
-    method _build__logger_category {
-        return 'M4';
-    }
+    method _build__logger_category {'M4'}
 
-    method _build__diversions {
+    #
+    # Diversion 0 is special and maps directly to an internal variable
+    #
+    method _build__diversions { { 0 => IO::Scalar->new } }
 
-        #
-        # Diversion 0 is special and maps directly to an internal variable
-        #
-        return { 0 => IO::Scalar->new };
-    }
-
-    method _build__lastDiversion {
-        return $self->_diversions_get(0);
-    }
+    method _build__lastDiversion { $self->_diversions_get(0) }
 
     method _build__builtins {
         my %ref = ();
@@ -1173,12 +1675,12 @@ EVAL_GRAMMAR
             # The expansion of a builtin is the builtin itself
             #
             $ref{$_}->expansion( $ref{$_} );
-            if ( $self->_policy_need_param_exists($_) ) {
-                $ref{$_}->needParams( $self->_policy_need_param_get($_) );
+            if ( $self->_builtin_need_param_exists($_) ) {
+                $ref{$_}->needParams( $self->_builtin_need_param_get($_) );
             }
-            if ( $self->_policy_paramcanbemacro_exists($_) ) {
-                $ref{$_}->paramCanBeMacro(
-                    $self->_policy_paramcanbemacro_get($_) );
+            if ( $self->_param_can_be_macro_exists($_) ) {
+                $ref{$_}
+                    ->paramCanBeMacro( $self->_param_can_be_macro_get($_) );
             }
             if ( $_ eq 'dnl' ) {
                 $ref{$_}->postMatchLength(
@@ -1242,7 +1744,7 @@ EVAL_GRAMMAR
         foreach ( $self->_builtins_keys ) {
             my $macros = MarpaX::Languages::M4::Impl::Macros->new();
             $macros->macros_push( $self->_builtins_get($_) );
-            $ref{ $self->prefix_builtins . $_ } = $macros;
+            $ref{ $self->_prefix_builtins . $_ } = $macros;
         }
         return \%ref;
     }
@@ -1250,299 +1752,7 @@ EVAL_GRAMMAR
     # ----------------------------------------------------
     # Triggers
     # ----------------------------------------------------
-    method _trigger_fatal_warnings {
-        $self->_set__fatal_warnings( $self->_fatal_warnings + 1 );
-    }
-
-    method _trigger_version {
-        my $CURRENTVERSION;
-        {
-           #
-           # Because $VERSION is generated by dzil, not available in dev. tree
-           #
-            no strict 'vars';
-            $CURRENTVERSION = $VERSION;
-        }
-        $CURRENTVERSION ||= 'dev';
-
-        print "Version $CURRENTVERSION\n";
-        exit(EXIT_SUCCESS);
-    }
-
-    method _trigger_traditional {
-        $self->_no_gnu_extensions(true);
-    }
-
-    method _trigger_gnu {
-        $self->_no_gnu_extensions(false);
-    }
-
-    method _trigger_policy_wordregexp_iteration (Bool $policy_wordregexp_iteration --> Undef) {
-        $self->_set__wordregexp_iteration($policy_wordregexp_iteration);
-    }
-
-    method _trigger_policy_tokens_priority (ArrayRef[Str] $policy_tokens_priority --> Undef) {
-        my %tokens_priority = ();
-        my $currentMaxIndex = $#{$policy_tokens_priority};
-        foreach ( 0 .. $currentMaxIndex ) {
-            $tokens_priority{ $policy_tokens_priority->[$_] } = $_;
-        }
-        foreach ( 0 .. $self->_policy_tokens_priority_count - 1 ) {
-            my $lexeme = $self->_policy_tokens_priority_get($_);
-            if ( !exists( $tokens_priority{$lexeme} ) ) {
-                $tokens_priority{$lexeme} = ++$currentMaxIndex;
-            }
-        }
-
-        $self->_policy_tokens_priority(
-            [   sort { $tokens_priority{$a} <=> $tokens_priority{$b} }
-                    keys %tokens_priority
-            ]
-        );
-        return;
-    }
-
-    method _trigger_policy_cmdtounix (Bool $policy_cmdtounix --> Undef) {
-        $self->_policy_cmdtounix($policy_cmdtounix);
-        return;
-    }
-
-    method _trigger_policy_inctounix (Bool $policy_inctounix --> Undef) {
-        $self->_policy_inctounix($policy_inctounix);
-        return;
-    }
-
-    method _trigger_policy_integer_type (Str $policy_integer_type --> Undef) {
-        $self->_policy_integer_type($policy_integer_type);
-        return;
-    }
-
-    method _trigger_policy_integer_bits (Str $policy_integer_bits --> Undef) {
-        $self->_policy_integer_bits($policy_integer_bits);
-        return;
-    }
-
-    method _trigger_policy_m4wrap (Str $policy_m4wrap --> Undef) {
-        $self->_policy_m4wrap($policy_m4wrap);
-        return;
-    }
-
-    method _trigger_policy_divert_type (Str $policy_divert_type --> Undef) {
-        $self->_policy_divert_type($policy_divert_type);
-        return;
-    }
-
-    method _trigger_policy_need_param (ArrayRef[Str] $policy_need_param --> Undef) {
-        my $word_regexp = $self->_word_regexp;
-        foreach ( @{$policy_need_param} ) {
-            if ( $_ =~ /^$word_regexp$/ ) {
-                if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
-                    $self->_policy_need_param_set(
-                        substr( $_, $-[1], $+[1] - $-[1] ), true );
-                }
-                else {
-                    $self->_policy_need_param_set( $_, true );
-                }
-            }
-            else {
-                $self->logger_warn( '%s: %s: does not match word regexp',
-                    'policy_need_param', $_ );
-            }
-        }
-        return;
-    }
-
-    method _trigger_policy_paramcanbemacro (ArrayRef[Str] $policy_paramcanbemacro --> Undef) {
-        my $word_regexp = $self->_word_regexp;
-        my %ref         = ();
-        foreach ( @{$policy_paramcanbemacro} ) {
-            if ( $_ =~ /^($word_regexp)(?:=(.*))/ ) {
-                #
-                # If word_regexp has a $1 submatch, this is the macro name.
-                # Since we add another group on top, we detect the presence of
-                # word_regexp's $1 by comparing total number of groups v.s.
-                # the regexp writen upper.
-                #
-                my $nbSubGroups = $#+;
-                #
-                # If $#+ > 2, then $word_regexp has a $1.
-                # Else, it has no $1.
-                #
-                my $macroName
-                    = ( $#+ > 2 )
-                    ? substr( $_, $-[2], $+[2] - $-[2] )
-                    : substr( $_, $-[1], $+[1] - $-[1] );
-                my $indicesToSplit = substr( $_, $-[-1], $+[-1] - $-[-1] );
-                my @indices = grep { !Undef->check($_) && length("$_") > 0 }
-                    split( /,/, $indicesToSplit );
-                $ref{$macroName} = {};
-                foreach (@indices) {
-                    if ( PositiveOrZeroInt->check($_)
-                        || ( Str->check($_) && $_ eq '*' ) )
-                    {
-                        $ref{$macroName}->{$_} = true;
-                    }
-                    else {
-                        $self->logger_warn(
-                            '%s: %s: %s does not look like a positive or zero integer, or star character',
-                            'policy_paramcanbemacro', $macroName, $_
-                        );
-                    }
-                }
-            }
-            else {
-                $self->logger_warn( '%s: %s does not match a word regexp',
-                    'policy_paramcanbemacro', $_ );
-            }
-        }
-        $self->_policy_paramcanbemacro_set( \%ref );
-        return;
-    }
-
-    method _trigger_word_regexp (Str $regexp, @rest --> Undef) {
-        try {
-            $self->_word_regexpGlobal(qr/\G$regexp/s);
-            $self->_word_regexpIncremental(qr/^$regexp/s);
-        }
-        catch {
-            $self->logger_error( '%s: %s', $self->impl_quote('changeword'),
-                $_ );
-            return;
-        };
-
-        return;
-    }
-
-    method _trigger_warn_macro_sequence (Str $regexp, @rest --> Undef) {
-        if ( length($regexp) <= 0 ) {
-            $self->_warn_macro_sequence(undef);
-            return;
-        }
-        try {
-            $self->_warn_macro_sequence(qr/$regexp/s);
-        }
-        catch {
-            $self->logger_error( '%s: %s', $regexp, $_ );
-            return;
-        };
-
-        return;
-    }
-
-    method _trigger_trace (ArrayRef[Str] $arrayRef --> Undef) {
-        foreach ( @{$arrayRef} ) {
-            $self->_trace_set($_);
-        }
-        return;
-    }
-
-    method _trigger_define (ArrayRef[Str] $arrayRef --> Undef) {
-        my $word_regexp = $self->_word_regexp;
-        foreach ( @{$arrayRef} ) {
-            if ( $_ =~ /^($word_regexp)(?:=(.*))/ ) {
-                #
-                # If $#+ > 2, then $word_regexp has a $1.
-                # Else, it has no $1.
-                #
-                my $macroName
-                    = ( $#+ > 2 )
-                    ? substr( $_, $-[2], $+[2] - $-[2] )
-                    : substr( $_, $-[1], $+[1] - $-[1] );
-                my $value = substr( $_, $-[-1], $+[-1] - $-[-1] );
-                $self->builtin_define( $macroName, $value );
-            }
-            else {
-                $self->logger_warn( '%s: %s: does not match word regexp',
-                    'define', $_ );
-            }
-        }
-        return;
-    }
-
-    method _trigger_undefine (ArrayRef[Str] $arrayRef --> Undef) {
-        my $word_regexp = $self->_word_regexp;
-        foreach ( @{$arrayRef} ) {
-            if ( $_ =~ /^$word_regexp$/ ) {
-                if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
-                    $self->builtin_undefine(
-                        substr( $_, $-[1], $+[1] - $-[1] ) );
-                }
-                else {
-                    $self->builtin_undefine($_);
-                }
-            }
-            else {
-                $self->logger_warn( '%s: %s: does not match word regexp',
-                    'undefine', $_ );
-            }
-        }
-        return;
-    }
-
-    method _trigger_debugmode (Str $flags, @rest --> Undef) {
-
-        map { $self->_debug_set( $_, false ) } @DEBUG_FLAGS;
-
-        if ( length($flags) <= 0 ) {
-            map { $self->_debug_set( $_, true ) } @DEFAULT_DEBUG_FLAGS;
-        }
-        else {
-            #
-            # Only know debug flags are accepted
-            #
-            my $ok = 1;
-            my @flags = split( //, $flags );
-            foreach ( @flags, 'V' ) {
-                if ( !$self->_debug_exists($_) && $_ ne 'V' ) {
-                    $self->logger_warn( '%s: unknown debug flag: %c',
-                        'debugmode', $_ );
-                    $ok = 0;
-                    last;
-                }
-            }
-            if ( !$ok ) {
-                return;
-            }
-            if ( index( $flags, 'V' ) >= 0 ) {
-                #
-                # Everything is on
-                #
-                map { $self->_debug_set( $_, true ) } @DEBUG_FLAGS;
-            }
-            else {
-                map { $self->_debug_set( $_, false ) } @DEBUG_FLAGS;
-                map { $self->_debug_set( $_, true ) } @flags;
-            }
-        }
-
-        return;
-    }
-
-    method _trigger_com_start (Str $com_start, @args --> Undef) {
-        $self->_set__comStartLength( length($com_start) );
-        return;
-    }
-
-    method _trigger_com_end (Str $com_end, @args --> Undef) {
-        $self->_set__comEndLength( length($com_end) );
-        return;
-    }
-
-    method _trigger_quote_start (Str $quote_start, @args --> Undef) {
-        $self->_set__quoteStartLength( length($quote_start) );
-        return;
-    }
-
-    method _trigger_quote_end (Str $quote_end, @args --> Undef) {
-        $self->_set__quoteEndLength( length($quote_end) );
-        return;
-    }
-
-    method _trigger_P (Bool $P, @args --> Undef) {
-        $self->prefix_builtins('m4_');
-    }
-
-    method _trigger__eof (Bool $eof, @args --> Undef) {
+    method _trigger__eof (Bool $eof, @rest --> Undef) {
         if ($eof) {
             #
             # First, m4wrap stuff is rescanned
@@ -1564,12 +1774,6 @@ EVAL_GRAMMAR
     # ----------------------------------------------------
     # Internal attributes
     # ----------------------------------------------------
-    has _fatal_warnings => (
-        is      => 'rwp',
-        isa     => PositiveOrZeroInt,
-        default => 0,
-    );
-
     has _rc => (
         is      => 'rwp',
         isa     => Int,
@@ -1602,31 +1806,6 @@ EVAL_GRAMMAR
         }
     );
 
-    has _word_regexpGlobal => (
-        is      => 'rw',
-        isa     => RegexpRef,
-        default => sub {qr/\G$DEFAULT_WORD_REGEXP/}
-    );
-
-    has _warn_macro_sequence => (
-        is      => 'rw',
-        isa     => Undef | RegexpRef,
-        default => sub {qr/$DEFAULT_WARN_MACRO_SEQUENCE/}
-    );
-
-    has _word_regexpIncremental => (
-        is      => 'rw',
-        isa     => RegexpRef,
-        default => sub {qr/^$DEFAULT_WORD_REGEXP/}
-    );
-
-    has _com_regexp => (
-        is      => 'rwp',
-        lazy    => 1,
-        builder => 1,
-        isa     => RegexpRef | Undef
-    );
-
     has __m4wrap => (
         is          => 'rwp',
         isa         => ArrayRef [Str],
@@ -1653,10 +1832,10 @@ EVAL_GRAMMAR
         default => false
     );
 
-    has impl_pos => (
+    has impl_unparsed => (
         is      => 'rwp',
-        isa     => PositiveOrZeroInt,
-        default => 0
+        isa     => Str,
+        default => ''
     );
 
     has _diversions => (
@@ -1693,7 +1872,7 @@ EVAL_GRAMMAR
 
     method impl_quote (Str $string --> Str) {
         if ( $self->_quoteStartLength > 0 && $self->_quoteEndLength > 0 ) {
-            return $self->quote_start . $string . $self->quote_end;
+            return $self->_quote_start . $string . $self->_quote_end;
         }
         else {
             return $string;
@@ -2066,7 +2245,7 @@ EVAL_GRAMMAR
     method builtin_debugfile (Undef|Str $file?, @ignored --> Str) {
 
         $self->_checkIgnored( 'debugfile', @ignored );
-        $self->debugfile($file);
+        $self->_set_debugfile($file);
         return '';
     }
 
@@ -2091,8 +2270,8 @@ EVAL_GRAMMAR
             $end ||= $DEFAULT_QUOTE_END;
         }
 
-        $self->quote_start($start);
-        $self->quote_end($end);
+        $self->_set__quote_start($start);
+        $self->_set__quote_end($end);
 
         return '';
     }
@@ -2110,11 +2289,11 @@ EVAL_GRAMMAR
             $end = '';
         }
         else {
-            $end ||= $DEFAULT_COM_END;
+            $end ||= $DEFAULT_COMMENT_END;
         }
 
-        $self->com_start($start);
-        $self->com_end($end);
+        $self->_set__comment_start($start);
+        $self->_set__comment_end($end);
 
         return '';
     }
@@ -2137,7 +2316,7 @@ EVAL_GRAMMAR
     method builtin_m4wrap (@args --> Str) {
 
         my $text = join( ' ', grep { !Undef->check($_) } @args );
-        if ( $self->_policy_m4wrap eq 'LIFO' ) {
+        if ( $self->_m4wrap_order eq 'LIFO' ) {
             $self->_m4wrap_unshift($text);
         }
         else {
@@ -2169,8 +2348,8 @@ EVAL_GRAMMAR
         my @paths = ();
 
         my @includes = (
-            reverse( $self->prepend_include_elements ),
-            File::Spec->curdir(), reverse( $self->include_elements ),
+            reverse( $self->_prepend_include_elements ),
+            File::Spec->curdir(), reverse( $self->_include_elements ),
             M4PATH->List
         );
 
@@ -2229,7 +2408,7 @@ EVAL_GRAMMAR
                     return;
                 };
                 if ( !Undef->check($content) ) {
-                    if ( $self->_policy_inctounix ) {
+                    if ( $self->_inctounix ) {
                         $content =~ s/\R/\n/g;
                     }
                     return $content;
@@ -2338,7 +2517,7 @@ EVAL_GRAMMAR
                 # Create diversion
                 #
                 try {
-                    if ( $self->_policy_divert_type eq 'memory' ) {
+                    if ( $self->_divert_type eq 'memory' ) {
                         $fh = IO::Scalar->new;
                     }
                     else {
@@ -2865,16 +3044,15 @@ EVAL_GRAMMAR
             return '';
         }
         my $rc = '';
-        if ( $self->_policy_integer_type eq 'native' ) {
+        if ( $self->_integer_type eq 'native' ) {
             use integer;
             $rc = $number + 1;
         }
         else {
             try {
                 my $v1
-                    = Bit::Vector->new_Dec( $self->_policy_integer_bits,
-                    $number );
-                my $v2 = Bit::Vector->new( $self->_policy_integer_bits );
+                    = Bit::Vector->new_Dec( $self->_integer_bits, $number );
+                my $v2 = Bit::Vector->new( $self->_integer_bits );
                 $v2->inc($v1);
                 $rc = $v2->to_Dec();
             }
@@ -2903,16 +3081,15 @@ EVAL_GRAMMAR
             return '';
         }
         my $rc = '';
-        if ( $self->_policy_integer_type eq 'native' ) {
+        if ( $self->_integer_type eq 'native' ) {
             use integer;
             $rc = $number - 1;
         }
         else {
             try {
                 my $v1
-                    = Bit::Vector->new_Dec( $self->_policy_integer_bits,
-                    $number );
-                my $v2 = Bit::Vector->new( $self->_policy_integer_bits );
+                    = Bit::Vector->new_Dec( $self->_integer_bits, $number );
+                my $v2 = Bit::Vector->new( $self->_integer_bits );
                 $v2->dec($v1);
                 $rc = $v2->to_Dec();
             }
@@ -2988,7 +3165,7 @@ EVAL_GRAMMAR
         my $rc = '';
         try {
             local $MarpaX::Languages::M4::Impl::GNU::INTEGER_BITS
-                = $self->_policy_integer_bits;
+                = $self->_integer_bits;
             local $MarpaX::Languages::M4::Impl::GNU::SELF = $self;
             my $valuep = $EVAL_G->parse(
                 \$expression,
@@ -3074,7 +3251,7 @@ EVAL_GRAMMAR
                 }
                 if ($executed) {
                     $self->_lastSysExitCode($exitCode);
-                    if ( $self->_policy_cmdtounix ) {
+                    if ( $self->_cmdtounix ) {
                         $stderr =~ s/\R/\n/g;
                         $stdout =~ s/\R/\n/g;
                     }
@@ -3291,7 +3468,7 @@ STUB
 
     method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
         try {
-            $self->_set_impl_pos( $self->parser_parse($input) );
+            $self->_set_impl_unparsed( $self->parser_parse($input) );
         }
         catch {
             $self->logger_error( '%s', $_ );
@@ -3342,8 +3519,8 @@ STUB
         return $self->__line__(@args);
     }
 
-    method impl_debugfile (@args --> Str) {
-        return $self->debugfile(@args);
+    method impl_debugfile ( --> Undef|Str) {
+        return $self->_debugfile;
     }
 
     method impl_rc (@args --> Str) {

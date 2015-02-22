@@ -44,9 +44,9 @@ my $echo = File::Spec->catfile('inc', 'echo.pl');
 foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $testName = $_;
   my $inputRef = __PACKAGE__->section_data($testName);
-  my $extraInit = sub { return shift };
+  local @ARGV = ();
   if ($testName =~ /: input\((.+)\)/) {
-    $extraInit = eval "sub { my (\$self) = \@_; $1; \$self; }";
+    @ARGV = eval "($1)";
   }
   $testName =~ s/: input.*//;
   my $testIsCmp = 0;
@@ -62,7 +62,7 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   #
   $input =~ s/%%%FOO%%%/$fhfoo/g;
   $input =~ s/%%%ECHO%%%/$echo/g;
-  my $gnu = MarpaX::Languages::M4::Impl::GNU->new();
+  my $gnu = MarpaX::Languages::M4::Impl::GNU->new_with_options();
   #
   # Our include directory
   #
@@ -71,14 +71,14 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   # Global test settings so that the test-suite works on all platforms:
   # the test suite below assumes LF line-ending.
   #
-  $gnu->policy_cmdtounix(1);
-  $gnu->policy_inctounix(1);
+  $gnu->cmdtounix(1);
+  $gnu->inctounix(1);
 
   $testName =~ s/\d+\s*//;
   if ($testIsCmp) {
-    cmp_ok($gnu->$extraInit->impl_parse($input), 'eq', ${$outputRef}, $testName);
+    cmp_ok($gnu->impl_parse($input), 'eq', ${$outputRef}, $testName);
   } else {
-    ok(length($gnu->$extraInit->impl_parse($input)) > 0, $testName);
+    ok(length($gnu->impl_parse($input)) > 0, $testName);
   }
 }
 
@@ -435,7 +435,7 @@ undefine(foo)
 BAR
 
 foo
-__! 032 builtin does not depend on --prefix-builtin: input($self->prefix_builtins('m4_')) !__
+__! 032 builtin does not depend on --prefix-builtin: input('-P') !__
 m4_builtin(`divnum')
 m4_builtin(`m4_divnum')
 m4_indir(`divnum')
@@ -1584,7 +1584,7 @@ _! 122 extensions: output !__
 
 
 Extensions are active
-_! 123 traditional: input($self->traditional(1)) !__
+_! 123 traditional: input('-G') !__
 __gnu__
 __gnu__(`ignored')
 Extensions are ifdef(`__gnu__', `active', `inactive')
@@ -1681,7 +1681,7 @@ foo(`bar')
 __! 131 warn-macro-sequence: output !__
 
 bar ${1} bar
-__! 132 warn-macro-sequence and -E twice: input($self->fatal_warnings(1); $self->fatal_warnings(1);) !__
+__! 132 warn-macro-sequence and -E twice: input('-E', '-E') !__
 define(`foo', `$001 ${1} $1')
 foo(`bar')
 __! 132 warn-macro-sequence and -E twice: output !__

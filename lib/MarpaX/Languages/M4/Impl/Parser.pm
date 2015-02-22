@@ -181,7 +181,7 @@ COMMA ~ ',' _WS_any
         default => 0
     );
 
-    method parser_parse (Str $input --> PositiveOrZeroInt) {
+    method parser_parse (Str $input --> Str) {
             #
             # We will modify the buffer in-place, therefore we want to
             # have OUR version of the input.
@@ -626,14 +626,14 @@ COMMA ~ ',' _WS_any
     # M4 says that a token is processed as soon as it is recognized.
     # So we loop on token recognition
     #
-    method _parseByTokens (Ref['SCALAR'] $inputRef --> PositiveOrZeroInt) {
+    method _parseByTokens (Ref['SCALAR'] $inputRef --> Str) {
 
         my $rc = $self->_parseByGrammar( $inputRef, 0, $BYTOKEN_G );
         if ( !Undef->check($rc) ) {
-            return $rc->{pos};
+            return substr(${$inputRef}, $rc->{pos});
         }
 
-        return 0;
+        return ${$inputRef};
     }
 
     method _printable (Str|M4Macro $input, Bool $noQuote? --> Str) {
