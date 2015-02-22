@@ -6,6 +6,7 @@ use File::Spec;
 use Test::More;
 use Log::Handler;
 use Log::Any::Adapter;
+use Log::Any::Adapter::Handler;
 use Data::Section -setup => {
   header_re => qr/
     \A                # start
