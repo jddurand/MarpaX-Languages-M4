@@ -1675,3 +1675,9 @@ errprint(__program__:__file__:__line__: `input error
 _! 130 file/line/program: output !__
 
 
+__! 131 warn-macro-sequence: input !__
+define(`foo', `$001 ${1} $1')
+foo(`bar')
+__! 131 warn-macro-sequence: output !__
+
+bar ${1} bar

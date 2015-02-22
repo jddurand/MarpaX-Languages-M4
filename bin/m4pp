@@ -1,21 +1,64 @@
 #!perl
+use Encode;
+use Encode::Locale;
 use POSIX qw/EXIT_SUCCESS/;
 use MarpaX::Languages::M4::Impl::GNU;
-use Log::Log4perl qw/:easy/;
+use Log::Any;
 use Log::Any::Adapter;
-#
-# Init log
-#
-our $defaultLog4perlConf = '
-log4perl.rootLogger              = DEBUG, Screen
-log4perl.appender.Screen         = Log::Log4perl::Appender::Screen
-log4perl.appender.Screen.stderr  = 0
-log4perl.appender.Screen.layout  = PatternLayout
-log4perl.appender.Screen.layout.ConversionPattern = %d %-5p %6P %m{chomp}%n
-';
-Log::Log4perl::init(\$defaultLog4perlConf);
-Log::Any::Adapter->set('Log4perl');
+use Log::Any::Adapter::Callback;
 
-print MarpaX::Languages::M4::Impl::GNU->new_with_options()->impl_value;
+#
+# Get the numbers associated to levels
+#
+my @logging_methods = Log::Any->logging_methods;
+my $i = -1;
+my %logging_levels = map {++$i; $logging_methods[$i] => $i} (0..$#logging_methods);
+#
+# Set logger
+#
+Log::Any::Adapter->set('Callback', min_level => 'trace', logging_cb => \&_logging_cb);
+#
+# Call implementation
+#
+my $impl = MarpaX::Languages::M4::Impl::GNU->new_with_options();
+print $impl->impl_value;
+exit($impl->impl_rc);
+
+sub _logging_cb {
+  my ($method, $self, $format, @params) = @_;
+
+  my $level = $logging_levels{$method};
+  #
+  # If level is >= error, then check debugfile
+  #
+  if (! defined($level)) {
+    return;
+  }
+  my $fh;
+  open($fh, '>>&STDERR');
+  my $fhName = 'STDERR';
+  if ($level >= $logging_levels{error}) {
+    my $debugfile = $self->impl_debugfile;
+    if (defined($debugfile)) {
+      if (! open($fh, '>>', $debugfile)) {
+        #
+        # Hmmm...
+        #
+        warn "Cannot open $debugfile, $!";
+        $fh = \*STDERR;
+      } else {
+        $fhName = $debugfile;
+      }
+    }
+  }
+  if ($ENV{M4_ENCODE_LOCALE}) {
+    binmode $fh, ":encoding(console_out)" if -t $fh;
+  }
+
+  printf $fh "$format\n", @params;
+  if (! close($fh)) {
+    warn "Cannot close $fhName, $!";
+  }
+}
 
 exit(EXIT_SUCCESS);

@@ -54,12 +54,12 @@ class MarpaX::Languages::M4::Impl::GNU {
     use MarpaX::Languages::M4::Type::Token -all;
     use Marpa::R2;
     use MooX::HandlesVia;
-    use POSIX qw/EXIT_FAILURE EXIT_SUCCESS/;
+
     use Throwable::Factory
         EncodeError       => [qw/$message $error proposal/],
         EOFInQuotedString => undef,
-        EOFInComment      => undef;
-    use Types::Common::Numeric -all;
+        EOFInComment      => undef,
+        FatalWarning      => undef;
 
     BEGIN {
         #
@@ -117,19 +117,21 @@ class MarpaX::Languages::M4::Impl::GNU {
         }
         @ARGV = @BUILTIN_OPTIONS_FIRST;
     }
+
     use MooX::Options protect_argv => 0, flavour => [qw/require_order/];
     use MooX::Role::Logger;
     use POSIX qw/EXIT_SUCCESS EXIT_FAILURE/;
     use Perl::OSType ':all';
     use Types::Common::Numeric -all;
 
-    our @DEBUG_FLAGS         = qw/a c e f i l p q t x/;
-    our @DEFAULT_DEBUG_FLAGS = qw/a e q/;
-    our $DEFAULT_QUOTE_START = '`';
-    our $DEFAULT_QUOTE_END   = "'";
-    our $DEFAULT_COM_START   = '#';
-    our $DEFAULT_COM_END     = "\n";
-    our $DEFAULT_WORD_REGEXP = '[_a-zA-Z][_a-zA-Z0-9]*';
+    our @DEBUG_FLAGS                 = qw/a c e f i l p q t x/;
+    our @DEFAULT_DEBUG_FLAGS         = qw/a e q/;
+    our $DEFAULT_QUOTE_START         = '`';
+    our $DEFAULT_QUOTE_END           = "'";
+    our $DEFAULT_COM_START           = '#';
+    our $DEFAULT_COM_END             = "\n";
+    our $DEFAULT_WORD_REGEXP         = '[_a-zA-Z][_a-zA-Z0-9]*';
+    our $DEFAULT_WARN_MACRO_SEQUENCE = '\$(?:\{[^\}]*\}|[0-9][0-9]+)';
 
     #
     # The list of GNU extensions is known in advanced and is fixed.
@@ -177,9 +179,6 @@ class MarpaX::Languages::M4::Impl::GNU {
 
     our $DIVERT_TYPE_TYPE = Enum [qw/memory file/];
     our $DIVERT_TYPE_DEFAULT_VALUE = 'memory';
-
-    our $EXIT_TYPE          = Bool;
-    our $EXIT_DEFAULT_VALUE = false;
 
     our $NEED_PARAM_TYPE = ArrayRef [Str];
     our $NEED_PARAM_DEFAULT_VALUE = [
@@ -345,7 +344,9 @@ EVAL_GRAMMAR
                 return;
             };
             if ( !Undef->check($fh) ) {
-                $self->impl_parse(do { local $/; <$fh> });
+                $self->impl_parse(
+                    do { local $/; <$fh> }
+                );
             }
             #
             # Merge next option values
@@ -407,7 +408,10 @@ EVAL_GRAMMAR
         handles     => { policy_tokens_priority_elements => 'elements', },
         doc =>
             "Tokens priority. If setted, it is highly recommended to list all allowed values, that are : \"WORD\", \"MACRO\", \"QUOTEDSTRING\", and \"COMMENT\". The order of appearance on the command-line will be the prefered order when parsing M4 input. Multiple values can be given in the same switch if separated by the comma character ','. Unlisted values will keep their relative order from the default, which is: "
-            . join( ',', @{$TOKENS_PRIORITY_DEFAULT_VALUE} . ". Please note that when doing arguments collection, the parser forces unquoted parenthesis and comma to have higher priority to quoted strings and comments." )
+            . join( ',',
+            @{$TOKENS_PRIORITY_DEFAULT_VALUE}
+                . ". Please note that when doing arguments collection, the parser forces unquoted parenthesis and comma to have higher priority to quoted strings and comments."
+            )
     );
 
     option policy_integer_type => (
@@ -460,16 +464,6 @@ EVAL_GRAMMAR
             q{Word-regexp policy. If true, a word is constructed character-per-character, i.e. the word-regexp is done iteratively: first on one character, then on two characters if previous one matched, and so on. The iteration will always stop if a macro is recognized. If false, the regexp is applied only once to the full buffer at current position. Default is a true value.}
     );
 
-    option policy_exit => (
-        is          => 'rw',
-        isa         => Bool,
-        default     => false,
-        trigger     => 1,
-        negativable => 1,
-        doc =>
-            q{Exit policy. Negativable option. Default: a false value in the API mode, a true value in the command-line mode.}
-    );
-
     option policy_need_param => (
         is          => 'rw',
         isa         => ArrayRef [Str],
@@ -513,12 +507,31 @@ EVAL_GRAMMAR
             . '.'
     );
 
+    option version => (
+        is      => 'rw',
+        isa     => Bool,
+        default => false,
+        trigger => 1,
+        doc =>
+            q{Print the version number of the program on standard output, then immediately exit.}
+    );
+
     option prefix_builtins => (
         is      => 'rw',
         isa     => Str,
         format  => 's',
         default => '',
         doc     => q{Prefix of all builtin macros. Default is empty.}
+    );
+
+    option fatal_warnings => (
+        is      => 'rw',
+        isa     => Bool,
+        default => false,
+        short   => 'E',
+        trigger => 1,
+        doc =>
+            q{If unspecified, have no effect. If specified once, impl_rc() will return EXIT_FAILURE. If specified more than once, any warning is fatal. Default: a false value.}
     );
 
     option silent => (
@@ -720,6 +733,16 @@ EVAL_GRAMMAR
             "Word perl regular expression. Default: \"$DEFAULT_WORD_REGEXP\"."
     );
 
+    option warn_macro_sequence => (
+        is      => 'rw',
+        isa     => Str,
+        default => $DEFAULT_WARN_MACRO_SEQUENCE,
+        trigger => 1,
+        format  => 's',
+        doc =>
+            "Issue a warning if a macro defined via builtins define or pushdef is matching this regexp. An empty string disables the check. Default: \"$DEFAULT_WARN_MACRO_SEQUENCE\"."
+    );
+
     # ---------------------------------------------------------------
     # POLICY MAPPED ATTRIBUTES
     # ---------------------------------------------------------------
@@ -775,12 +798,6 @@ EVAL_GRAMMAR
         is      => 'rw',
         isa     => $DIVERT_TYPE_TYPE,
         default => $DIVERT_TYPE_DEFAULT_VALUE,
-    );
-
-    has _policy_exit => (
-        is      => 'rw',
-        isa     => $EXIT_TYPE,
-        default => $EXIT_DEFAULT_VALUE,
     );
 
     has _policy_need_param => (
@@ -1025,18 +1042,17 @@ EVAL_GRAMMAR
         if ( !$self->silent ) {
             $self->_logger->warnf(@args);
         }
+        if ( $self->_fatal_warnings >= 1 ) {
+            $self->_set__rc(EXIT_FAILURE);
+        }
+        if ( $self->_fatal_warnings > 1 ) {
+            FatalWarning->throw('Fatal warning');
+        }
         return;
     }
 
     method logger_debug (@args --> Undef) {
-        if ( Undef->check( $self->debugfile ) ) {
-            $self->_logger->debugf(@args);
-        }
-        else {
-            Log::Any::Adapter->set( { lexically => \my $lex },
-                'File', $self->debugfile );
-            $self->_logger->debugf(@args);
-        }
+        $self->_logger->debugf(@args);
         return;
     }
 
@@ -1240,6 +1256,25 @@ EVAL_GRAMMAR
     # ----------------------------------------------------
     # Triggers
     # ----------------------------------------------------
+    method trigger_fatal_warnings {
+        $self->_set__fatal_warnings( $self->_fatal_warnings + 1 );
+    }
+
+    method _trigger_version {
+        my $CURRENTVERSION;
+        {
+           #
+           # Because $VERSION is generated by dzil, not available in dev. tree
+           #
+            no strict 'vars';
+            $CURRENTVERSION = $VERSION;
+        }
+        $CURRENTVERSION ||= 'dev';
+
+        print "Version $CURRENTVERSION\n";
+        exit(EXIT_SUCCESS);
+    }
+
     method _trigger_traditional {
         $self->_no_gnu_extensions(true);
     }
@@ -1249,8 +1284,7 @@ EVAL_GRAMMAR
     }
 
     method _trigger_policy_wordregexp_iteration (Bool $policy_wordregexp_iteration --> Undef) {
-        $self->_set__wordregexp_iteration(
-            $policy_wordregexp_iteration);
+        $self->_set__wordregexp_iteration($policy_wordregexp_iteration);
     }
 
     method _trigger_policy_tokens_priority (ArrayRef[Str] $policy_tokens_priority --> Undef) {
@@ -1304,16 +1338,17 @@ EVAL_GRAMMAR
         return;
     }
 
-    method _trigger_policy_exit (Bool $policy_exit --> Undef) {
-        $self->_policy_exit($policy_exit);
-        return;
-    }
-
     method _trigger_policy_need_param (ArrayRef[Str] $policy_need_param --> Undef) {
         my $word_regexp = $self->_word_regexp;
         foreach ( @{$policy_need_param} ) {
             if ( $_ =~ /^$word_regexp$/ ) {
-                $self->_policy_need_param_set( $_, true );
+                if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
+                    $self->_policy_need_param_set(
+                        substr( $_, $-[1], $+[1] - $-[1] ), true );
+                }
+                else {
+                    $self->_policy_need_param_set( $_, true );
+                }
             }
             else {
                 $self->logger_warn( '%s: %s: does not match word regexp',
@@ -1384,6 +1419,22 @@ EVAL_GRAMMAR
         return;
     }
 
+    method _trigger_warn_macro_sequence (Str $regexp, @rest --> Undef) {
+        if ( length($regexp) <= 0 ) {
+            $self->_warn_macro_sequence(undef);
+            return;
+        }
+        try {
+            $self->_warn_macro_sequence(qr/$regexp/s);
+        }
+        catch {
+            $self->logger_error( '%s: %s', $regexp, $_ );
+            return;
+        };
+
+        return;
+    }
+
     method _trigger_trace (ArrayRef[Str] $arrayRef --> Undef) {
         foreach ( @{$arrayRef} ) {
             $self->_trace_set($_);
@@ -1418,7 +1469,13 @@ EVAL_GRAMMAR
         my $word_regexp = $self->_word_regexp;
         foreach ( @{$arrayRef} ) {
             if ( $_ =~ /^$word_regexp$/ ) {
-                $self->builtin_undefine($_);
+                if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
+                    $self->builtin_undefine(
+                        substr( $_, $-[1], $+[1] - $-[1] ) );
+                }
+                else {
+                    $self->builtin_undefine($_);
+                }
             }
             else {
                 $self->logger_warn( '%s: %s: does not match word regexp',
@@ -1513,17 +1570,17 @@ EVAL_GRAMMAR
     # ----------------------------------------------------
     # Internal attributes
     # ----------------------------------------------------
-    has _debugfh => (
+    has _fatal_warnings => (
         is      => 'rwp',
-        isa     => Undef | ConsumerOf ['IO::Handle'],
-        default => sub { IO::Handle->new_from_fd( fileno(STDERR), 'w' ) }
+        isa     => PositiveOrZeroInt,
+        default => 0,
     );
 
-    method _exit (Int $exitValue) {
-        if ( $self->policy_exit ) {
-            exit($exitValue);
-        }
-    }
+    has _rc => (
+        is      => 'rwp',
+        isa     => Int,
+        default => EXIT_SUCCESS,
+    );
 
     has _builtins => (
         is          => 'lazy',
@@ -1555,6 +1612,12 @@ EVAL_GRAMMAR
         is      => 'rw',
         isa     => RegexpRef,
         default => sub {qr/\G$DEFAULT_WORD_REGEXP/}
+    );
+
+    has _warn_macro_sequence => (
+        is      => 'rw',
+        isa     => Undef | RegexpRef,
+        default => sub {qr/$DEFAULT_WARN_MACRO_SEQUENCE/}
     );
 
     has _word_regexpIncremental => (
@@ -1673,7 +1736,10 @@ EVAL_GRAMMAR
         $self->_checkIgnored( 'define', @ignored );
 
         if ( M4Macro->check($name) ) {
-            $self->logger_warn( '%s: invalid macro name ignored', 'define' );
+            $self->logger_warn(
+                '%s: invalid macro name ignored',
+                $self->impl_quote('define')
+            );
             return '';
         }
 
@@ -3079,7 +3145,7 @@ EVAL_GRAMMAR
             return;
         };
 
-        return $self->impl_quote($tmp->filename);
+        return $self->impl_quote( $tmp->filename );
     }
 
     method builtin_mkstemp (Str @args --> Str) {
@@ -3135,6 +3201,22 @@ EVAL_GRAMMAR
     # $@ is all quoted arguments separated by comma
     #
     method _expansion2CodeRef (Str $name, Str $expansion --> CodeRef) {
+                                #
+                                # Check macro content
+                                #
+        my $warnMacroSequence = $self->_warn_macro_sequence;
+        if ( !Undef->check($warnMacroSequence) ) {
+            while ( $expansion =~ m/$warnMacroSequence/smg ) {
+                $self->logger_warn(
+                    'Definition of %s contains sequence %s',
+                    $self->impl_quote($name),
+                    $self->impl_quote(
+                        substr( $expansion, $-[0], $+[0] - $-[0] )
+                    )
+                );
+            }
+        }
+
         my $maxArgumentIndice    = -1;
         my %wantedArgumentIndice = ();
         my $newExpansion         = quotemeta($expansion);
@@ -3256,6 +3338,14 @@ STUB
 
     method impl_line (@args --> Str) {
         return $self->__line__(@args);
+    }
+
+    method impl_debugfile (@args --> Str) {
+        return $self->debugfile(@args);
+    }
+
+    method impl_rc (@args --> Str) {
+        return $self->_rc(@args);
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';
