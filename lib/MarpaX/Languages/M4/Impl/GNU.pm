@@ -1469,6 +1469,7 @@ EVAL_GRAMMAR
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
                 if ( $self->_eoi ) {
+                    $self->logger_error('EOF in comment');
                     croak('EOF in comment');
                 }
             }
@@ -1518,6 +1519,7 @@ EVAL_GRAMMAR
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
                 if ( $self->_eoi ) {
+                    $self->logger_error('EOF in string');
                     croak('EOF in string');
                 }
             }
@@ -1590,7 +1592,8 @@ EVAL_GRAMMAR
             # Say we do not accept more input
             #
             $self->impl_setEoi;
-            croak('Fatal warning (option --fatal_warnings or -E) ');
+            $self->logger_error('Warning configured as fatal');
+            croak('Warning configured as fatal');
         }
         return;
     }
@@ -3468,11 +3471,10 @@ STUB
 
     method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
         try {
+            #
+            # This can croak and we will log when necessary
+            #
             $self->_set_impl_unparsed( $self->parser_parse($input) );
-        }
-        catch {
-            $self->logger_error( '%s', $_ );
-            return;
         };
         return $self;
     }
