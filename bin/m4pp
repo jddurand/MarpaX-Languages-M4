@@ -1,0 +1,21 @@
+#!perl
+use POSIX qw/EXIT_SUCCESS/;
+use MarpaX::Languages::M4::Impl::GNU;
+use Log::Log4perl qw/:easy/;
+use Log::Any::Adapter;
+#
+# Init log
+#
+our $defaultLog4perlConf = '
+log4perl.rootLogger              = DEBUG, Screen
+log4perl.appender.Screen         = Log::Log4perl::Appender::Screen
+log4perl.appender.Screen.stderr  = 0
+log4perl.appender.Screen.layout  = PatternLayout
+log4perl.appender.Screen.layout.ConversionPattern = %d %-5p %6P %m{chomp}%n
+';
+Log::Log4perl::init(\$defaultLog4perlConf);
+Log::Any::Adapter->set('Log4perl');
+
+print MarpaX::Languages::M4::Impl::GNU->new_with_options()->impl_value;
+
+exit(EXIT_SUCCESS);
