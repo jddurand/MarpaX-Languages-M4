@@ -421,7 +421,7 @@ EVAL_GRAMMAR
     # =========================
     # --integer-bits
     # =========================
-    our $INTEGER_BITS_DEFAULT_VALUE = Bit::Vector->Word_Bits;
+    our $INTEGER_BITS_DEFAULT_VALUE = 32;
     option integer_bits => (
         is      => 'rw',
         isa     => PositiveInt,
