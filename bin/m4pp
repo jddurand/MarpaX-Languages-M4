@@ -2,7 +2,7 @@
 use Encode;
 use Encode::Locale;
 use POSIX qw/EXIT_SUCCESS/;
-use MarpaX::Languages::M4::Impl::GNU;
+use MarpaX::Languages::M4::Impl::Default;
 use Log::Any;
 use Log::Any::Adapter;
 use Log::Any::Adapter::Callback;
@@ -26,7 +26,7 @@ Log::Any::Adapter->set('Callback', min_level => 'trace', logging_cb => \&_loggin
 #
 # Call implementation
 #
-my $impl = MarpaX::Languages::M4::Impl::GNU->new_with_options();
+my $impl = MarpaX::Languages::M4::Impl::Default->new_with_options();
 print $impl->impl_value;
 exit($impl->impl_rc);
 

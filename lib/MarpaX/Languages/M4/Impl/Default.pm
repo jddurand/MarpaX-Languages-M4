@@ -3,7 +3,7 @@ use MarpaX::Languages::M4::Impl::Parser;
 
 # PODCLASSNAME
 
-# ABSTRACT: M4 pre-processor GNU implementation
+# ABSTRACT: M4 pre-processor - default implementation
 
 #
 # General note: having API'sed M4 introduce a difficulty when dealing
@@ -28,7 +28,7 @@ use MarpaX::Languages::M4::Impl::Parser;
 # incr     C.f. policy_integer_type, defaults to a 32 bits integer. "native" policy uses int, like GNU.
 # decr     C.f. policy_integer_type, defaults to a 32 bits integer. "native" policy uses int, like GNU.
 #
-class MarpaX::Languages::M4::Impl::GNU {
+class MarpaX::Languages::M4::Impl::Default {
     extends 'MarpaX::Languages::M4::Impl::Parser';
 
     # VERSION
@@ -45,8 +45,8 @@ class MarpaX::Languages::M4::Impl::GNU {
     use IO::File;
     use IO::Scalar;
     use IPC::Cmd qw/run run_forked/;
-    use MarpaX::Languages::M4::Impl::GNU::BaseConversion;
-    use MarpaX::Languages::M4::Impl::GNU::Eval;
+    use MarpaX::Languages::M4::Impl::Default::BaseConversion;
+    use MarpaX::Languages::M4::Impl::Default::Eval;
     use MarpaX::Languages::M4::Impl::Macros;
     use MarpaX::Languages::M4::Impl::Macro;
     use MarpaX::Languages::M4::Role::Impl;
@@ -120,12 +120,12 @@ class MarpaX::Languages::M4::Impl::GNU {
     # Defaults
     # --------
 
-    # ------------------------------------------------------------
-    # The list of GNU extensions is known in advanced and is fixed
-    # ------------------------------------------------------------
-    our %GNU_EXTENSIONS = (
-        __file__    => 1,
-        __line__    => 1,
+    # -----------------------------------------------------------------
+    # The list of GNU-like extensions is known in advanced and is fixed
+    # -----------------------------------------------------------------
+    our %Default_EXTENSIONS = (
+#        __file__    => 1, # TO DO
+#        __line__    => 1, # TO DO
         __program__ => 1,
         builtin     => 1,
         changeword  => 1,
@@ -1664,8 +1664,8 @@ EVAL_GRAMMAR
         {
 
             if (   $self->_no_gnu_extensions
-                && exists( $GNU_EXTENSIONS{$_} )
-                && $GNU_EXTENSIONS{$_} )
+                && exists( $Default_EXTENSIONS{$_} )
+                && $Default_EXTENSIONS{$_} )
             {
                 next;
             }
@@ -2876,7 +2876,7 @@ EVAL_GRAMMAR
         # We duplicate the algorithm of GNU m4: translit
         # is part of M4 official spec, so we cannot use
         # perl's tr, which is not stricly equivalent.
-        # De-facto, we will get GNU specific extensions.
+        # De-facto, we will get GNU behaviour.
         #
         $to //= '';
         if ( index( $to, '-' ) >= 0 ) {
@@ -3167,23 +3167,23 @@ EVAL_GRAMMAR
         #
         my $rc = '';
         try {
-            local $MarpaX::Languages::M4::Impl::GNU::INTEGER_BITS
+            local $MarpaX::Languages::M4::Impl::Default::INTEGER_BITS
                 = $self->_integer_bits;
-            local $MarpaX::Languages::M4::Impl::GNU::SELF = $self;
+            local $MarpaX::Languages::M4::Impl::Default::SELF = $self;
             my $valuep = $EVAL_G->parse(
                 \$expression,
                 {   semantics_package =>
-                        'MarpaX::Languages::M4::Impl::GNU::Eval',
+                        'MarpaX::Languages::M4::Impl::Default::Eval',
                 }
             );
-            $rc = MarpaX::Languages::M4::Impl::GNU::BaseConversion->to_base(
+            $rc = MarpaX::Languages::M4::Impl::Default::BaseConversion->to_base(
                 $radix, ${$valuep}, $width );
         }
         catch {
    #
    # Okay, when we use Marpa::R2::Context::bail() it is adding
    # something like e.g.:
-   # User bailed at line 37 in file "lib/MarpaX/Languages/M4/Impl/GNU/Eval.pm"
+   # User bailed at line 37 in file "lib/MarpaX/Languages/M4/Impl/Default/Eval.pm"
    # we strip this line if any
    #
             $_ =~ s/^User bailed.*?\n//;

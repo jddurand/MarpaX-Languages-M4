@@ -31,7 +31,7 @@ my $log = Log::Handler->new(
 Log::Any::Adapter->set('Handler', logger => $log);
 
 BEGIN {
-    use_ok('MarpaX::Languages::M4::Impl::GNU')
+    use_ok('MarpaX::Languages::M4::Impl::Default')
         || print "Bail out!\n";
 }
 
@@ -62,7 +62,7 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   #
   $input =~ s/%%%FOO%%%/$fhfoo/g;
   $input =~ s/%%%ECHO%%%/$echo/g;
-  my $gnu = MarpaX::Languages::M4::Impl::GNU->new_with_options();
+  my $gnu = MarpaX::Languages::M4::Impl::Default->new_with_options();
   #
   # Our include directory
   #

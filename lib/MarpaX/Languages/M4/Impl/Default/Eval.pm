@@ -2,12 +2,12 @@ use Moops;
 
 # PODCLASSNAME
 
-# ABSTRACT: GNU M4 Eval Marpa actions
+# ABSTRACT: Eval Marpa actions
 
-class MarpaX::Languages::M4::Impl::GNU::Eval {
+class MarpaX::Languages::M4::Impl::Default::Eval {
     use Bit::Vector;
     use Types::Common::Numeric -all;
-    use MarpaX::Languages::M4::Impl::GNU::BaseConversion;
+    use MarpaX::Languages::M4::Impl::Default::BaseConversion;
 
     # VERSION
 
@@ -20,13 +20,13 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
     has bits => {
         is      => 'ro',
         isa     => PositiveInt,
-        default => sub {$MarpaX::Languages::M4::Impl::GNU::INTEGER_BITS}
+        default => sub {$MarpaX::Languages::M4::Impl::Default::INTEGER_BITS}
     };
 
     has SELF => {
         is      => 'ro',
         isa     => ConsumerOf ['MarpaX::Languages::M4::Role::Impl'],
-        default => sub {$MarpaX::Languages::M4::Impl::GNU::SELF}
+        default => sub {$MarpaX::Languages::M4::Impl::Default::SELF}
     };
 
     method _eval (ConsumerOf['Bit::Vector'] $expression) {
@@ -290,7 +290,7 @@ class MarpaX::Languages::M4::Impl::GNU::Eval {
         }
         return Bit::Vector->new_Dec(
             $self->bits,
-            MarpaX::Languages::M4::Impl::GNU::BaseConversion->fr_base(
+            MarpaX::Languages::M4::Impl::Default::BaseConversion->fr_base(
                 $radix, $digits
             )
         );

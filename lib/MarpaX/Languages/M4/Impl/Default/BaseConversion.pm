@@ -4,7 +4,7 @@ use Moops;
 
 # ABSTRACT: Base conversion util class
 
-class MarpaX::Languages::M4::Impl::GNU::BaseConversion {
+class MarpaX::Languages::M4::Impl::Default::BaseConversion {
 
     # VERSION
 
