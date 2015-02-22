@@ -89,6 +89,7 @@
             "File::Temp" : "0",
             "IO::Handle" : "0",
             "IPC::Open3" : "0",
+            "Log::Any::Adapter::Handler" : "0",
             "Log::Handler" : "0",
             "Test::More" : "0",
             "perl" : "5.010",
@@ -110,6 +111,6 @@
          "web" : "https://github.com/jddurand/marpax-languages-m4"
       }
    },
-   "version" : "0.001"
+   "version" : "0.002"
 }
 

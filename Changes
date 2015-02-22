@@ -1,6 +1,10 @@
 Changelog for MarpaX-Languages-M4
 
-0.001 2015-02-22T16:31:37
+0.002 2015-02-22T17:10:46
+ [Jean-Damien Durand <jeandamiendurand@free.fr>]
+ - t/Default.t: use Log::Any::Adapter::Handler
+
+0.001 2015-02-22T16:32:30
  [Jean-Damien Durand <jeandamiendurand@free.fr>]
  - Impl/Parser.pm: remove wanted version on Marpa::R2
  - Changes/META.json/README.pod for the 1st release
