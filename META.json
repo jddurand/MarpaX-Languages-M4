@@ -98,7 +98,7 @@
       }
    },
    "provides" : {},
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
          "mailto" : "bug-MarpaX-Languages-M4@rt.cpan.org",
@@ -111,6 +111,6 @@
          "web" : "https://github.com/jddurand/marpax-languages-m4"
       }
    },
-   "version" : "0.002"
+   "version" : "0.003"
 }
 
