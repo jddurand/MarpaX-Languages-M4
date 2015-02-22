@@ -7,6 +7,12 @@ use Log::Any;
 use Log::Any::Adapter;
 use Log::Any::Adapter::Callback;
 
+# VERSION
+
+# PODNAME: m4pp
+
+# ABSTRACT: M4 implementation in Perl
+
 #
 # Get the numbers associated to levels
 #
