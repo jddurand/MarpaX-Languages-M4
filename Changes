@@ -1,0 +1,109 @@
+Changelog for MarpaX-Languages-M4
+
+0.001 2015-02-22T16:27:55
+ [Jean-Damien Durand <jeandamiendurand@free.fr>]
+ - bin/m4pp: make xt a bit more happy
+ - GNU -> Default
+ - Impl/Parser.pm: allow ambiguity
+ - bin/m4pp: Make dzil happy
+ - Impl/GNU.pm: log only when necessary
+ - Options reorganization
+ - --fatal-warnings
+ - version wnad warn_macro_sequence
+ - bin/m4pp
+ - Impl/GNU.pm: fix options parsing
+ - Impl/Parser.pm: fix comment
+ - fix test
+ - file/line/program: t+
+ - impl_line
+ - t/GNU.t: errprint test
+ - t/GNU.t: maketemp test
+ - Impl/GNU.pl: maketemp fix
+ - Hopefully portable syscmf/esyscmd test suite
+ - try a portable echo in test suite
+ - platform detect fix and tests
+ - Eval fixes and test suite
+ - incr/decr test suite
+ - format test suite
+ - patsubst fix to get the correct warning
+ - inc/capitalize.m4
+ - t/GNU.t: patsubst test
+ - Impl/GNU.pm: define GNU extensions and re-implement patsubst
+ - Impl/Macro.pm: perltidier
+ - t/GNU.t: removed a duplicate translit test-case
+ - t/GNU.t: another translit test-case
+ - Impl/GNU.pm: GNU M4 compliant translit
+ - t/GNU.t: substr
+ - Impl/GNU.pm: my regexp semantics
+ - regexp: dev+
+ - t/GNU.t: undivert
+ - Impl/GNU.pm: undiverting empty string fix
+ - t/GNU.t: divert is a common english word -;
+ - undivert at EOF fix
+ - t/GNU.t: divert
+ - GNU/Eval.pm: << and >> fix
+ - include test suite
+ - eof v.s. eoi: dev+
+ - EOF: dev+
+ - Impl/GNU.pm: tiny optimizations
+ - Cosmetic change
+ - wrap GNU examples
+ - t/GNU.t: m4wrap
+ - t/GNU.t: Difference v.s. TeX
+ - A word can be empty
+ - policy_cmdtounix and fail-safe use of IPC::Cmd
+ - parser_isMacro centralization
+ - .gitattributes: protect t against crl
+ - regexp dev+
+ - word-regexp policy - dev+
+ - test changeword - prevent accidentical call of builtin
+ - Fix eof within a comment
+ - Impl/Parser.pm: added a comment
+ - Impl/Parser.pm: tiny optimization
+ - changecom tests and fix precedence over arguments collection
+ - Impl/GNU.pm: throw exception if EOF in string
+ - Fix for quoted strings: if end-string is a prefix of start-string,
+   end-string has precedence
+ - t/GNU.t: when end-string is a prefix of start-string - TO FIX
+ - Impl/Parser.pm: Quoted string have higher precedence than arguments
+   collection
+ - t/GNU.t: changequote
+ - Type/Token.pm
+ - t/GNU.t: log levels
+ - Impl/GNU.pm: eof logic
+ - Role/Impl.pm: renamed requires
+ - Role/Parser.pm: renamed requires
+ - macros_is_empty renamed to macros_isEmpty
+ - Impl/Macros.pm: fix ABSTRACT
+ - Role/Macros.pm
+ - t/GNU.t: show only errors
+ - Role/Value.pm: renaming
+ - Role::Builtins -> Role::Builtin cont'ed
+ - Role::Builtins -> Role::Builtin
+ - Renaming
+ - Role/Macro.pm: remove non-needed requires
+ - t/GNU.t: dnl
+ - Impl/GNU.pm: eof context
+ - Impl/GNU.pm: remove explicit namespace in eval grammar actions
+ - Impl/GNU.pm: alignment
+ - dzil stuff cont'ed
+ - dzil stuff
+ - dist.ini: prefer Dit::Contributor over ContributorsFromGit
+ - More tests
+ - Impl/Parser.pm: hopefully removed ambiguity
+ - Impl/Parser.pm: unquoted parenthesis cont'ed
+ - Impl/Parser.pm: unquoted parenthesis fix when collecting arguments
+ - t/GNU.t: composited foreach/foreachq
+ - inc/foreach.m4 inc/foreachq.m4 inc/forloop.m4
+ - t/GNU.t: composite forloop - source
+ - t/GNU.t: composite forloop - nested : fix test number
+ - t/GNU.t: composite forloop - nested
+ - t/GNU.t: composite forloop
+ - t/GNU.t: composite argn
+ - t/GNU.t: composites quote/dquote/dquote_elt source
+ - t/GNU.t: composites quote/dquote/dquote_elt
+ - Impl/GNU.pm: binmode on temporary files
+ - dzil fixes conted
+ - dzil fix
+ - Initial commit
+
