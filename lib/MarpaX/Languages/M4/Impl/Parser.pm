@@ -90,7 +90,7 @@ class MarpaX::Languages::M4::Impl::Parser::Actions {
 class MarpaX::Languages::M4::Impl::Parser {
     use MarpaX::Languages::M4::Type::Macro -all;
     use MarpaX::Languages::M4::Impl::Value;
-    use Marpa::R2 2.103_004;
+    use Marpa::R2; # 2.103_004;
     use Scalar::Util qw/readonly/;
     use Types::Common::Numeric -all;
     use Throwable::Factory NoLexeme => undef;
