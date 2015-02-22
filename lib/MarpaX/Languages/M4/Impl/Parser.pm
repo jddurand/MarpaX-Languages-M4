@@ -100,6 +100,11 @@ inaccessible is ok by default
 :default ::= action => ::first
 lexeme default = latm => 1
 
+#
+# Note: this part of the grammar is giving ambiguity
+#       but we do not mind because the effect is always
+#       the same: global concatenatation
+#
 argumentsGroup ::= tokens                                                      action => createArgumentsGroup rank => 1
                  | argumentsGroup LPAREN argumentsGroup RPAREN  argumentsGroup action => mergeArgumentsGroup
 
@@ -597,17 +602,6 @@ COMMA ~ ',' _WS_any
             #
             local $MarpaX::Languages::M4::Impl::Parser::macro = $macro;
             $rc{value} = ${ $r->value };
-            if ( exists( $ENV{AUTHOR_TESTING} )
-                && defined( $ENV{AUTHOR_TESTING} ) )
-            {
-                if ( defined( my $nextValueRef = $r->value ) ) {
-                    use Data::Dumper;
-                    die
-                        "Oups, parse tree is ambiguous. Two first values dump follows:\n"
-                        . Dumper( \$rc{value} )
-                        . Dumper($nextValueRef);
-                }
-            }
         }
         else {
             #
