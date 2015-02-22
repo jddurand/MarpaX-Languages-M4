@@ -345,7 +345,7 @@ EVAL_GRAMMAR
                 return;
             };
             if ( !Undef->check($fh) ) {
-                $self->parse($fh);
+                $self->impl_parse(do { local $/; <$fh> });
             }
             #
             # Merge next option values
@@ -407,7 +407,7 @@ EVAL_GRAMMAR
         handles     => { policy_tokens_priority_elements => 'elements', },
         doc =>
             "Tokens priority. If setted, it is highly recommended to list all allowed values, that are : \"WORD\", \"MACRO\", \"QUOTEDSTRING\", and \"COMMENT\". The order of appearance on the command-line will be the prefered order when parsing M4 input. Multiple values can be given in the same switch if separated by the comma character ','. Unlisted values will keep their relative order from the default, which is: "
-            . join( ',', @{$TOKENS_PRIORITY_DEFAULT_VALUE} )
+            . join( ',', @{$TOKENS_PRIORITY_DEFAULT_VALUE} . ". Please note that when doing arguments collection, the parser forces unquoted parenthesis and comma to have higher priority to quoted strings and comments." )
     );
 
     option policy_integer_type => (
@@ -450,14 +450,14 @@ EVAL_GRAMMAR
             q{Divertion type. Possible values: "memory" (all diversions are kept in memory), "temp" (all diversions are kept in temporary files). Default: "memory".}
     );
 
-    option policy_wordCharacterPerCharacter => (
+    option policy_wordregexp_iteration => (
         is          => 'rw',
         isa         => Bool,
         default     => true,
         trigger     => 1,
         negativable => 1,
         doc =>
-            q{Word-regexp policy. If true, a word is constructed character-per-character, i.e. the word-regexp is done iteratively: first on one character, then on two characters if previous one matched, and so on. The iteration will always stop if a macro is recognized. If false, the regexp is applied on the full buffer at current position. Default is a true value.}
+            q{Word-regexp policy. If true, a word is constructed character-per-character, i.e. the word-regexp is done iteratively: first on one character, then on two characters if previous one matched, and so on. The iteration will always stop if a macro is recognized. If false, the regexp is applied only once to the full buffer at current position. Default is a true value.}
     );
 
     option policy_exit => (
@@ -735,7 +735,7 @@ EVAL_GRAMMAR
         default => false,
     );
 
-    has _wordCharacterPerCharacter => (
+    has _wordregexp_iteration => (
         is      => 'rw',
         isa     => Bool,
         default => true,
@@ -820,7 +820,7 @@ EVAL_GRAMMAR
 
     method parser_isWord (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         pos($input) = $pos;
-        if ( $self->_wordCharacterPerCharacter ) {
+        if ( $self->_wordregexp_iteration ) {
             my $word_regexpIncremental = $self->_word_regexpIncremental;
             my $lastPos                = $pos;
             my $lexemeLength           = 0;
@@ -1248,9 +1248,9 @@ EVAL_GRAMMAR
         $self->_no_gnu_extensions(false);
     }
 
-    method _trigger_policy_wordCharacterPerCharacter (Bool $policy_wordCharacterPerCharacter --> Undef) {
-        $self->_set__wordCharacterPerCharacter(
-            $policy_wordCharacterPerCharacter);
+    method _trigger_policy_wordregexp_iteration (Bool $policy_wordregexp_iteration --> Undef) {
+        $self->_set__wordregexp_iteration(
+            $policy_wordregexp_iteration);
     }
 
     method _trigger_policy_tokens_priority (ArrayRef[Str] $policy_tokens_priority --> Undef) {
