@@ -62,7 +62,7 @@
             "Log::Any" : "0",
             "Log::Any::Adapter" : "0",
             "Log::Any::Adapter::Callback" : "0",
-            "Marpa::R2" : "2.103_004",
+            "Marpa::R2" : "0",
             "MooX::HandlesVia" : "0",
             "MooX::Options" : "0",
             "MooX::Role::Logger" : "0",
