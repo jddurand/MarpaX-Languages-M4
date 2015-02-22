@@ -34,6 +34,7 @@ class MarpaX::Languages::M4::Impl::GNU {
     # VERSION
 
     use Bit::Vector;
+    use Carp qw/croak/;
     use Encode::Locale;
     use Encode;
     use Env::Path qw/M4PATH/;
@@ -55,12 +56,6 @@ class MarpaX::Languages::M4::Impl::GNU {
     use Marpa::R2;
     use MooX::HandlesVia;
 
-    use Throwable::Factory
-        EncodeError       => [qw/$message $error proposal/],
-        EOFInQuotedString => undef,
-        EOFInComment      => undef,
-        FatalWarning      => undef;
-
     BEGIN {
         #
         # Decode ARGV eventually
@@ -80,11 +75,8 @@ class MarpaX::Languages::M4::Impl::GNU {
             catch {
                 my $error = join( "\n", @_ );
                 $error =~ s/\s*\z//;
-                EncodeError->throw(
-                    message => "Cannot decode command-line arguments",
-                    error   => $error,
-                    proposal =>
-                        'Change or remove M4_ARGV_ENCODING environment variable'
+                croak(
+                    "Cannot decode command-line arguments: $error. Change or remove M4_ARGV_ENCODING environment variable"
                 );
                 return;
             }
@@ -927,8 +919,7 @@ EVAL_GRAMMAR
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
                 if ( $self->_eoi ) {
-                    $self->logger_error('EOF in comment');
-                    EOFInComment->throw('EOF in comment');
+                    croak('EOF in comment');
                 }
             }
         }
@@ -977,8 +968,7 @@ EVAL_GRAMMAR
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
                 if ( $self->_eoi ) {
-                    $self->logger_error('EOF in string');
-                    EOFInQuotedString->throw('EOF in string');
+                    croak('EOF in string');
                 }
             }
         }
@@ -1046,7 +1036,11 @@ EVAL_GRAMMAR
             $self->_set__rc(EXIT_FAILURE);
         }
         if ( $self->_fatal_warnings > 1 ) {
-            FatalWarning->throw('Fatal warning');
+            #
+            # Say we do not accept more input
+            #
+            $self->impl_setEoi;
+            croak('Fatal warning (option --fatal_warnings or -E) ');
         }
         return;
     }
@@ -1256,7 +1250,7 @@ EVAL_GRAMMAR
     # ----------------------------------------------------
     # Triggers
     # ----------------------------------------------------
-    method trigger_fatal_warnings {
+    method _trigger_fatal_warnings {
         $self->_set__fatal_warnings( $self->_fatal_warnings + 1 );
     }
 
@@ -3298,6 +3292,10 @@ STUB
     method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
         try {
             $self->_set_impl_pos( $self->parser_parse($input) );
+        }
+        catch {
+            $self->logger_error( '%s', $_ );
+            return;
         };
         return $self;
     }
@@ -3308,11 +3306,15 @@ STUB
     }
 
     method impl_parse (Str $input --> Str) {
-        $self->impl_eoi;
+        if ( $self->_eoi ) {
+            $self->logger_error('No more input is accepted');
+            return '';
+        }
+        $self->impl_setEoi;
         return $self->impl_parseIncremental($input)->impl_value;
     }
 
-    method impl_eoi (--> ConsumerOf[M4Impl]) {
+    method impl_setEoi (--> ConsumerOf[M4Impl]) {
         $self->_set__eoi(true);
         return $self;
     }
@@ -3321,7 +3323,7 @@ STUB
             #
             # If not already done, say user input is finished
             #
-        $self->impl_eoi;
+        $self->impl_setEoi;
         #
         # Trigger EOF
         #

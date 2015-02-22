@@ -1681,3 +1681,7 @@ foo(`bar')
 __! 131 warn-macro-sequence: output !__
 
 bar ${1} bar
+__! 132 warn-macro-sequence and -E twice: input($self->fatal_warnings(1); $self->fatal_warnings(1);) !__
+define(`foo', `$001 ${1} $1')
+foo(`bar')
+__! 132 warn-macro-sequence and -E twice: output !__
