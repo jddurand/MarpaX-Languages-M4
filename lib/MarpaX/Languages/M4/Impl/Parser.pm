@@ -92,7 +92,7 @@ class MarpaX::Languages::M4::Impl::Parser {
     use Marpa::R2;                               # 2.103_004;
     use Scalar::Util qw/readonly/;
     use Types::Common::Numeric -all;
-    use Throwable::Factory NoLexeme => undef;
+    use Throwable::Factory NoLexeme => undef, NoParseValue => undef;
 
     our $BASE_GRAMMAR = q{
 inaccessible is ok by default
@@ -459,9 +459,6 @@ COMMA ~ ',' _WS_any
                             $BYMACROARGUMENTS_G, $thisMacro
                         );
                         $self->_set__parse_level( $self->_parse_level - 1 );
-                        #
-                        # This will croak if dict is not defined
-                        #
 
                         # $self->logger_debug( '[%d..%d/%d] <= %s',
                         #     $rc{pos}, $rc{pos}, $maxPos, $dict );
@@ -599,7 +596,14 @@ COMMA ~ ',' _WS_any
             # is of concern for a macro that called us.
             #
             local $MarpaX::Languages::M4::Impl::Parser::macro = $macro;
-            $rc{value} = ${ $r->value };
+            my $valueRef = $r->value;
+            if ( Undef->check($valueRef) ) {
+                NoParseValue->throw(
+                    "No parse value starting at position $pos (20 first characters): "
+                        . substr( ${$inputRef}, $pos, 20 ) );
+            }
+
+            $rc{value} = ${$valueRef};
         }
         else {
             #
