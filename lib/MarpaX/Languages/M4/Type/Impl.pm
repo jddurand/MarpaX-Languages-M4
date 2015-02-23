@@ -10,3 +10,5 @@ library MarpaX::Languages::M4::Type::Impl declares M4Impl {
 
     declare M4Impl, as ConsumerOf ['MarpaX::Languages::M4::Role::Impl'];
 }
+
+1;

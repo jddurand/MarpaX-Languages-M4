@@ -10,3 +10,5 @@ library MarpaX::Languages::M4::Type::Value declares M4Value {
 
     declare M4Value, as ConsumerOf ['MarpaX::Languages::M4::Role::Value'];
 }
+
+1;

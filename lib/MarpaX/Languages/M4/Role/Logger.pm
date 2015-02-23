@@ -12,3 +12,5 @@ role MarpaX::Languages::M4::Role::Logger {
     requires 'logger_warn';
     requires 'logger_debug';
 }
+
+1;

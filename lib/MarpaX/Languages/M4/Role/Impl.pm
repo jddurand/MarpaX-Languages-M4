@@ -29,3 +29,5 @@ role MarpaX::Languages::M4::Role::Impl {
     with 'MarpaX::Languages::M4::Role::Logger';
     with 'MarpaX::Languages::M4::Role::Parser';
 }
+
+1;

@@ -3533,3 +3533,5 @@ STUB
     with 'MarpaX::Languages::M4::Role::Impl';
     with 'MooX::Role::Logger';
 }
+
+1;

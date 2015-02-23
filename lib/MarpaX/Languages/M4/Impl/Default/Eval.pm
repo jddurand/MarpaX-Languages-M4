@@ -298,3 +298,4 @@ class MarpaX::Languages::M4::Impl::Default::Eval {
 
 }
 
+1;

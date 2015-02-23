@@ -10,3 +10,5 @@ library MarpaX::Languages::M4::Type::Logger declares M4Logger {
 
     declare M4Logger, as ConsumerOf ['MarpaX::Languages::M4::Role::Logger'];
 }
+
+1;

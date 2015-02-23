@@ -13,3 +13,5 @@ role MarpaX::Languages::M4::Role::Value {
     requires 'value_elements';
     requires 'value_firstElement';
 }
+
+1;

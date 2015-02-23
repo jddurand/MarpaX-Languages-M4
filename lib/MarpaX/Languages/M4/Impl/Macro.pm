@@ -90,3 +90,5 @@ class MarpaX::Languages::M4::Impl::Macro {
 
     with 'MarpaX::Languages::M4::Role::Macro';
 }
+
+1;

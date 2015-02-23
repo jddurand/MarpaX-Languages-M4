@@ -16,3 +16,5 @@ role MarpaX::Languages::M4::Role::Parser {
     requires 'parser_tokensPriority';
     requires 'parser_parse';
 }
+
+1;

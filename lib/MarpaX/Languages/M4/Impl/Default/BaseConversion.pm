@@ -69,3 +69,4 @@ class MarpaX::Languages::M4::Impl::Default::BaseConversion {
     }
 }
 
+1;

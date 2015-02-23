@@ -98,3 +98,5 @@ class MarpaX::Languages::M4::Impl::Value {
 
     with 'MarpaX::Languages::M4::Role::Value';
 }
+
+1;

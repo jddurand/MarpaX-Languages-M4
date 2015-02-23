@@ -10,3 +10,5 @@ library MarpaX::Languages::M4::Type::Token declares M4Token {
 
     declare M4Token, as Enum [qw/COMMENT QUOTEDSTRING WORD CHARACTER/];
 }
+
+1;

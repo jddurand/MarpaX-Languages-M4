@@ -16,3 +16,5 @@ role MarpaX::Languages::M4::Role::Macro {
     requires 'macro_postMatchLengthExecute';
     requires 'macro_isBuiltin';
 }
+
+1;

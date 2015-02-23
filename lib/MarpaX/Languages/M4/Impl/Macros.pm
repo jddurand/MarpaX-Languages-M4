@@ -27,3 +27,5 @@ class MarpaX::Languages::M4::Impl::Macros {
 
     with 'MarpaX::Languages::M4::Role::Macros';
 }
+
+1;

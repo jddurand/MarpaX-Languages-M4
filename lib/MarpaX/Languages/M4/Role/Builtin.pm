@@ -58,3 +58,5 @@ role MarpaX::Languages::M4::Role::Builtin {
     requires 'builtin___line__';
     requires 'builtin___program__';
 }
+
+1;
