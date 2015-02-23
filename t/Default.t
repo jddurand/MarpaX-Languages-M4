@@ -36,11 +36,14 @@ BEGIN {
         || print "Bail out!\n";
 }
 
+#
+# Variables used for portability
+#
 my $fhfoo = File::Temp->new();
 print $fhfoo "bar\n";
 close($fhfoo);
-
 my $echo = File::Spec->catfile('inc', 'echo.pl');
+my $tmpfile = File::Spec->catfile(File::Spec->tmpdir(), 'fooXXXXXX');
 
 foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $testName = $_;
@@ -63,6 +66,7 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   #
   $input =~ s/%%%FOO%%%/$fhfoo/g;
   $input =~ s/%%%ECHO%%%/$echo/g;
+  $input =~ s/%%%TMPFILE%%%/$tmpfile/g;
   my $gnu = MarpaX::Languages::M4::Impl::Default->new_with_options();
   #
   # Our include directory
@@ -1611,14 +1615,12 @@ syscmd(`perl inc/echo.pl foo')
 _! 125 syscmd: output !__
 
 foo
-
 _! 126 esyscmd: input !__
 define(`foo', `FOO')
 esyscmd(`perl inc/echo.pl foo')
 _! 126 esyscmd: output !__
 
 FOO
-
 _! 127 sysval: input !__
 sysval
 syscmd(`perl inc/false.pl')
@@ -1649,7 +1651,7 @@ non-zero
 0
 _! 128 maketemp: input !__
 define(`tmp', `oops')
-maketemp(`/tmp/fooXXXXXX')
+maketemp(`%%%TMPFILE%%%')
 ifdef(`mkstemp', `define(`maketemp', defn(`mkstemp'))',
       `define(`mkstemp', defn(`maketemp'))dnl
 errprint(`warning: potentially insecure maketemp implementation
