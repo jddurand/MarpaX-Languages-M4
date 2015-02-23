@@ -55,10 +55,11 @@
             "File::Spec" : "0",
             "File::Temp" : "0",
             "Getopt::Long" : "0",
+            "IO::CaptureOutput" : "0",
             "IO::File" : "0",
+            "IO::Handle" : "0",
             "IO::Interactive" : "0",
             "IO::Scalar" : "0",
-            "IPC::Cmd" : "0",
             "Log::Any" : "0",
             "Log::Any::Adapter" : "0",
             "Log::Any::Adapter::Callback" : "0",
@@ -111,6 +112,6 @@
          "web" : "https://github.com/jddurand/marpax-languages-m4"
       }
    },
-   "version" : "0.004"
+   "version" : "0.005"
 }
 

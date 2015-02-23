@@ -1,6 +1,19 @@
 Changelog for MarpaX-Languages-M4
 
-0.004 2015-02-23T05:55:30
+0.005 2015-02-23T19:51:43
+ [Jean-Damien Durand <jeandamiendurand@free.fr>]
+ - Impl/Parser.pm: throw an exception if undefined parse tree value,
+   instead of letting the code croak by itself when unpacking the recursive
+   call result
+ - t/Default.t: test portability
+ - Impl/Default.pm: use IO::CaptureOutput for an uniform capture code
+ - Add a 1; everywhere, despite Moops doc stating it is not needed. C.f.
+   https://rt.cpan.org/Public/Bug/Display.html?id=92676
+ - Impl/Default.pm: fix indirect call of autoflush on STDOUT
+ - Impl/Parser.pm: perl tidy
+ - Impl/Parser.pm: removed call to $r->events, not used
+
+0.004 2015-02-23T05:55:30Z
  [Jean-Damien Durand <jeandamiendurand@free.fr>]
  - Impl/Parser.pm: is that the origin of Value.pm did not return a true
    value on CPAN testers?
