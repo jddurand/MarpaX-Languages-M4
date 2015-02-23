@@ -1,6 +1,11 @@
 Changelog for MarpaX-Languages-M4
 
-0.003 2015-02-22T20:52:39
+0.004 2015-02-23T05:55:30
+ [Jean-Damien Durand <jeandamiendurand@free.fr>]
+ - Impl/Parser.pm: is that the origin of Value.pm did not return a true
+   value on CPAN testers?
+
+0.003 2015-02-22T20:52:39Z
  [Jean-Damien Durand <jeandamiendurand@free.fr>]
  - Impl/Default.pm: force default integer bits to 32
 
