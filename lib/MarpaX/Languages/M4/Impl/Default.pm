@@ -42,10 +42,10 @@ class MarpaX::Languages::M4::Impl::Default {
     use File::Find;
     use File::Spec;
     use File::Temp;
+    use IO::CaptureOutput qw/capture_exec/;
     use IO::Handle;
     use IO::File;
     use IO::Scalar;
-    use IPC::Cmd qw/run run_forked/;
     use MarpaX::Languages::M4::Impl::Default::BaseConversion;
     use MarpaX::Languages::M4::Impl::Default::Eval;
     use MarpaX::Languages::M4::Impl::Macros;
@@ -125,8 +125,9 @@ class MarpaX::Languages::M4::Impl::Default {
     # The list of GNU-like extensions is known in advanced and is fixed
     # -----------------------------------------------------------------
     our %Default_EXTENSIONS = (
-#        __file__    => 1, # TO DO
-#        __line__    => 1, # TO DO
+
+        #        __file__    => 1, # TO DO
+        #        __line__    => 1, # TO DO
         __program__ => 1,
         builtin     => 1,
         changeword  => 1,
@@ -3177,16 +3178,16 @@ EVAL_GRAMMAR
                         'MarpaX::Languages::M4::Impl::Default::Eval',
                 }
             );
-            $rc = MarpaX::Languages::M4::Impl::Default::BaseConversion->to_base(
-                $radix, ${$valuep}, $width );
+            $rc = MarpaX::Languages::M4::Impl::Default::BaseConversion
+                ->to_base( $radix, ${$valuep}, $width );
         }
         catch {
-   #
-   # Okay, when we use Marpa::R2::Context::bail() it is adding
-   # something like e.g.:
-   # User bailed at line 37 in file "lib/MarpaX/Languages/M4/Impl/Default/Eval.pm"
-   # we strip this line if any
-   #
+            #
+            # Marpa::R2::Context::bail() is adding
+            # something like e.g.:
+            # User bailed at line 37 in file "xxx"
+            # we strip this line if any
+            #
             $_ =~ s/^User bailed.*?\n//;
             $self->logger_error( '%s: %s', $self->impl_quote('eval'), $_ );
             return;
@@ -3207,79 +3208,39 @@ EVAL_GRAMMAR
 
         $command //= '';
         if ( length($command) > 0 ) {
-            if ( IPC::Cmd->can_capture_buffer ) {
-                my $exitCode;
-                my $stderr;
-                my $stdout;
-                my $executed = false;
-                if ( IPC::Cmd->can_use_run_forked ) {
-                    my $hashref = run_forked($command);
-                    if ( HashRef->check($hashref) ) {
-                        $exitCode = $hashref->{exit_code} // 0;
-                        $stderr   = $hashref->{stderr}    // '';
-                        $stdout   = $hashref->{stdout}    // '';
-                        $executed = true;
-                    }
-                    else {
-                        $self->logger_error(
-                            '%s: %s',
-                            $self->impl_quote($macroName),
-                            'Internal error. IPC::Cmd::run_forked did not return a hash reference'
-                        );
-                    }
-                }
-                elsif (IPC::Cmd->can_use_ipc_run
-                    || IPC::Cmd->can_use_ipc_open3 )
-                {
-                    my ( $ok, $err, undef, $stdout_buff, $stderr_buff )
-                        = run( command => $command );
-                    $exitCode = $ok ? EXIT_SUCCESS : EXIT_FAILURE;
-                    $stdout
-                        = Undef->check($stdout_buff) ? ''
-                        : ArrayRef->check($stdout_buff)
-                        ? join( '', @{$stdout_buff} )
-                        : '';
-                    $stderr
-                        = Undef->check($stderr_buff) ? ''
-                        : ArrayRef->check($stderr_buff)
-                        ? join( '', @{$stderr_buff} )
-                        : '';
+            my ( $stdout, $stderr, $success, $exitCode );
+            my $executed = false;
+            try {
+                ( $stdout, $stderr, $success, $exitCode )
+                    = capture_exec($command);
+            }
+            catch {
+                $self->logger_error( '%s: %s',
+                    $self->impl_quote($macroName), $_ );
+            }
+            finally {
+                if ( !$@ ) {
                     $executed = true;
                 }
+            };
+            if ($executed) {
+                $self->_lastSysExitCode( $exitCode >> 8 );
+                if ( $self->_cmdtounix ) {
+                    $stderr =~ s/\R/\n/g;
+                    $stdout =~ s/\R/\n/g;
+                }
+                if ( length($stderr) > 0 ) {
+                    $self->logger_error( '%s', $stderr );
+                }
+                if ($appendValue) {
+                    $self->impl_appendValue($stdout);
+                    return '';
+                }
                 else {
-                    $self->logger_error(
-                        '%s: %s',
-                        $self->impl_quote($macroName),
-                        'Current configuration cannot execute IPC::Run nor IPC::Open3 despite it claims to be able to capture buffers'
-                    );
+                    return $stdout;
                 }
-                if ($executed) {
-                    $self->_lastSysExitCode($exitCode);
-                    if ( $self->_cmdtounix ) {
-                        $stderr =~ s/\R/\n/g;
-                        $stdout =~ s/\R/\n/g;
-                    }
-                    if ( length($stderr) > 0 ) {
-                        $self->logger_error( '%s', $stderr );
-                    }
-                    if ($appendValue) {
-                        $self->impl_appendValue($stdout);
-                        return '';
-                    }
-                    else {
-                        return $stdout;
-                    }
-                }
-            }
-            else {
-                $self->logger_error(
-                    '%s: %s',
-                    $self->impl_quote($macroName),
-                    'Current configuration cannot capture buffers'
-                );
             }
         }
-
         return '';
     }
 
