@@ -42,6 +42,7 @@ class MarpaX::Languages::M4::Impl::Default {
     use File::Find;
     use File::Spec;
     use File::Temp;
+    use IO::Handle;
     use IO::File;
     use IO::Scalar;
     use IPC::Cmd qw/run run_forked/;
@@ -709,7 +710,7 @@ EVAL_GRAMMAR
         my $buf;
         my $unparsed;
 
-        autoflush STDOUT 1;
+        STDOUT->autoflush();
 
         #
         # If interactive mode is triggered via new_with_options()
