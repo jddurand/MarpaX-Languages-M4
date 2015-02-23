@@ -259,13 +259,11 @@ COMMA ~ ',' _WS_any
             #     $rc{pos}, $rc{pos}, $maxPos,
             #     substr( ${$inputRef}, $rc{pos}, 20 ) );
 
-            my %events   = map { $_->[0] => 1 } @{ $r->events };
             my %expected = map { $_      => 1 } @{ $r->terminals_expected };
 
             # $self->logger_debug(
-            #    '[%d..%d/%d] Events: %s, Expected terminals: %s',
+            #    '[%d..%d/%d] Expected terminals: %s',
             #    $rc{pos}, $rc{pos}, $maxPos,
-            #    [ keys %events ],
             #    [ keys %expected ]
             # );
 
