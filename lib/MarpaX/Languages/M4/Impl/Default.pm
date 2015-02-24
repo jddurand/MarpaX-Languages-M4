@@ -1673,10 +1673,16 @@ EVAL_GRAMMAR
             {
                 next;
             }
+            my $stubName = "builtin_$_";
             $ref{$_} = MarpaX::Languages::M4::Impl::Macro->new(
                 name      => $_,
                 expansion => 'TO BE REPLACED',
-                stub      => $self->meta->get_method("builtin_$_")->body
+                #
+                # I learned it the hard way: NEVER call meta in Moo,
+                # this will load Moose
+                #
+                # stub      => $self->meta->get_method("builtin_$_")->body
+                stub      => \&$stubName
             );
             #
             # The expansion of a builtin is the builtin itself
