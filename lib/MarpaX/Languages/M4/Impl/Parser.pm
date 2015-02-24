@@ -17,6 +17,8 @@ class MarpaX::Languages::M4::Impl::Parser {
     use Types::Common::Numeric -all;
     use Throwable::Factory NoLexeme => undef, NoParseValue => undef;
 
+    # VERSION
+
     our $BASE_GRAMMAR = q{
 inaccessible is ok by default
 :default ::= action => ::first
