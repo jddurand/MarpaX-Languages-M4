@@ -28,6 +28,16 @@ use MarpaX::Languages::M4::Impl::Parser;
 # incr     C.f. policy_integer_type, defaults to a 32 bits integer. "native" policy uses int, like GNU.
 # decr     C.f. policy_integer_type, defaults to a 32 bits integer. "native" policy uses int, like GNU.
 #
+# Ah... if you wonder why there is (?#) when I do ar// on a variable, this is because,
+# a per perldoc perlop:
+#
+# The empty pattern //
+# If the PATTERN evaluates to the empty string, the last successfully matched regular expression is used
+# instead. In this case, only the "g" and "c" flags on the empty pattern is honoured - the other flags are
+# taken from the original pattern. If no  match has previously succeeded, this will (silently) act instead
+# as a genuine empty pattern (which will always match).
+#
+
 class MarpaX::Languages::M4::Impl::Default {
     extends 'MarpaX::Languages::M4::Impl::Parser';
 
@@ -1340,7 +1350,13 @@ EVAL_GRAMMAR
     );
 
     method _trigger_word_regexp (Str $regexp, @rest --> Undef) {
+        if ( length($regexp) <= 0 ) {
+            $regexp = $DEFAULT_WORD_REGEXP;
+        }
         try {
+            #
+            # Here per def $regexp is never empty
+            #
             $self->_set__word_regexp(qr/^$regexp/s);
         }
         catch {
@@ -1380,6 +1396,9 @@ EVAL_GRAMMAR
             return;
         }
         try {
+            #
+            # Per def, here, $regexp is never empty
+            #
             $self->_set__warn_macro_sequence(qr/$regexp/s);
         }
         catch {
@@ -1682,7 +1701,7 @@ EVAL_GRAMMAR
                 # this will load Moose
                 #
                 # stub      => $self->meta->get_method("builtin_$_")->body
-                stub      => \&$stubName
+                stub => \&$stubName
             );
             #
             # The expansion of a builtin is the builtin itself
@@ -2321,7 +2340,7 @@ EVAL_GRAMMAR
         }
         $self->_checkIgnored( 'changeword', @ignored );
 
-        $self->word_regexp( $string || $DEFAULT_WORD_REGEXP );
+        $self->word_regexp($string);
 
         return '';
     }
@@ -2707,9 +2726,17 @@ EVAL_GRAMMAR
             return '0';
         }
 
-        my $regexp = eval "qr/$regexpString/sm";
-        if ($@) {
-            $self->logger_error( '%s: %s', $self->impl_quote('regexp'), $@ );
+        my $regexp;
+        try {
+            #
+            # regexp can be empty
+            #
+            $regexp = qr/$regexpString(?#)/sm;
+        }
+        catch {
+            $self->logger_error( '%s: %s', $self->impl_quote('regexp'), $_ );
+        };
+        if ( Undef->check($regexp) ) {
             return '';
         }
 
@@ -2953,10 +2980,18 @@ EVAL_GRAMMAR
             return $string;
         }
 
-        my $regexp = eval "qr/$regexpString/sm";
-        if ($@) {
+        my $regexp;
+        try {
+            #
+            # regexp can be empty
+            #
+            $regexp = qr/$regexpString(?#)/sm;
+        }
+        catch {
             $self->logger_error( '%s: %s', $self->impl_quote('patsubst'),
-                $@ );
+                $_ );
+        };
+        if ( Undef->check($regexp) ) {
             return '';
         }
 
