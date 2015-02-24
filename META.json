@@ -4,7 +4,7 @@
       "Jean-Damien Durand <jeandamiendurand@free.fr>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "Dist::Zilla version 5.032, CPAN::Meta::Converter version 2.142060",
+   "generated_by" : "Dist::Zilla version 5.032, CPAN::Meta::Converter version 2.143240",
    "license" : [
       "perl_5"
    ],
@@ -112,6 +112,7 @@
          "web" : "https://github.com/jddurand/marpax-languages-m4"
       }
    },
-   "version" : "0.005"
+   "version" : "0.006",
+   "x_authority" : "cpan:JDDPAUSE"
 }
 
