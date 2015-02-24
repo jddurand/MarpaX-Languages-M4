@@ -2709,25 +2709,11 @@ EVAL_GRAMMAR
 
         $self->_checkIgnored( 'regexp', @ignored );
 
-        # Very strange behaviour under perl < 5.18: the following statement seems to
-        # be opimized and executed only once:
-        # my $index = ( $string =~ $regexp ) ? $-[0] : -1;
-        #
-        # To get it really re-evaluated everytime, I have to pass via
-        # a string containing the code to re-evaluate.
-        #
-        # Please note that doing:
-        # my $match = eval '$string =~ $regexp';
-        # did not get re-evaluated under perl < 5.18 (!?)
-        my $code = '$string =~ $regexp';
-
         if ( Undef->check($replacement) ) {
             #
             # Expands to the index of first match in string
             #
-            #
-            my $match = eval '$code';
-            my $index = $match ? $-[0] : -1;
+            my $index = ( $string =~ $regexp ) ? $-[0] : -1;
             return "$index";
         }
         else {
@@ -2756,8 +2742,7 @@ EVAL_GRAMMAR
                 \%wantedRegexpIndice,
                 \$maxRegexpIndice
             );
-            my $match = eval '$code';
-            if ( $match ) {
+            if ( $string =~ $regexp ) {
                 my @match = ();
                 foreach ( 0 .. $maxRegexpIndice ) {
                     if ( $_ <= $#+ ) {
