@@ -8,6 +8,8 @@ role MarpaX::Languages::M4::Role::Macro {
 
     # VERSION
 
+    # AUTHORITY
+
     requires 'macro_name';
     requires 'macro_execute';
     requires 'macro_expansion';

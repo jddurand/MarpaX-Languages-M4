@@ -33,6 +33,8 @@ class MarpaX::Languages::M4::Impl::Default {
 
     # VERSION
 
+    # AUTHORITY
+
     use Bit::Vector;
     use Carp qw/croak/;
     use Encode::Locale;

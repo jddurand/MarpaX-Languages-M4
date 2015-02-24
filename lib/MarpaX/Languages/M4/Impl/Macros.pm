@@ -11,6 +11,8 @@ class MarpaX::Languages::M4::Impl::Macros {
 
     # VERSION
 
+    # AUTHORITY
+
     has _macrosList => (
         is          => 'rwp',
         isa         => ArrayRef [M4Macro],

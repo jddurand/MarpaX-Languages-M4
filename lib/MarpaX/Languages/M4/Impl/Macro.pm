@@ -8,6 +8,8 @@ class MarpaX::Languages::M4::Impl::Macro {
 
     # VERSION
 
+    # AUTHORITY
+
     use MarpaX::Languages::M4::Role::Macro;
     use MarpaX::Languages::M4::Type::Macro -all;
     use MooX::HandlesVia;

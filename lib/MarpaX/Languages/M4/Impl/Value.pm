@@ -13,6 +13,8 @@ class MarpaX::Languages::M4::Impl::Value {
 
     # VERSION
 
+    # AUTHORITY
+
     has _value => (
         is          => 'rw',
         isa         => ArrayRef [ Str | M4Macro ],

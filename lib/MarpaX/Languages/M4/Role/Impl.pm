@@ -8,6 +8,8 @@ role MarpaX::Languages::M4::Role::Impl {
 
     # VERSION
 
+    # AUTHORITY
+
     use MarpaX::Languages::M4::Role::Builtin;
     use MarpaX::Languages::M4::Role::Logger;
     use MarpaX::Languages::M4::Role::Parser;

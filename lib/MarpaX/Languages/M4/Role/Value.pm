@@ -8,6 +8,8 @@ role MarpaX::Languages::M4::Role::Value {
 
     # VERSION
 
+    # AUTHORITY
+
     requires 'value_concat';
     requires 'value_push';
     requires 'value_elements';

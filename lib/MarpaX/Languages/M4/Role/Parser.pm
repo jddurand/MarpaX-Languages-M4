@@ -8,6 +8,8 @@ role MarpaX::Languages::M4::Role::Parser {
 
     # VERSION
 
+    # AUTHORITY
+
     requires 'parser_isWord';
     requires 'parser_isComment';
     requires 'parser_isQuotedstring';

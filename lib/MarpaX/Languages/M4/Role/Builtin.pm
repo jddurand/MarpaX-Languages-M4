@@ -8,6 +8,8 @@ role MarpaX::Languages::M4::Role::Builtin {
 
     # VERSION
 
+    # AUTHORITY
+
     #
     # Only the POSIX builtins are explicitely listed
     # here. Extensions per implementation are

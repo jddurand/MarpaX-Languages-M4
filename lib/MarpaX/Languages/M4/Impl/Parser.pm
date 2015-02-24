@@ -19,6 +19,8 @@ class MarpaX::Languages::M4::Impl::Parser {
 
     # VERSION
 
+    # AUTHORITY
+
     our $BASE_GRAMMAR = q{
 inaccessible is ok by default
 :default ::= action => ::first

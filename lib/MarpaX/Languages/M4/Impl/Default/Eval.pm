@@ -11,6 +11,8 @@ class MarpaX::Languages::M4::Impl::Default::Eval {
 
     # VERSION
 
+    # AUTHORITY
+
     #
     # Marpa dislike exceptions throws as objects, because of wanted
     # backward compatibility with very old versions of Perl.

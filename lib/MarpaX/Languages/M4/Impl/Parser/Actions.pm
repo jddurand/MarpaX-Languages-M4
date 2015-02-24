@@ -12,6 +12,8 @@ class MarpaX::Languages::M4::Impl::Parser::Actions {
 
     # VERSION
 
+    # AUTHORITY
+
     has macro => (
         is  => 'rw',
         isa => Undef | M4Macro,

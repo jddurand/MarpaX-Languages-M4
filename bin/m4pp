@@ -12,6 +12,8 @@ use Log::Any::Adapter::Callback;
 
 # VERSION
 
+# AUTHORITY
+
 # PODNAME: m4pp
 
 #

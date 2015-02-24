@@ -8,6 +8,8 @@ class MarpaX::Languages::M4::Impl::Default::BaseConversion {
 
     # VERSION
 
+    # AUTHORITY
+
     #
     # Eval: constants for radix and the grammar
     #
