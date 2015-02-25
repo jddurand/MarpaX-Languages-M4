@@ -53,7 +53,6 @@ sub _logging_cb {
     # is not yet setted
     #
     my $thisSelf = $impl || $MarpaX::Languages::M4::SELF;
-    print STDERR "\$thisSelf = " . (defined($thisSelf) ? $thisSelf : '<undef>') . "\n";
     my $debugfile = $thisSelf->impl_debugfile;
     if (defined($debugfile)) {
       if (! open($fh, '>>', $debugfile)) {
