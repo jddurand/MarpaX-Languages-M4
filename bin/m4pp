@@ -37,7 +37,6 @@ sub _logging_cb {
   my ($method, $self, $format, @params) = @_;
 
   my $level = $logging_levels{$method};
-  print STDERR "$format @args\n";
   #
   # If level is >= error, then check debugfile
   #
@@ -70,7 +69,7 @@ sub _logging_cb {
     binmode $fh, ":encoding(console_out)" if (is_interactive($fh));
   }
 
-  printf $fh $format, @params;
+  printf $fh "$format\n", @params;
   if (! close($fh)) {
     warn "Cannot close $fhName, $!";
   }

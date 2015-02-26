@@ -1617,7 +1617,28 @@ EVAL_GRAMMAR
         return;
     }
 
+    method _canDebug(--> Bool) {
+      #
+      # Get the localized value of $MarpaX::Languages::M4::MACRO
+      #
+      my $macro = $MarpaX::Languages::M4::MACRO;
+      if (Undef->check($macro)) {
+        return false;
+      }
+      #
+      # A macro is debugged if 't' is setted or macro is explicitely traced
+      #
+      if (! $self->_debug_get('t') && ! $self->_trace_get($macro->name)) {
+        return false;
+      }
+
+      return true;
+    }
+
     method logger_debug (@args --> Undef) {
+        if (! $self->_canDebug) {
+            return;
+        }
         $self->_logger->debugf(@args);
         return;
     }
@@ -2100,7 +2121,7 @@ EVAL_GRAMMAR
                     $args[$_] = '';
                 }
             }
-            return $macro->macro_execute( $self, @args );
+            return $self->impl_macroExecute($macro, @args );
         }
         else {
             $self->logger_error( 'indir: undefined macro %s',
@@ -2134,8 +2155,7 @@ EVAL_GRAMMAR
             #
             my $rc = '';
             try {
-                $rc = $self->_builtins_get($name)
-                    ->macro_execute( $self, @args );
+              $rc = $self->impl_macroExecute($self->_builtins_get($name), @args );
             }
             catch {
                 $self->logger_error( '%s', $_ );
@@ -3555,6 +3575,75 @@ STUB
 
     method impl_rc (@args --> Str) {
         return $self->_rc(@args);
+    }
+
+    method _printable (Str|M4Macro $input, Bool $noQuote? --> Str) {
+        $noQuote //= false;
+        #
+        # If M4Macro let's get the object representation stringified
+        #
+        my $printable = Str->check($input) ? $input : "$input";
+
+        return Str->check($input)
+            ? ( $noQuote ? $printable : $self->impl_quote($printable) )
+            : $printable;
+    }
+
+    method impl_macroExecute(ConsumerOf[M4Macro] $macro, @args --> Str|M4Macro) {
+      #
+      # Execute the macro
+      #
+      local $MarpaX::Languages::M4::MACRO = $macro;
+      my $printableMacroName
+        = $self->_printable( $macro->name, true );
+
+      $self->logger_debug( '%s ...',
+                           $printableMacroName );
+
+
+      if (@args) {
+        my $printableArguments = join( ', ',
+                                       map { $self->_printable($_) }
+                                       @args);
+        $self->logger_debug(
+                            '%s(%s) -> ???',
+                            $printableMacroName,
+                            $printableArguments
+                           );
+      } else {
+        $self->logger_debug(
+                            '%s -> ???',
+                            $printableMacroName
+                           );
+      }
+
+      my $rc = $macro->macro_execute( $self, @args);
+
+      if ( length($rc) > 0 ) {
+        if (@args) {
+          $self->logger_debug(
+                              '%s(...) -> %s',
+                              $printableMacroName,
+                              $self->_printable($rc)
+                             );
+        } else {
+          $self->logger_debug(
+                              '%s -> %s',
+                              $printableMacroName,
+                              $self->_printable($rc)
+                             );
+        }
+      }
+      else {
+        if (@args) {
+          $self->logger_debug( '%s(...)',
+                               $printableMacroName );
+        } else {
+          $self->logger_debug( '%s',
+                               $printableMacroName );
+        }
+      }
+      return $rc;
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';

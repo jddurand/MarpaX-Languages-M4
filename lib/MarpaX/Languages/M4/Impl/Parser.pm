@@ -344,42 +344,13 @@ COMMA ~ ',' _WS_any
                     my $printableMacroName
                         = $self->_printable( $macroName, true );
 
-                    # $self->logger_debug(
-                    #     '[%d..%d/%d] %s is an acceptable macro call',
-                    #     $rc{pos}, $rc{pos}, $maxPos, $lexemeValue );
-                    $self->logger_debug( '[%d..%d/%d] %s ...',
-                        $rc{pos}, $rc{pos}, $maxPos, $printableMacroName );
+                    #
+                    # Collect macro arguments
+                    #
+                    my @args = ();
 
-                    if ( $lparenPos < 0 ) {
-                        #
-                        # Execute the macro without argument
-                        #
-                        $self->logger_debug( '[%d..%d/%d] %s -> ???',
-                            $rc{pos}, $rc{pos}, $maxPos,
-                            $printableMacroName );
-                        $lexemeValue = $thisMacro->macro_execute($self);
-                        if ( length($lexemeValue) > 0 ) {
-                            $self->logger_debug(
-                                '[%d..%d/%d] %s -> %s',
-                                $rc{pos},
-                                $rc{pos},
-                                $maxPos,
-                                $printableMacroName,
-                                $self->_printable($lexemeValue)
-                            );
-                        }
-                        else {
-                            $self->logger_debug( '[%d..%d/%d] %s',
-                                $rc{pos}, $rc{pos}, $maxPos,
-                                $printableMacroName );
-                        }
-                    }
-                    else {
-                        #
-                        # Call us recursively.
-                        # This will change $lexemeValue and next position
-                        #
-                        my $afterRparenPos;
+                    if ( $lparenPos >= 0 ) {
+
                         $self->_set__parse_level( $self->_parse_level + 1 );
                         my $dict = $self->_parseByGrammar(
                             $inputRef,           $lparenPos,
@@ -387,44 +358,10 @@ COMMA ~ ',' _WS_any
                         );
                         $self->_set__parse_level( $self->_parse_level - 1 );
 
-                        # $self->logger_debug( '[%d..%d/%d] <= %s',
-                        #     $rc{pos}, $rc{pos}, $maxPos, $dict );
-
-                        my $parametersValue = $dict->{value};
-                        $afterRparenPos = $dict->{pos};
-                        #
-                        # Execute the macro
-                        #
-                        my $printableArguments = join( ', ',
-                            map { $self->_printable($_) }
-                                $parametersValue->value_elements );
-                        $self->logger_debug(
-                            '[%d..%d/%d] %s(%s) -> ???',
-                            $rc{pos},
-                            $rc{pos},
-                            $maxPos,
-                            $printableMacroName,
-                            $printableArguments
-                        );
-                        $lexemeValue = $thisMacro->macro_execute( $self,
-                            $parametersValue->value_elements );
-                        if ( length($lexemeValue) > 0 ) {
-                            $self->logger_debug(
-                                '[%d..%d/%d] %s(...) -> %s',
-                                $rc{pos},
-                                $rc{pos},
-                                $maxPos,
-                                $printableMacroName,
-                                $self->_printable($lexemeValue)
-                            );
-                        }
-                        else {
-                            $self->logger_debug( '[%d..%d/%d] %s(...)',
-                                $rc{pos}, $rc{pos}, $maxPos,
-                                $printableMacroName );
-                        }
-                        $lexemeLength = $afterRparenPos - $rc{pos};
+                        @args         = $dict->{value}->value_elements;
+                        $lexemeLength = $dict->{pos} - $rc{pos};
                     }
+                    $lexemeValue = $self->impl_macroExecute($thisMacro, @args);
                     #
                     # Eventual postmatch length
                     #
