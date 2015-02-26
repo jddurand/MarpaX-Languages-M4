@@ -46,7 +46,6 @@ class MarpaX::Languages::M4::Impl::Default {
     # AUTHORITY
 
     use Bit::Vector;
-    use Carp qw/croak/;
     use Encode::Locale;
     use Encode;
     use Env::Path qw/M4PATH/;
@@ -68,6 +67,8 @@ class MarpaX::Languages::M4::Impl::Default {
     use MarpaX::Languages::M4::Type::Token -all;
     use Marpa::R2;
     use MooX::HandlesVia;
+    use Scalar::Util qw/blessed/;
+    use Throwable::Factory ImplException => undef, ArgumentDecodeException => undef;
 
     BEGIN {
         #
@@ -88,9 +89,7 @@ class MarpaX::Languages::M4::Impl::Default {
             catch {
                 my $error = join( "\n", @_ );
                 $error =~ s/\s*\z//;
-                croak(
-                    "Cannot decode command-line arguments: $error. Change or remove M4_ARGV_ENCODING environment variable"
-                );
+                ArgumentDecodeException->throw("Cannot decode command-line arguments: $error. Change or remove M4_ARGV_ENCODING environment variable. Exception is: $_");
                 return;
             }
             finally {
@@ -1492,8 +1491,7 @@ EVAL_GRAMMAR
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
                 if ( $self->_eoi ) {
-                    $self->logger_error('EOF in comment');
-                    croak('EOF in comment');
+                    ImplException->throw('EOF in comment');
                 }
             }
         }
@@ -1542,8 +1540,7 @@ EVAL_GRAMMAR
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
                 if ( $self->_eoi ) {
-                    $self->logger_error('EOF in string');
-                    croak('EOF in string');
+                    ImplException->throw('EOF in string');
                 }
             }
         }
@@ -1615,8 +1612,7 @@ EVAL_GRAMMAR
             # Say we do not accept more input
             #
             $self->impl_setEoi;
-            $self->logger_error('Warning configured as fatal');
-            croak('Warning configured as fatal');
+            ImplException->throw('Warning is fatal');
         }
         return;
     }
@@ -2134,7 +2130,7 @@ EVAL_GRAMMAR
         if ( $self->_builtins_exists($name) ) {
             #
             # We do not check the args to eventually flatten them. Thus this
-            # can croak
+            # can throw an exception.
             #
             my $rc = '';
             try {
@@ -3477,12 +3473,35 @@ STUB
     method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
         try {
             #
-            # This can croak and we will log when necessary
+            # This throw an exception and will log when necessary
             #
             $self->_set_impl_unparsed( $self->parser_parse($input) );
+        } catch {
+          if (! $self->parser_isParserException($_) &&
+              ! $self->impl_isImplException($_)) {
+            #
+            # "$_" explicitely: if this is an object, this will call the stringify overload
+            #
+            $self->logger_error( 'Internal: %s', "$_" );
+          }
+          return;
         };
         return $self;
     }
+
+    method impl_isImplException(Any $obj --> Bool) {
+      my $blessed = blessed($obj);
+      if (! $blessed) {
+        return false;
+      }
+      my $DOES = $obj->can('DOES') || 'isa';
+      if (! grep {$obj->$DOES($_)} (ImplException)) {
+        return false;
+      }
+      return true;
+    }
+
+
 
     method impl_appendValue (Str $result --> ConsumerOf[M4Impl]) {
         $self->_lastDiversion->print($result);

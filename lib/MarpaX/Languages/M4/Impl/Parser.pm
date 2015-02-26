@@ -572,6 +572,18 @@ COMMA ~ ',' _WS_any
             : $printable;
     }
 
+    method parser_isParserException(Any $obj --> Bool) {
+      my $blessed = blessed($obj);
+      if (! $blessed) {
+        return false;
+      }
+      my $DOES = $obj->can('DOES') || 'isa';
+      if (! grep {$obj->$DOES($_)} (NoLexeme, NoParseValue)) {
+        return false;
+      }
+      return true;
+    }
+
 }
 
 1;

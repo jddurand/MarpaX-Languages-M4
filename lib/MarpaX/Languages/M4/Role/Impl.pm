@@ -26,6 +26,7 @@ role MarpaX::Languages::M4::Role::Impl {
     requires 'impl_line';
     requires 'impl_debugfile';
     requires 'impl_rc';
+    requires 'impl_isImplException';
 
     with 'MarpaX::Languages::M4::Role::Builtin';
     with 'MarpaX::Languages::M4::Role::Logger';

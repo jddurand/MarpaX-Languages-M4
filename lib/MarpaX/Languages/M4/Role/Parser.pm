@@ -17,6 +17,7 @@ role MarpaX::Languages::M4::Role::Parser {
     requires 'parser_isCharacter';
     requires 'parser_tokensPriority';
     requires 'parser_parse';
+    requires 'parser_isParserException';
 }
 
 1;
