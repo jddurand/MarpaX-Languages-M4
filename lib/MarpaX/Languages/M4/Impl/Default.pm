@@ -279,9 +279,12 @@ EVAL_GRAMMAR
                 return;
             };
             if ( !Undef->check($fh) ) {
-                $self->impl_parse(
+                local $MarpaX::Languages::M4::SELF = $self;
+                $self->impl_parseIncremental(
                     do { local $/; <$fh> }
                 );
+                print $self->impl_value;
+                ${ $self->impl_valueRef } = '';
             }
             #
             # Merge next option values
@@ -720,7 +723,6 @@ EVAL_GRAMMAR
 
     method _trigger_interactive {
         my $buf;
-        my $unparsed;
 
         STDOUT->autoflush();
 
@@ -730,13 +732,7 @@ EVAL_GRAMMAR
         #
         local $MarpaX::Languages::M4::SELF = $self;
         while ( defined( $_ = <STDIN> ) ) {
-            if ( !defined($buf) ) {
-                $buf = $_;
-            }
-            else {
-                $buf = $self->impl_unparsed . $_;
-            }
-            $self->impl_parseIncremental($buf);
+            $self->impl_parseIncremental($_);
             print $self->impl_value;
             ${ $self->impl_valueRef } = '';
         }
@@ -1891,7 +1887,7 @@ EVAL_GRAMMAR
         default => false
     );
 
-    has impl_unparsed => (
+    has _unparsed => (
         is      => 'rwp',
         isa     => Str,
         default => ''
@@ -3509,7 +3505,7 @@ STUB
             #
             # This throw an exception and will log when necessary
             #
-            $self->_set_impl_unparsed( $self->parser_parse($input) );
+            $self->_set__unparsed( $self->parser_parse($self->_unparsed . $input) );
         } catch {
           if (! $self->parser_isParserException($_) &&
               ! $self->impl_isImplException($_)) {
@@ -3521,7 +3517,7 @@ STUB
           #
           # The whole thing is unparsed!
           #
-          $self->_set_impl_unparsed( $input );
+          $self->_set__unparsed( $input );
           return;
         };
         return $self;
@@ -3612,6 +3608,7 @@ STUB
       # Execute the macro
       #
       local $MarpaX::Languages::M4::MACRO = $macro;
+      local $MarpaX::Languages::M4::MACROCALLID = $self->_macroCallId;
       my $printableMacroName
         = $self->_printable( $macro->name, true );
 
@@ -3666,6 +3663,10 @@ STUB
 
     method impl_macroCallId(--> PositiveOrZeroInt) {
       return $self->_macroCallId;
+    }
+
+    method impl_unparsed(--> Str) {
+      return $self->_unparsed;
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';

@@ -70,7 +70,11 @@ sub _logging_cb {
   } elsif ($level >= $logging_levels{warning}) {
       $prefix = '';
   } else {
-      $prefix = sprintf('%s: -%d- ', 'm4trace', $_impl->impl_macroCallId);
+      my $macroCallId = $MarpaX::Languages::M4::MACROCALLID;
+      $prefix = 'm4trace: ';
+      if (defined($macroCallId)) {
+          $prefix .= sprintf('-%d- ', $macroCallId);
+      }
   }
   if ($ENV{M4_ENCODE_LOCALE}) {
     binmode $fh, ":encoding(console_out)" if (is_interactive($fh));

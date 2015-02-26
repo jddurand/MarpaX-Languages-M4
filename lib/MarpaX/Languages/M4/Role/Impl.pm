@@ -29,6 +29,7 @@ role MarpaX::Languages::M4::Role::Impl {
     requires 'impl_isImplException';
     requires 'impl_macroExecute';
     requires 'impl_macroCallId';
+    requires 'impl_debugfile';
 
     with 'MarpaX::Languages::M4::Role::Builtin';
     with 'MarpaX::Languages::M4::Role::Logger';
