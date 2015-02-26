@@ -68,7 +68,9 @@ class MarpaX::Languages::M4::Impl::Default {
     use Marpa::R2;
     use MooX::HandlesVia;
     use Scalar::Util qw/blessed/;
-    use Throwable::Factory ImplException => undef, ArgumentDecodeException => undef;
+    use Throwable::Factory
+        ImplException           => undef,
+        ArgumentDecodeException => undef;
 
     BEGIN {
         #
@@ -89,7 +91,9 @@ class MarpaX::Languages::M4::Impl::Default {
             catch {
                 my $error = join( "\n", @_ );
                 $error =~ s/\s*\z//;
-                ArgumentDecodeException->throw("Cannot decode command-line arguments: $error. Change or remove M4_ARGV_ENCODING environment variable. Exception is: $_");
+                ArgumentDecodeException->throw(
+                    "Cannot decode command-line arguments: $error. Change or remove M4_ARGV_ENCODING environment variable. Exception is: $_"
+                );
                 return;
             }
             finally {
@@ -1613,30 +1617,32 @@ EVAL_GRAMMAR
         return;
     }
 
-    method _canDebug(--> Bool) {
-      #
-      # Get the localized value of $MarpaX::Languages::M4::MACRO
-      #
-      my $macro = $MarpaX::Languages::M4::MACRO;
-      if (Undef->check($macro)) {
+    method _canDebug (--> Bool) {
+            #
+            # Get the localized value of $MarpaX::Languages::M4::MACRO
+            #
+        my $macro = $MarpaX::Languages::M4::MACRO;
+        if ( Undef->check($macro) ) {
+            #
+            # This will handle all calls to debug outside
+            # of a macro call, which should never
+            # happen unless in development mode
+            #
+            return true;
+        }
         #
-        # This will handle all calls to debug outside of macro, which should never
-        # happen unless in development mode
+        # A macro is debugged if 't' is setted,
+        # or if it is explicitely traced
         #
-        return true;
-      }
-      #
-      # A macro is debugged if 't' is setted or macro is explicitely traced
-      #
-      if (! $self->_debug_get('t') && ! $self->_trace_get($macro->name)) {
-        return false;
-      }
+        if ( !$self->_debug_get('t') && !$self->_trace_get( $macro->name ) ) {
+            return false;
+        }
 
-      return true;
+        return true;
     }
 
     method logger_debug (@args --> Undef) {
-        if (! $self->_canDebug) {
+        if ( !$self->_canDebug ) {
             return;
         }
         $self->_logger->debugf(@args);
@@ -1804,7 +1810,9 @@ EVAL_GRAMMAR
     method _trigger__eof (Bool $eof, @rest --> Undef) {
         if ($eof) {
             #
-            # First, m4wrap stuff is rescanned
+            # First, m4wrap stuff is rescanned.
+            # and each of them appears like an
+            # independant input.
             #
             while ( $self->_m4wrap_count > 0 ) {
                 my @m4wrap = $self->_m4wrap_elements;
@@ -2127,7 +2135,7 @@ EVAL_GRAMMAR
                     $args[$_] = '';
                 }
             }
-            return $self->impl_macroExecute($macro, @args );
+            return $self->impl_macroExecute( $macro, @args );
         }
         else {
             $self->logger_error( 'indir: undefined macro %s',
@@ -2161,7 +2169,8 @@ EVAL_GRAMMAR
             #
             my $rc = '';
             try {
-              $rc = $self->impl_macroExecute($self->_builtins_get($name), @args );
+                $rc = $self->impl_macroExecute( $self->_builtins_get($name),
+                    @args );
             }
             catch {
                 $self->logger_error( '%s', $_ );
@@ -3358,7 +3367,15 @@ EVAL_GRAMMAR
     }
 
     method builtin_errprint (Str @args --> Str) {
+                              #
+                              # debugfile is IGNORED
+                              #
+        my $oldDebugfile = $self->_debugfile;
+
+        $self->_set__debugfile(undef);
         $self->logger_error( '%s', join( ' ', @args ) );
+        $self->_set__debugfile($oldDebugfile);
+
         return '';
     }
 
@@ -3505,37 +3522,37 @@ STUB
             #
             # This throw an exception and will log when necessary
             #
-            $self->_set__unparsed( $self->parser_parse($self->_unparsed . $input) );
-        } catch {
-          if (! $self->parser_isParserException($_) &&
-              ! $self->impl_isImplException($_)) {
+            $self->_set__unparsed(
+                $self->parser_parse( $self->_unparsed . $input ) );
+        }
+        catch {
+            if ( !$self->impl_isImplException($_) ) {
+                #
+                # "$_" explicitely: if this is an object,
+                # this will call the stringify overload
+                #
+                $self->logger_error( '%s', "$_" );
+            }
             #
-            # "$_" explicitely: if this is an object, this will call the stringify overload
+            # The whole thing is unparsed!
             #
-            $self->logger_error( '%s', "$_" );
-          }
-          #
-          # The whole thing is unparsed!
-          #
-          $self->_set__unparsed( $input );
-          return;
+            $self->_set__unparsed($input);
+            return;
         };
         return $self;
     }
 
-    method impl_isImplException(Any $obj --> Bool) {
-      my $blessed = blessed($obj);
-      if (! $blessed) {
-        return false;
-      }
-      my $DOES = $obj->can('DOES') || 'isa';
-      if (! grep {$obj->$DOES($_)} (ImplException)) {
-        return false;
-      }
-      return true;
+    method impl_isImplException (Any $obj --> Bool) {
+        my $blessed = blessed($obj);
+        if ( !$blessed ) {
+            return false;
+        }
+        my $DOES = $obj->can('DOES') || 'isa';
+        if ( !grep { $obj->$DOES($_) } (ImplException) ) {
+            return false;
+        }
+        return true;
     }
-
-
 
     method impl_appendValue (Str $result --> ConsumerOf[M4Impl]) {
         $self->_lastDiversion->print($result);
@@ -3599,74 +3616,59 @@ STUB
             : $printable;
     }
 
-    method impl_macroExecute(ConsumerOf[M4Macro] $macro, @args --> Str|M4Macro) {
-      #
-      # Increment call id
-      #
-      $self->_set__macroCallId($self->_macroCallId + 1);
-      #
-      # Execute the macro
-      #
-      local $MarpaX::Languages::M4::MACRO = $macro;
-      local $MarpaX::Languages::M4::MACROCALLID = $self->_macroCallId;
-      my $printableMacroName
-        = $self->_printable( $macro->name, true );
+    method impl_macroExecute (ConsumerOf[M4Macro] $macro, @args --> Str|M4Macro) {
+                               #
+                               # Increment call id
+                               #
+        $self->_set__macroCallId( $self->_macroCallId + 1 );
+        #
+        # Execute the macro
+        #
+        local $MarpaX::Languages::M4::MACRO       = $macro;
+        local $MarpaX::Languages::M4::MACROCALLID = $self->_macroCallId;
+        my $printableMacroName = $self->_printable( $macro->name, true );
 
-      $self->logger_debug( '%s ...',
-                           $printableMacroName );
+        $self->logger_debug( '%s ...', $printableMacroName );
 
-
-      if (@args) {
-        my $printableArguments = join( ', ',
-                                       map { $self->_printable($_) }
-                                       @args);
-        $self->logger_debug(
-                            '%s(%s) -> ???',
-                            $printableMacroName,
-                            $printableArguments
-                           );
-      } else {
-        $self->logger_debug(
-                            '%s -> ???',
-                            $printableMacroName
-                           );
-      }
-
-      my $rc = $macro->macro_execute( $self, @args);
-
-      if ( length($rc) > 0 ) {
         if (@args) {
-          $self->logger_debug(
-                              '%s(...) -> %s',
-                              $printableMacroName,
-                              $self->_printable($rc)
-                             );
-        } else {
-          $self->logger_debug(
-                              '%s -> %s',
-                              $printableMacroName,
-                              $self->_printable($rc)
-                             );
+            my $printableArguments
+                = join( ', ', map { $self->_printable($_) } @args );
+            $self->logger_debug( '%s(%s) -> ???',
+                $printableMacroName, $printableArguments );
         }
-      }
-      else {
-        if (@args) {
-          $self->logger_debug( '%s(...)',
-                               $printableMacroName );
-        } else {
-          $self->logger_debug( '%s',
-                               $printableMacroName );
+        else {
+            $self->logger_debug( '%s -> ???', $printableMacroName );
         }
-      }
-      return $rc;
+
+        my $rc = $macro->macro_execute( $self, @args );
+
+        if ( length($rc) > 0 ) {
+            if (@args) {
+                $self->logger_debug( '%s(...) -> %s',
+                    $printableMacroName, $self->_printable($rc) );
+            }
+            else {
+                $self->logger_debug( '%s -> %s', $printableMacroName,
+                    $self->_printable($rc) );
+            }
+        }
+        else {
+            if (@args) {
+                $self->logger_debug( '%s(...)', $printableMacroName );
+            }
+            else {
+                $self->logger_debug( '%s', $printableMacroName );
+            }
+        }
+        return $rc;
     }
 
-    method impl_macroCallId(--> PositiveOrZeroInt) {
-      return $self->_macroCallId;
+    method impl_macroCallId (--> PositiveOrZeroInt) {
+        return $self->_macroCallId;
     }
 
-    method impl_unparsed(--> Str) {
-      return $self->_unparsed;
+    method impl_unparsed (--> Str) {
+        return $self->_unparsed;
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';

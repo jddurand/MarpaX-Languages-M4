@@ -15,7 +15,6 @@ class MarpaX::Languages::M4::Impl::Parser {
     use Marpa::R2;                               # 2.103_004;
     use Scalar::Util qw/readonly/;
     use Types::Common::Numeric -all;
-    use Throwable::Factory NoLexeme => undef, NoParseValue => undef;
 
     # VERSION
 
@@ -131,10 +130,11 @@ COMMA ~ ',' _WS_any
 
         my $maxPos = length( ${$inputRef} ) - 1;
         #
-        # Protect the case of empty string
+        # Protect the case of empty string.
+        # This is affecting all parsing levels.
         #
         if ( $pos > $maxPos ) {
-            return undef;
+            return;
         }
         #
         # Get the lexemes ordering
@@ -217,12 +217,21 @@ COMMA ~ ',' _WS_any
 
             my $canCollectArguments = true;
             if ( $g == $BYMACROARGUMENTS_G ) {
-                $isQuotedString
-                    = $self->parser_isQuotedstring( ${$inputRef}, $rc{pos},
-                    $maxPos, \$QuotedstringValue, \$QuotedstringLength );
-                $isComment = $self->parser_isComment( ${$inputRef}, $rc{pos},
-                    $maxPos, \$CommentValue, \$CommentLength );
-                $canCollectArguments = !$isQuotedString && !$isComment;
+                my $blockOk = false;
+                try {
+                    $isQuotedString
+                        = $self->parser_isQuotedstring( ${$inputRef},
+                        $rc{pos},
+                        $maxPos, \$QuotedstringValue, \$QuotedstringLength );
+                    $isComment
+                        = $self->parser_isComment( ${$inputRef}, $rc{pos},
+                        $maxPos, \$CommentValue, \$CommentLength );
+                    $canCollectArguments = !$isQuotedString && !$isComment;
+                    $blockOk = true;
+                };
+                if ( !$blockOk ) {
+                    goto return_error;
+                }
             }
 
             foreach (@lexemeNames) {
@@ -304,14 +313,18 @@ COMMA ~ ',' _WS_any
                         # in the context of macro arguments grammar
                         # Ditto for COMMENT.
                         #
-                        my $method = 'parser_is' . ucfirst( lc($_) );
-                        if ($self->$method(
-                                ${$inputRef}, $rc{pos},
-                                $maxPos,      \$lexemeValue,
-                                \$lexemeLength
-                            )
-                            )
-                        {
+                        my $method  = 'parser_is' . ucfirst( lc($_) );
+                        my $blockOk = false;
+                        my $isToken;
+                        try {
+                            $isToken = $self->$method( ${$inputRef}, $rc{pos},
+                                $maxPos, \$lexemeValue, \$lexemeLength );
+                            $blockOk = true;
+                        };
+                        if ( !$blockOk ) {
+                            goto return_error;
+                        }
+                        if ($isToken) {
                             $lexeme = $_;
                             last;
                         }
@@ -322,9 +335,7 @@ COMMA ~ ',' _WS_any
             # Nothing ?
             #
             if ( Undef->check($lexeme) ) {
-                NoLexeme->throw(
-                    "No token found at position $rc{pos} (20 first characters): "
-                        . substr( ${$inputRef}, $rc{pos}, 20 ) );
+                goto return_error;
             }
             #
             # If it is a word, check if this is eventually a macro
@@ -352,11 +363,18 @@ COMMA ~ ',' _WS_any
                             $BYMACROARGUMENTS_G, $thisMacro
                         );
                         $self->_set__parse_level( $self->_parse_level - 1 );
-
+                        if ( Undef->check($dict) ) {
+                            goto return_error;
+                        }
                         @args         = $dict->{value}->value_elements;
                         $lexemeLength = $dict->{pos} - $rc{pos};
                     }
-                    $lexemeValue = $self->impl_macroExecute($thisMacro, @args);
+                    #
+                    # It is the reponsability of implementation to make sure
+                    # that a macro never croaks.
+                    #
+                    $lexemeValue
+                        = $self->impl_macroExecute( $thisMacro, @args );
                     #
                     # Eventual postmatch length
                     #
@@ -392,12 +410,6 @@ COMMA ~ ',' _WS_any
                         #     $rc{pos}, $rc{pos}, $maxPos, ${$inputRef} );
 
                         $maxPos = length( ${$inputRef} ) - 1;
-                        #
-                        # Protect the case of empty string
-                        #
-                        if ( $rc{pos} > $maxPos ) {
-                            return undef;
-                        }
                         goto again;
                     }
                 }
@@ -440,6 +452,9 @@ COMMA ~ ',' _WS_any
                 #
             }
             else {
+                #
+                # We are at the top level: flush to current diversion
+                #
                 my $tmpValue = MarpaX::Languages::M4::Impl::Value->new()
                     ->value_push($lexemeValue);
                 $self->impl_appendValue(
@@ -456,10 +471,8 @@ COMMA ~ ',' _WS_any
             #
             local $MarpaX::Languages::M4::Impl::Parser::macro = $macro;
             my $valueRef = $r->value;
-            if ( Undef->check($valueRef) ) {
-                NoParseValue->throw(
-                    "No parse value starting at position $pos (20 first characters): "
-                        . substr( ${$inputRef}, $pos, 20 ) );
+            if ( Undef->check($valueRef) || Undef->check( ${$valueRef} ) ) {
+                goto return_error;
             }
 
             $rc{value} = ${$valueRef};
@@ -475,6 +488,17 @@ COMMA ~ ',' _WS_any
         #     $rc{pos}, $rc{pos}, $maxPos, \%rc );
 
         return \%rc;
+
+    return_error:
+        #
+        # We propagate the undef to all levels except number 0
+        #
+        if ( $self->_parse_level > 0 ) {
+            return;
+        }
+        else {
+            return \%rc;
+        }
     }
 
     #
@@ -484,24 +508,11 @@ COMMA ~ ',' _WS_any
     method _parseByTokens (Ref['SCALAR'] $inputRef --> Str) {
 
         my $rc = $self->_parseByGrammar( $inputRef, 0, $BYTOKEN_G );
-        $self->logger_debug( '%s ==> %s', $inputRef, $rc);
         if ( !Undef->check($rc) ) {
             return substr( ${$inputRef}, $rc->{pos} );
         }
 
         return ${$inputRef};
-    }
-
-    method parser_isParserException(Any $obj --> Bool) {
-      my $blessed = blessed($obj);
-      if (! $blessed) {
-        return false;
-      }
-      my $DOES = $obj->can('DOES') || 'isa';
-      if (! grep {$obj->$DOES($_)} (NoLexeme, NoParseValue)) {
-        return false;
-      }
-      return true;
     }
 
 }
