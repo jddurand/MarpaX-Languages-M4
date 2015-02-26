@@ -43,16 +43,18 @@ sub _logging_cb {
   if (! defined($level)) {
     return;
   }
+  #
+  # If called within new_with_options(), $impl
+  # is not yet setted
+  #
+  my $_impl = $impl || $MarpaX::Languages::M4::SELF;
+
   my $fh;
   open($fh, '>>&STDERR');
   my $fhName = 'STDERR';
+  my $prefix;
   if ($level >= $logging_levels{error}) {
-    #
-    # If called within new_with_options(), $impl
-    # is not yet setted
-    #
-    my $thisSelf = $impl || $MarpaX::Languages::M4::SELF;
-    my $debugfile = $thisSelf->impl_debugfile;
+    my $debugfile = $_impl->impl_debugfile;
     if (defined($debugfile)) {
       if (! open($fh, '>>', $debugfile)) {
         #
@@ -64,12 +66,19 @@ sub _logging_cb {
         $fhName = $debugfile;
       }
     }
+    $prefix = 'm4error: ';
+  } elsif ($level >= $logging_levels{warning}) {
+      $prefix = '';
+  } else {
+      $prefix = sprintf('%s: -%d- ', 'm4trace', $_impl->impl_macroCallId);
   }
   if ($ENV{M4_ENCODE_LOCALE}) {
     binmode $fh, ":encoding(console_out)" if (is_interactive($fh));
   }
 
-  printf $fh "$format\n", @params;
+  my $program     = $_impl->builtin___program__;
+
+  printf $fh "$prefix$format\n", @params;
   if (! close($fh)) {
     warn "Cannot close $fhName, $!";
   }

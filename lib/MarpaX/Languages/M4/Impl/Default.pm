@@ -1623,7 +1623,11 @@ EVAL_GRAMMAR
       #
       my $macro = $MarpaX::Languages::M4::MACRO;
       if (Undef->check($macro)) {
-        return false;
+        #
+        # This will handle all calls to debug outside of macro, which should never
+        # happen unless in development mode
+        #
+        return true;
       }
       #
       # A macro is debugged if 't' is setted or macro is explicitely traced
@@ -1823,6 +1827,12 @@ EVAL_GRAMMAR
     # ----------------------------------------------------
     # Internal attributes
     # ----------------------------------------------------
+    has _macroCallId => (
+        is      => 'rwp',
+        isa     => PositiveOrZeroInt,
+        default => 0
+    );
+
     has _rc => (
         is      => 'rwp',
         isa     => Int,
@@ -3508,6 +3518,10 @@ STUB
             #
             $self->logger_error( '%s', "$_" );
           }
+          #
+          # The whole thing is unparsed!
+          #
+          $self->_set_impl_unparsed( $input );
           return;
         };
         return $self;
@@ -3591,6 +3605,10 @@ STUB
 
     method impl_macroExecute(ConsumerOf[M4Macro] $macro, @args --> Str|M4Macro) {
       #
+      # Increment call id
+      #
+      $self->_set__macroCallId($self->_macroCallId + 1);
+      #
       # Execute the macro
       #
       local $MarpaX::Languages::M4::MACRO = $macro;
@@ -3644,6 +3662,10 @@ STUB
         }
       }
       return $rc;
+    }
+
+    method impl_macroCallId(--> PositiveOrZeroInt) {
+      return $self->_macroCallId;
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';
