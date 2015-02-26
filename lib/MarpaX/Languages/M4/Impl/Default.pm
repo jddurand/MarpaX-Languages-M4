@@ -3465,6 +3465,10 @@ $prepareArguments
 STUB
         my $codeRef = eval "$stubSource";
         if ($@) {
+            #
+            # Explicitely logged as an internal error, because if I made
+            # no error in this routine, this must never happen.
+            #
             $self->logger_error( 'Internal: %s', $@ );
         }
         return $codeRef;
@@ -3482,7 +3486,7 @@ STUB
             #
             # "$_" explicitely: if this is an object, this will call the stringify overload
             #
-            $self->logger_error( 'Internal: %s', "$_" );
+            $self->logger_error( '%s', "$_" );
           }
           return;
         };
