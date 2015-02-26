@@ -339,11 +339,6 @@ COMMA ~ ',' _WS_any
                     )
                     )
                 {
-
-                    my $macroName = $lexemeValue;
-                    my $printableMacroName
-                        = $self->_printable( $macroName, true );
-
                     #
                     # Collect macro arguments
                     #
@@ -489,24 +484,12 @@ COMMA ~ ',' _WS_any
     method _parseByTokens (Ref['SCALAR'] $inputRef --> Str) {
 
         my $rc = $self->_parseByGrammar( $inputRef, 0, $BYTOKEN_G );
+        $self->logger_debug( '%s ==> %s', $inputRef, $rc);
         if ( !Undef->check($rc) ) {
             return substr( ${$inputRef}, $rc->{pos} );
         }
 
         return ${$inputRef};
-    }
-
-    method _printable (Str|M4Macro $input, Bool $noQuote? --> Str) {
-        $noQuote //= false;
-        #
-        # If M4Macro let's get the object representation stringified
-        #
-        my $printable = Str->check($input) ? $input : "$input";
-
-        # $printable =~ s/([^[:print:]])/sprintf('0x%x', ord($1))/eg;
-        return Str->check($input)
-            ? ( $noQuote ? $printable : $self->impl_quote($printable) )
-            : $printable;
     }
 
     method parser_isParserException(Any $obj --> Bool) {
