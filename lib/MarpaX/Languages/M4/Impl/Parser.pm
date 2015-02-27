@@ -498,9 +498,7 @@ COMMA ~ ',' _WS_any
                 #
                 # We want the parsing to stop now
                 #
-                my $message = 'EOF during argument collection';
-                $self->logger_error($message);
-                $self->impl_raiseException($message);
+                $self->impl_raiseException('EOF during argument collection');
             }
             return;
         }

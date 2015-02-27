@@ -1491,7 +1491,7 @@ EVAL_GRAMMAR
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
                 if ( $self->_eoi ) {
-                    ImplException->throw('EOF in comment');
+                    $self->impl_raiseException('EOF in comment');
                 }
             }
         }
@@ -1540,7 +1540,7 @@ EVAL_GRAMMAR
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
                 if ( $self->_eoi ) {
-                    ImplException->throw('EOF in string');
+                    $self->impl_raiseException('EOF in string');
                 }
             }
         }
@@ -1612,7 +1612,7 @@ EVAL_GRAMMAR
             # Say we do not accept more input
             #
             $self->impl_setEoi;
-            ImplException->throw('Warning is fatal');
+            $self->impl_raiseException('Warning is fatal');
         }
         return;
     }
@@ -3680,6 +3680,7 @@ STUB
     }
 
     method impl_raiseException (Str $message --> Undef) {
+        $self->logger_error($message);
         ImplException->throw($message);
     }
 
