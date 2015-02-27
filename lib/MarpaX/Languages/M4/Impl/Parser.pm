@@ -494,6 +494,14 @@ COMMA ~ ',' _WS_any
         # We propagate the undef to all levels except number 0
         #
         if ( $self->_parse_level > 0 ) {
+            if ( $self->_parse_level == 1 && $self->impl_eoi ) {
+                #
+                # We want the parsing to stop now
+                #
+                my $message = 'EOF during argument collection';
+                $self->logger_error($message);
+                $self->impl_raiseException($message);
+            }
             return;
         }
         else {

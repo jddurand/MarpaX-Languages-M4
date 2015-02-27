@@ -3526,6 +3526,10 @@ STUB
                 $self->parser_parse( $self->_unparsed . $input ) );
         }
         catch {
+            #
+            # Every ImplException must be preceeded by
+            # a call to $self->logger_error.
+            #
             if ( !$self->impl_isImplException($_) ) {
                 #
                 # "$_" explicitely: if this is an object,
@@ -3669,6 +3673,14 @@ STUB
 
     method impl_unparsed (--> Str) {
         return $self->_unparsed;
+    }
+
+    method impl_eoi (--> Bool) {
+        return $self->_eoi;
+    }
+
+    method impl_raiseException (Str $message --> Undef) {
+        ImplException->throw($message);
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';
