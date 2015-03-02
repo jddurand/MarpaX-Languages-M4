@@ -1,9 +1,9 @@
 {
-   "abstract" : "M4 implementation role",
+   "abstract" : "M4 implementation in Perl",
    "author" : [
       "Jean-Damien Durand <jeandamiendurand@free.fr>"
    ],
-   "dynamic_config" : 1,
+   "dynamic_config" : 0,
    "generated_by" : "Dist::Zilla version 5.032, CPAN::Meta::Converter version 2.143240",
    "license" : [
       "perl_5"
@@ -47,7 +47,6 @@
       "runtime" : {
          "requires" : {
             "Bit::Vector" : "0",
-            "Carp" : "0",
             "Encode" : "0",
             "Encode::Locale" : "0",
             "Env::Path" : "0",
@@ -98,7 +97,68 @@
          }
       }
    },
-   "provides" : {},
+   "provides" : {
+      "MarpaX::Languages::M4::Impl::Default" : {
+         "file" : "lib/MarpaX/Languages/M4/Impl/Default.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Impl::Default::BaseConversion" : {
+         "file" : "lib/MarpaX/Languages/M4/Impl/Default/BaseConversion.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Impl::Default::Eval" : {
+         "file" : "lib/MarpaX/Languages/M4/Impl/Default/Eval.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Impl::Macro" : {
+         "file" : "lib/MarpaX/Languages/M4/Impl/Macro.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Impl::Macros" : {
+         "file" : "lib/MarpaX/Languages/M4/Impl/Macros.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Impl::Parser" : {
+         "file" : "lib/MarpaX/Languages/M4/Impl/Parser.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Impl::Parser::Actions" : {
+         "file" : "lib/MarpaX/Languages/M4/Impl/Parser/Actions.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Impl::Value" : {
+         "file" : "lib/MarpaX/Languages/M4/Impl/Value.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Role::Builtin" : {
+         "file" : "lib/MarpaX/Languages/M4/Role/Builtin.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Role::Impl" : {
+         "file" : "lib/MarpaX/Languages/M4/Role/Impl.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Role::Logger" : {
+         "file" : "lib/MarpaX/Languages/M4/Role/Logger.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Role::Macro" : {
+         "file" : "lib/MarpaX/Languages/M4/Role/Macro.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Role::Macros" : {
+         "file" : "lib/MarpaX/Languages/M4/Role/Macros.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Role::Parser" : {
+         "file" : "lib/MarpaX/Languages/M4/Role/Parser.pm",
+         "version" : "0.007"
+      },
+      "MarpaX::Languages::M4::Role::Value" : {
+         "file" : "lib/MarpaX/Languages/M4/Role/Value.pm",
+         "version" : "0.007"
+      }
+   },
    "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
@@ -112,7 +172,7 @@
          "web" : "https://github.com/jddurand/marpax-languages-m4"
       }
    },
-   "version" : "0.006",
+   "version" : "0.007",
    "x_authority" : "cpan:JDDPAUSE"
 }
 
