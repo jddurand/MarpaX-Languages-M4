@@ -439,6 +439,31 @@ EVAL_GRAMMAR
     method _build__integer_type {'bitvector'}
 
     # =========================
+    # --regex-type
+    # =========================
+    option regex_type => (
+        is      => 'rw',
+        isa     => Str,
+        trigger => 1,
+        format  => 's',
+        doc =>
+            q{Regular expression type. Possible values: "emacs", "perl". Default: "emacs".}
+    );
+    has _regex_type => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => Enum [qw/emacs perl/]
+    );
+
+    method _trigger_regex_type (Str $regex_type, @rest --> Undef) {
+        $self->_set__regex_type($regex_type);
+        return;
+    }
+
+    method _build__regex_type {'emacs'}
+
+    # =========================
     # --integer-bits
     # =========================
     our $INTEGER_BITS_DEFAULT_VALUE = 32;
@@ -2758,11 +2783,22 @@ EVAL_GRAMMAR
         }
 
         my $regexp;
+        my $buf;
         try {
+          if ($self->_regex_type eq 'perl') {
             #
             # regexp can be empty
             #
             $regexp = qr/$regexpString(?#)/sm;
+          } else {
+            use Gnulib::Regex 0.003;
+            my $octets = encode_utf8($regexpString);
+            $buf = Gnulib::Regex::re_pattern_buffer->new();
+            my $msg = Gnulib::Regex::re_compile_pattern($octets, length($octets), $buf);
+            if ($msg) {
+              die $msg;
+            }
+          }
         }
         catch {
             $self->logger_error( '%s: %s', $self->impl_quote('regexp'), $_ );
