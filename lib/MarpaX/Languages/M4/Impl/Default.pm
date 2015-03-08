@@ -447,13 +447,13 @@ EVAL_GRAMMAR
         trigger => 1,
         format  => 's',
         doc =>
-            q{Regular expression type. Possible values: "emacs", "perl". Default: "emacs".}
+            q{Regular expression type. Possible values: "m4", "perl". Default: "m4".}
     );
     has _regex_type => (
         is      => 'rwp',
         lazy    => 1,
         builder => 1,
-        isa     => Enum [qw/emacs perl/]
+        isa     => Enum [qw/m4 perl/]
     );
 
     method _trigger_regex_type (Str $regex_type, @rest --> Undef) {
@@ -461,7 +461,7 @@ EVAL_GRAMMAR
         return;
     }
 
-    method _build__regex_type {'emacs'}
+    method _build__regex_type {'m4'}
 
     # =========================
     # --integer-bits
@@ -2787,17 +2787,13 @@ EVAL_GRAMMAR
         try {
           if ($self->_regex_type eq 'perl') {
             #
-            # regexp can be empty
+            # regexp can be empty and perl have a very special
+            # behaviour in this case. Avoid empty regexp.
             #
             $regexp = qr/$regexpString(?#)/sm;
           } else {
-            use Gnulib::Regex 0.003;
-            my $octets = encode_utf8($regexpString);
-            $buf = Gnulib::Regex::re_pattern_buffer->new();
-            my $msg = Gnulib::Regex::re_compile_pattern($octets, length($octets), $buf);
-            if ($msg) {
-              die $msg;
-            }
+            use re::engine::GNU;
+            $regexp = qr/$regexpString/sm;
           }
         }
         catch {
