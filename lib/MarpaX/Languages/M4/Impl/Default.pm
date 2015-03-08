@@ -71,6 +71,21 @@ class MarpaX::Languages::M4::Impl::Default {
     use Throwable::Factory
         ImplException           => undef,
         ArgumentDecodeException => undef;
+   #
+   # This is just to load re::engine::GNU once, without affecting $^H{regcomp}
+   #
+    our $HAVE_re__engine__GNU;
+    BEGIN {
+        my $hasPreviousRegcomp = exists( $^H{regcomp} );
+        my $previousRegcomp = $hasPreviousRegcomp ? $^H{regcomp} : undef;
+        $HAVE_re__engine__GNU = eval 'use re::engine::GNU; 1;' || 0;
+        #
+        # Always restore previous regcomp engine
+        #
+        if ($hasPreviousRegcomp) {
+            $^H{regcomp} = $previousRegcomp;
+        }
+    }
 
     BEGIN {
         #
@@ -447,13 +462,13 @@ EVAL_GRAMMAR
         trigger => 1,
         format  => 's',
         doc =>
-            q{Regular expression type. Possible values: "m4", "perl". Default: "m4".}
+            q{Regular expression type. Possible values: "emacs", "perl". Default: "emacs" (the engine equivalent to M4 default).}
     );
     has _regex_type => (
         is      => 'rwp',
         lazy    => 1,
         builder => 1,
-        isa     => Enum [qw/m4 perl/]
+        isa     => Enum [qw/emacs perl/]
     );
 
     method _trigger_regex_type (Str $regex_type, @rest --> Undef) {
@@ -461,7 +476,7 @@ EVAL_GRAMMAR
         return;
     }
 
-    method _build__regex_type {'m4'}
+    method _build__regex_type {'emacs'}
 
     # =========================
     # --integer-bits
@@ -1352,10 +1367,13 @@ EVAL_GRAMMAR
     method _build__comment_end      {$DEFAULT_COMMENT_END}
     method _build__commentEndLength { length($DEFAULT_COMMENT_END) }
 
-    # =========================
-    # --word-regexp
-    # =========================
-    our $DEFAULT_WORD_REGEXP = '[_a-zA-Z][_a-zA-Z0-9]*';
+# =========================
+# --word-regexp
+# =========================
+#
+# Note: it appears that the default regexp works with both perl and GNU emacs engines
+#
+    our $DEFAULT_WORD_REGEXP = '^[_a-zA-Z][_a-zA-Z0-9]*';
     option word_regexp => (
         is      => 'rw',
         isa     => Str,
@@ -1377,21 +1395,20 @@ EVAL_GRAMMAR
         if ( length($regexp) <= 0 ) {
             $regexp = $DEFAULT_WORD_REGEXP;
         }
-        try {
-            #
-            # Here per def $regexp is never empty
-            #
-            $self->_set__word_regexp(qr/^$regexp/s);
+        my $r = $self->_compile_regexp($regexp);
+        if ( !Undef->check($r) ) {
+            $self->_set__word_regexp($r);
         }
-        catch {
-            $self->logger_error( '%s: %s', $self->impl_quote($regexp), $_ );
-            return;
-        };
 
         return;
     }
 
-    method _build__word_regexp {qr/^$DEFAULT_WORD_REGEXP/}
+    #
+    # Why perltidier does not like it without @args ?
+    #
+    method _build__word_regexp(@args) {
+        $self->_compile_regexp($DEFAULT_WORD_REGEXP);
+    }
 
     # =========================
     # --warn-macro-sequence
@@ -1419,23 +1436,17 @@ EVAL_GRAMMAR
             $self->_set__warn_macro_sequence(undef);
             return;
         }
-        try {
-            #
-            # Per def, here, $regexp is never empty
-            #
-            $self->_set__warn_macro_sequence(qr/$regexp/s);
+        my $r = $self->_compile_regexp($regexp);
+        if ( !Undef->check($r) ) {
+            $self->_set__warn_macro_sequence($r);
         }
-        catch {
-            $self->logger_error( '%s: %s', $self->impl_quote($regexp), $_ );
-            return;
-        };
 
         return;
     }
 
-    sub _build__warn_macro_sequence {
-        qr/$DEFAULT_WARN_MACRO_SEQUENCE/;
-    }    #__METHOD 60
+    method _build__warn_macro_sequence {
+        $self->_compile_regexp($DEFAULT_WARN_MACRO_SEQUENCE);
+    }
 
     # ---------------------------------------------------------------
     # PARSER REQUIRED METHODS
@@ -2773,6 +2784,51 @@ EVAL_GRAMMAR
         return "\$match\[$indice\]";
     }
 
+    method _compile_regexp (Str $regexpString --> Undef|RegexpRef) {
+        my $regexp;
+        my $hasPreviousRegcomp = exists( $^H{regcomp} );
+        my $previousRegcomp = $hasPreviousRegcomp ? $^H{regcomp} : undef;
+
+        my $doCompile = true;
+        if ( $self->_regex_type ne 'perl' ) {
+            if ( !$HAVE_re__engine__GNU ) {
+                #
+                # No need to go further
+                #
+                $self->logger_error('re::engine::GNU cannot be loaded ');
+                $doCompile = false;
+            }
+        }
+        if ($doCompile) {
+            try {
+                if ( $self->_regex_type eq 'perl' ) {
+                    #
+                    # regexp can be empty and perl have a very special
+                    # behaviour in this case. Avoid empty regexp.
+                    #
+                    delete( $^H{regcomp} );
+                    $regexp = qr/$regexpString(?#)/sm;
+                }
+                else {
+                    $^H{regcomp} = $re::engine::GNU::ENGINE;
+                    $regexp = qr/$regexpString/sm;
+                }
+            }
+            catch {
+                $self->logger_error( '%s: %s',
+                    $self->impl_quote($regexpString), $_ );
+            };
+        }
+        #
+        # Always restore previous regcomp engine
+        #
+        if ($hasPreviousRegcomp) {
+            $^H{regcomp} = $previousRegcomp;
+        }
+
+        return $regexp;
+    }
+
     method builtin_regexp (Undef|Str $string?, Undef|Str $regexpString?, Undef|Str $replacement?, @ignored --> Str) {
         if ( Undef->check($string) || Undef->check($regexpString) ) {
             $self->logger_error(
@@ -2782,23 +2838,7 @@ EVAL_GRAMMAR
             return '0';
         }
 
-        my $regexp;
-        my $buf;
-        try {
-          if ($self->_regex_type eq 'perl') {
-            #
-            # regexp can be empty and perl have a very special
-            # behaviour in this case. Avoid empty regexp.
-            #
-            $regexp = qr/$regexpString(?#)/sm;
-          } else {
-            use re::engine::GNU;
-            $regexp = qr/$regexpString/sm;
-          }
-        }
-        catch {
-            $self->logger_error( '%s: %s', $self->impl_quote('regexp'), $_ );
-        };
+        my $regexp = $self->_compile_regexp($regexpString);
         if ( Undef->check($regexp) ) {
             return '';
         }
@@ -3043,17 +3083,7 @@ EVAL_GRAMMAR
             return $string;
         }
 
-        my $regexp;
-        try {
-            #
-            # regexp can be empty
-            #
-            $regexp = qr/$regexpString(?#)/sm;
-        }
-        catch {
-            $self->logger_error( '%s: %s', $self->impl_quote('patsubst'),
-                $_ );
-        };
+        my $regexp = $self->_compile_regexp($regexpString);
         if ( Undef->check($regexp) ) {
             return '';
         }

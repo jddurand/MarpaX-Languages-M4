@@ -32,7 +32,7 @@ my $log = Log::Handler->new(
 Log::Any::Adapter->set('Handler', logger => $log);
 
 BEGIN {
-    use_ok('MarpaX::Languages::M4::Impl::Default')
+    use_ok('MarpaX::Languages::M4')
         || print "Bail out!\n";
 }
 
@@ -67,23 +67,23 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   $input =~ s/%%%FOO%%%/$fhfoo/g;
   $input =~ s/%%%ECHO%%%/$echo/g;
   $input =~ s/%%%TMPFILE%%%/$tmpfile/g;
-  my $gnu = MarpaX::Languages::M4::Impl::Default->new_with_options();
+  my $m4 = MarpaX::Languages::M4->new_with_options();
   #
   # Our include directory
   #
-  $gnu->include(['inc']);
+  $m4->include(['inc']);
   #
   # Global test settings so that the test-suite works on all platforms:
   # the test suite below assumes LF line-ending.
   #
-  $gnu->cmdtounix(1);
-  $gnu->inctounix(1);
+  $m4->cmdtounix(1);
+  $m4->inctounix(1);
 
   $testName =~ s/\d+\s*//;
   if ($testIsCmp) {
-    cmp_ok($gnu->impl_parse($input), 'eq', ${$outputRef}, $testName);
+    cmp_ok($m4->parse($input), 'eq', ${$outputRef}, $testName);
   } else {
-    ok(length($gnu->impl_parse($input)) > 0, $testName);
+    ok(length($m4->parse($input)) > 0, $testName);
   }
 }
 
@@ -1030,7 +1030,7 @@ __! 075 changeword - prevent accidentical call of builtin: output !__
 esyscmd(foo)
 hi
 
-__! 076 changeword - word-regexp is character per character: input !__
+__! 076 changeword - word-regexp is character per character - perl regexp: input('--regex-type', 'perl') !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`foo
@@ -1054,7 +1054,41 @@ changeword(`[cd][a-z]*|fo*[
 ]?')
 dnl Now we can call `foo\n'.
 foo
-__! 076 changeword - word-regexp is character per character: output !__
+__! 076 changeword - word-regexp is character per character - perl regexp: output !__
+
+0
+0
+-1
+foo
+
+foo
+
+bar
+__! 076b changeword - word-regexp is character per character - GNU Emacs regexp: input !__
+ifdef(`changeword', `', `errprint(` skipping: no changeword support
+')m4exit(`77')')dnl
+define(`foo
+', `bar
+')
+dnl This example wants to recognize changeword, dnl, and `foo\n'.
+dnl First, we check that our regexp will match.
+regexp(`changeword', `[cd][a-z]*\|foo[
+]')
+regexp(`foo
+', `[cd][a-z]*\|foo[
+]')
+regexp(`f', `[cd][a-z]*\|foo[
+]')
+foo
+changeword(`[cd][a-z]*\|foo[
+]')
+dnl Even though `foo\n' matches, we forgot to allow `f'.
+foo
+changeword(`[cd][a-z]*\|fo*[
+]?')
+dnl Now we can call `foo\n'.
+foo
+__! 076b changeword - word-regexp is character per character - GNU Emacs regexp: output !__
 
 0
 0
@@ -1315,12 +1349,22 @@ __! 102 index - empty substring: output !__
 0
 0
 1
-__! 103 regexp: input !__
+__! 103 regexp - perl: input('--regex-type', 'perl') !__
 regexp(`GNUs not Unix', `\b[a-z]\w+')
 regexp(`GNUs not Unix', `\bQ\w*')
 regexp(`GNUs not Unix', `\w(\w+)$', `*** $& *** $1 ***')
 regexp(`GNUs not Unix', `\bQ\w*', `*** $& *** $1 ***')
-__! 103 regexp: output !__
+__! 103 regexp - perl: output !__
+5
+-1
+*** Unix *** nix ***
+
+__! 103 regexp - GNU emacs: input !__
+regexp(`GNUs not Unix', `\<[a-z]\w+')
+regexp(`GNUs not Unix', `\<Q\w*')
+regexp(`GNUs not Unix', `\w\(\w+\)$', `*** \& *** \1 ***')
+regexp(`GNUs not Unix', `\<Q\w*', `*** \& *** \1 ***')
+__! 103 regexp - GNU emacs: output !__
 5
 -1
 *** Unix *** nix ***
@@ -1688,3 +1732,7 @@ __! 132 warn-macro-sequence and -E twice: input('-E', '-E') !__
 define(`foo', `$001 ${1} $1')
 foo(`bar')
 __! 132 warn-macro-sequence and -E twice: output !__
+__! 133 regexp: input !__
+regexp(`GNUs not Unix', `\(')
+__! 133 regexp: output !__
+
