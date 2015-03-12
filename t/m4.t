@@ -1114,13 +1114,22 @@ changeword(`#\([_a-zA-Z0-9]*\)')#dnl
 #echo(`foo #foo')
 __! 077 changeword - change of symbol lookup - GNU emacs engine: output !__
 foo bar
-__! 078 changeword - Difference v.s. TeX: input !__
+__! 078 changeword - Difference v.s. TeX - perl engine: input('--regex-engine', 'perl') !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`a', `errprint(`Hello')')dnl
 changeword(`@([_a-zA-Z0-9]*)')
 @a
-__! 078 changeword - Difference v.s. TeX: output !__
+__! 078 changeword - Difference v.s. TeX - perl engine: output !__
+
+errprint(Hello)
+__! 078 changeword - Difference v.s. TeX - GNU emacs engine: input !__
+ifdef(`changeword', `', `errprint(` skipping: no changeword support
+')m4exit(`77')')dnl
+define(`a', `errprint(`Hello')')dnl
+changeword(`@\([_a-zA-Z0-9]*\)')
+@a
+__! 078 changeword - Difference v.s. TeX - GNU emacs engine: output !__
 
 errprint(Hello)
 __! 079 m4wrap: input !__
