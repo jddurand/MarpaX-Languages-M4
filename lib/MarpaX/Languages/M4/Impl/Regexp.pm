@@ -13,15 +13,16 @@ class MarpaX::Languages::M4::Impl::Regexp {
     use MarpaX::Languages::M4::Role::Regexp;
     use MarpaX::Languages::M4::Type::Regexp -all;
     use MooX::HandlesVia;
+    use Types::Common::Numeric -all;
 
-    has _engine => (
+    has _regexp_type => (
         is       => 'rwp',
-        isa      => M4RegexpEngine
+        isa      => M4RegexpType
     );
 
     has _replacement => (
         is       => 'rwp',
-        isa      => M4RegexpReplacement,
+        isa      => M4RegexpReplacementType,
     );
 
     has regexp_errstr => (
@@ -54,7 +55,20 @@ class MarpaX::Languages::M4::Impl::Regexp {
                                    }
     );
 
-    method regexp_compile (ConsumerOf['MarpaX::Languages::M4::Role::Imp'] $impl, M4RegexpEngine $engine, Str $regexpString --> Bool) {
+    method _regexpDollarOneToIndice (Str $dollarOne --> PositiveOrZeroInt) {
+        $dollarOne =~ s/^\\\{//;
+        #
+        # Note: int('&') will return 0
+        #
+        return int($dollarOne);
+    }
+
+    method _regexpIndiceToReplacement (PositiveOrZeroInt $indice, HashRef $wantedIndicesRef) {
+        $wantedIndicesRef->{$indice}++;
+        return "\$match\[$indice\]";
+    }
+
+    method regexp_compile (ConsumerOf['MarpaX::Languages::M4::Role::Impl'] $impl, M4RegexpType $regexpType, Str $regexpString --> Bool) {
 
         my $regexp;
 
@@ -63,7 +77,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
           = $hasPreviousRegcomp ? $^H{regcomp} : undef;
 
         try {
-            if ( $engine eq 'perl' ) {
+            if ( $regexpType eq 'perl' ) {
                 #
                 # Just make sure this really is perl
                 #
@@ -75,7 +89,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 $regexp = qr/$regexpString(?#)/sm;
             }
             else {
-                use re::engine::GNU -debug => 1;
+                use re::engine::GNU;
                 $regexp = qr/$regexpString/sm;
                 no re::engine::GNU;
             }
@@ -86,20 +100,21 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 $impl->impl_quote($regexpString), $_ );
         };
 
+
         $hasPreviousRegcomp
           ? $^H{regcomp} = $previousRegcomp
             : delete( $^H{regcomp} );
 
         if (defined($regexp)) {
           $self->_set__regexp($regexp);
-          $self->_set__engine($engine);
+          $self->_set__regexp_type($regexpType);
           return true;
         } else {
           return false;
         }
     }
 
-    method regexp_exec (ConsumerOf['MarpaX::Languages::M4::Role::Imp'] $impl, Str $string --> Bool) {
+    method regexp_exec (ConsumerOf['MarpaX::Languages::M4::Role::Impl'] $impl, Str $string --> Bool) {
 
         my $rc = false;
 
@@ -116,7 +131,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
         # lexically scoped, and our scope depend on the engine
         #
         try {
-            if ( $self->_engine eq 'perl' ) {
+            if ( $self->_regexp_type eq 'perl' ) {
                 #
                 # Just make sure this really is perl
                 #
@@ -134,7 +149,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 }
             }
             else {
-                use re::engine::GNU -debug => 1;
+                use re::engine::GNU;
                 #
                 # Execute re::engine::GNU engine
                 #
@@ -182,7 +197,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
         return $string;
     }
 
-    method regexp_replace (ConsumerOf['MarpaX::Languages::M4::Role::Imp'] $impl, M4RegexpReplacement $replacement --> Bool) {
+    method regexp_replace (ConsumerOf['MarpaX::Languages::M4::Role::Impl'] $impl, Str $string, M4RegexpReplacementType $replacementType, Str $replacement, Ref $replacedRef --> Bool) {
       #
       # Sanitize
       #
@@ -206,12 +221,12 @@ class MarpaX::Languages::M4::Impl::Regexp {
          #
          # In perl mode this $& $1 etc... or ${&}, ${1} etc...
          #
-         ($replacement eq 'perl') ?
+         ($replacementType eq 'perl') ?
          qr/\\\$((?:\\\&|\\\{\\\&\\\})|(?:[0-9]+|\\\{[0-9]+\\\}))/ :
          #
          # In extended GNU mode this \& \1 etc... or \{&}, \{1} etc...
          #
-         ($replacement eq 'GNUext') ?
+         ($replacementType eq 'GNUext') ?
          qr/\\\\((?:\\\&|\\\{\\\&\\\})|(?:[0-9]+|\\\{[0-9]+\\\}))/ :
          #
          # In emacs mode this \& \1 etc...
@@ -230,7 +245,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
           my $l = $self->regexp_lpos_get($_);
           my $r = $self->regexp_rpos_get($_);
           $match[$_]
-            = substr( $l, $r - $l );
+            = substr( $string, $l, $r - $l );
         }
         else {
           $impl->logger_warn(
@@ -239,17 +254,18 @@ class MarpaX::Languages::M4::Impl::Regexp {
           $match[$_] = '';
         }
       }
-      my $rc = eval "\"$safeReplacement\"";
+      my $replaced = eval "\"$safeReplacement\"";
       if ($@) {
         #
         # Should not happen, we have sanitized the replacement string
         #
         $impl->logger_error( '%s: Internal error %s',
                              $impl->impl_quote('regexp'), $@ );
-        $rc = '';
+        return false;
       }
 
-      return $rc;
+      ${$replacedRef} = $replaced;
+      return true;
     }
 
    with 'MarpaX::Languages::M4::Role::Regexp';

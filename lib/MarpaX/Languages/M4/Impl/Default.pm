@@ -22,9 +22,7 @@ use MarpaX::Languages::M4::Impl::Parser;
 #
 # Note: GNU-like extension but with different semantics:
 # ------------------------------------------------------
-# regexp   Perl regexp implementation, replacement string limited to & and digits.
-# patsubst Perl regexp implementation, replacement string limited to & and digits.
-# format   Perl sprintf implementation.
+# format   Perl sprintf implementation
 # incr     C.f. policy_integer_type, defaults to a 32 bits integer. "native" policy uses int, like GNU.
 # decr     C.f. policy_integer_type, defaults to a 32 bits integer. "native" policy uses int, like GNU.
 #
@@ -61,9 +59,11 @@ class MarpaX::Languages::M4::Impl::Default {
     use MarpaX::Languages::M4::Impl::Default::Eval;
     use MarpaX::Languages::M4::Impl::Macros;
     use MarpaX::Languages::M4::Impl::Macro;
+    use MarpaX::Languages::M4::Impl::Regexp;
     use MarpaX::Languages::M4::Role::Impl;
     use MarpaX::Languages::M4::Type::Macro -all;
     use MarpaX::Languages::M4::Type::Impl -all;
+    use MarpaX::Languages::M4::Type::Regexp -all;
     use MarpaX::Languages::M4::Type::Token -all;
     use Marpa::R2;
     use MooX::HandlesVia;
@@ -422,7 +422,7 @@ EVAL_GRAMMAR
         trigger => 1,
         format  => 's',
         doc =>
-            q{Integer type. Possible values: "native" (will use what your hardware provides), "bitvector" (will use s/w-driven bit-per-bit manipulations; this is the only portable option value). Default: "bitvector".}
+            q{Integer type. Possible values: "native" (will use what your hardware provides using the libc with which perl was built), "bitvector" (will use s/w-driven bit-per-bit manipulations; this is the only portable option value). Default: "bitvector".}
     );
     has _integer_type => (
         is      => 'rwp',
@@ -439,29 +439,54 @@ EVAL_GRAMMAR
     method _build__integer_type {'bitvector'}
 
     # =========================
-    # --regex-type
+    # --regexp-type
     # =========================
-    option regex_engine => (
+    option regexp_type => (
         is      => 'rw',
         isa     => Str,
         trigger => 1,
         format  => 's',
         doc =>
-            q{Regular expression engine. Affect the syntax of regexp! Possible values: "emacs", "perl". Default: "emacs" (the engine equivalent to M4 default).}
+            q{Regular expression engine. Affect the syntax of regexp! Possible values: "GNU", "perl". Default: "GNU" (i.e. the GNU M4 default engine).}
     );
-    has _regex_engine => (
+    has _regexp_type => (
         is      => 'rwp',
         lazy    => 1,
         builder => 1,
-        isa     => Enum [qw/emacs perl/]
+        isa     => M4RegexpType
     );
 
-    method _trigger_regex_engine (Str $regex_engine, @rest --> Undef) {
-        $self->_set__regex_engine($regex_engine);
+    method _trigger_regexp_type (Str $regexp_type, @rest --> Undef) {
+        $self->_set__regexp_type($regexp_type);
         return;
     }
 
-    method _build__regex_engine {'emacs'}
+    method _build__regexp_type {'GNU'}
+
+    # =========================
+    # --regex-replacement-type
+    # =========================
+    option regexp_replacement_type => (
+        is      => 'rw',
+        isa     => Str,
+        trigger => 1,
+        format  => 's',
+        doc =>
+            q{Regular expression engine replacement type. Affect the syntax of replacement string! Possible values: "GNU", "GNUext", "perl". In perl mode, $&, $1, etc... and ${&}, ${1}, etc... are replaced. In GNU mode, only \&, \1 etc... are replaced. In GNUext mode, \\&, \\1 etc... and \\{&}, \\{1} are replaced. Default: "GNU" (i.e. the GNU M4 default replacement syntax).}
+    );
+    has _regexp_replacement_type => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => M4RegexpReplacementType
+    );
+
+    method _trigger_regexp_replacement_type (Str $regexp_replacement_type, @rest --> Undef) {
+        $self->_set__regexp_replacement_type($regexp_replacement_type);
+        return;
+    }
+
+    method _build__regexp_replacement_type {'GNU'}
 
     # =========================
     # --integer-bits
@@ -473,7 +498,7 @@ EVAL_GRAMMAR
         trigger => 1,
         format  => 'i',
         doc =>
-            "Number of bits for integer arithmetic. Possible values: any positive integer. Default is \"unsigned int\" C-type number of bits from the libc used to build this version of perl. Meaningul only when policy_integer_type is \"bitvector\". Default: $INTEGER_BITS_DEFAULT_VALUE."
+            "Number of bits for integer arithmetic. Possible values: any positive integer. Meaningful for builtins incr and decr only when policy_integer_type is \"bitvector\", always meaningful for builtin eval. Default: $INTEGER_BITS_DEFAULT_VALUE."
     );
 
     has _integer_bits => (
@@ -607,12 +632,23 @@ EVAL_GRAMMAR
     );
 
     method _trigger_builtin_need_param (ArrayRef[Str] $builtin_need_param, @rest --> Undef) {
-        my $word_regexp = $self->_word_regexp;
+        my $r = $self->_regexp_word;
         foreach ( @{$builtin_need_param} ) {
-            if ( $_ =~ /^$word_regexp$/ ) {
-                if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
+            if (   $r->regexp_exec( $self, $_ )
+                && $r->regexp_lpos_count > 0
+                && $r->regexp_lpos_get(0) == 0 )
+            {
+                if (   $r->regexp_lpos_count > 1
+                    && $r->regexp_rpos_get(1) > $r->regexp_lpos_get(1) )
+                {
                     $self->_builtin_need_param_set(
-                        substr( $_, $-[1], $+[1] - $-[1] ), true );
+                        substr(
+                            $_,
+                            $r->regexp_lpos_get(1),
+                            $r->regexp_rpos_get(1) - $r->regexp_lpos_get(1)
+                        ),
+                        true
+                    );
                 }
                 else {
                     $self->_builtin_need_param_set( $_, true );
@@ -689,40 +725,48 @@ EVAL_GRAMMAR
     );
 
     method _trigger_param_can_be_macro (ArrayRef[Str] $param_can_be_macro, @rest --> Undef) {
-        my $word_regexp = $self->_word_regexp;
-        my %ref         = ();
+        my $r   = $self->_regexp_word;
+        my %ref = ();
         foreach ( @{$param_can_be_macro} ) {
-            if ( $_ =~ /^($word_regexp)(?:=(.*))/ ) {
-                #
-                # If word_regexp has a $1 submatch, this is the macro name.
-                # Since we add another group on top, we detect the presence of
-                # word_regexp's $1 by comparing total number of groups v.s.
-                # the regexp writen upper.
-                #
-                my $nbSubGroups = $#+;
-                #
-                # If $#+ > 2, then $word_regexp has a $1.
-                # Else, it has no $1.
-                #
-                my $macroName
-                    = ( $#+ > 2 )
-                    ? substr( $_, $-[2], $+[2] - $-[2] )
-                    : substr( $_, $-[1], $+[1] - $-[1] );
-                my $indicesToSplit = substr( $_, $-[-1], $+[-1] - $-[-1] );
-                my @indices = grep { !Undef->check($_) && length("$_") > 0 }
-                    split( /,/, $indicesToSplit );
+            if (   $r->regexp_exec( $self, $_ )
+                && $r->regexp_lpos_count > 0
+                && $r->regexp_lpos_get(0) == 0 )
+            {
+                my $macroName;
+                my $nextPos = $r->regexp_rpos_get(0);
+                if (   $r->regexp_lpos_count > 1
+                    && $r->regexp_rpos_get(1) > $r->regexp_lpos_get(1) )
+                {
+                    $macroName = substr(
+                        $_,
+                        $r->regexp_lpos_get(1),
+                        $r->regexp_rpos_get(1) - $r->regexp_lpos_get(1)
+                    );
+                }
+                else {
+                    $macroName = $_;
+                }
                 $ref{$macroName} = {};
-                foreach (@indices) {
-                    if ( PositiveOrZeroInt->check($_)
-                        || ( Str->check($_) && $_ eq '*' ) )
-                    {
-                        $ref{$macroName}->{$_} = true;
-                    }
-                    else {
-                        $self->logger_warn(
-                            '%s: %s: %s does not look like a positive or zero integer, or star character',
-                            'policy_paramcanbemacro', $macroName, $_
-                        );
+                if (   $nextPos < length($_)
+                    && substr( $_, $nextPos++, 1 ) eq '='
+                    && $nextPos < length($_) )
+                {
+                    my $indicesToSplit = substr( $_, $nextPos );
+                    my @indices
+                        = grep { !Undef->check($_) && length("$_") > 0 }
+                        split( /,/, $indicesToSplit );
+                    foreach (@indices) {
+                        if ( PositiveOrZeroInt->check($_)
+                            || ( Str->check($_) && $_ eq '*' ) )
+                        {
+                            $ref{$macroName}->{$_} = true;
+                        }
+                        else {
+                            $self->logger_warn(
+                                '%s: %s: %s does not look like a positive or zero integer, or star character',
+                                'policy_paramcanbemacro', $macroName, $_
+                            );
+                        }
                     }
                 }
             }
@@ -927,18 +971,27 @@ EVAL_GRAMMAR
     );
 
     method _trigger_define (ArrayRef[Str] $arrayRef, @rest --> Undef) {
-        my $word_regexp = $self->_word_regexp;
+        my $r = $self->_regexp_word;
         foreach ( @{$arrayRef} ) {
-            if ( $_ =~ /^($word_regexp)(?:=(.*))/ ) {
-                #
-                # If $#+ > 2, then $word_regexp has a $1.
-                # Else, it has no $1.
-                #
-                my $macroName
-                    = ( $#+ > 2 )
-                    ? substr( $_, $-[2], $+[2] - $-[2] )
-                    : substr( $_, $-[1], $+[1] - $-[1] );
-                my $value = substr( $_, $-[-1], $+[-1] - $-[-1] );
+            if (   $r->regexp_exec( $self, $_ )
+                && $r->regexp_lpos_count > 0
+                && $r->regexp_lpos_get(0) == 0 )
+            {
+                my $macroName;
+                my $nextPos = $r->regexp_rpos_get(0);
+                if (   $r->regexp_lpos_count > 1
+                    && $r->regexp_rpos_get(1) > $r->regexp_lpos_get(1) )
+                {
+                    $macroName = substr(
+                        $_,
+                        $r->regexp_lpos_get(1),
+                        $r->regexp_rpos_get(1) - $r->regexp_lpos_get(1)
+                    );
+                }
+                else {
+                    $macroName = $_;
+                }
+                my $value = substr( $_, $nextPos );
                 $self->builtin_define( $macroName, $value );
             }
             else {
@@ -966,16 +1019,27 @@ EVAL_GRAMMAR
     );
 
     method _trigger_undefine (ArrayRef[Str] $arrayRef, @rest --> Undef) {
-        my $word_regexp = $self->_word_regexp;
+        my $r = $self->_regexp_word;
         foreach ( @{$arrayRef} ) {
-            if ( $_ =~ /^$word_regexp$/ ) {
-                if ( !Undef->check( $-[1] ) && $+[1] > $-[1] ) {
-                    $self->builtin_undefine(
-                        substr( $_, $-[1], $+[1] - $-[1] ) );
+            if (   $r->regexp_exec( $self, $_ )
+                && $r->regexp_lpos_count > 0
+                && $r->regexp_lpos_get(0) == 0 )
+            {
+                my $macroName;
+                my $nextPos = $r->regexp_rpos_get(0);
+                if (   $r->regexp_lpos_count > 1
+                    && $r->regexp_rpos_get(1) > $r->regexp_lpos_get(1) )
+                {
+                    $macroName = substr(
+                        $_,
+                        $r->regexp_lpos_get(1),
+                        $r->regexp_rpos_get(1) - $r->regexp_lpos_get(1)
+                    );
                 }
                 else {
-                    $self->builtin_undefine($_);
+                    $macroName = $_;
                 }
+                $self->builtin_undefine($macroName);
             }
             else {
                 $self->logger_warn( '%s: %s: does not match word regexp',
@@ -1356,9 +1420,9 @@ EVAL_GRAMMAR
 # --word-regexp
 # =========================
 #
-# Note: it appears that the default regexp works with both perl and GNU emacs engines
+# Note: it appears that the default regexp works with both perl and GNU Emacs engines
 #
-    our $DEFAULT_WORD_REGEXP = '^[_a-zA-Z][_a-zA-Z0-9]*';
+    our $DEFAULT_WORD_REGEXP = '[_a-zA-Z][_a-zA-Z0-9]*';
     option word_regexp => (
         is      => 'rw',
         isa     => Str,
@@ -1366,23 +1430,35 @@ EVAL_GRAMMAR
         format  => 's',
         short   => 'W',
         doc =>
-            "Word perl regular expression. Default: \"$DEFAULT_WORD_REGEXP\"."
+            "Word regular expression. Default: \"$DEFAULT_WORD_REGEXP\" (equivalent between perl and GNU Emacs engines)."
     );
 
     has _word_regexp => (
         is      => 'rwp',
         lazy    => 1,
         builder => 1,
-        isa     => RegexpRef
+        isa     => Str
     );
 
-    method _trigger_word_regexp (Str $regexp, @rest --> Undef) {
-        if ( length($regexp) <= 0 ) {
-            $regexp = $DEFAULT_WORD_REGEXP;
+    has _regexp_word => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => InstanceOf [M4Regexp]
+    );
+
+    method _trigger_word_regexp (Str $regexpString, @rest --> Undef) {
+        if ( length($regexpString) <= 0 ) {
+            $regexpString = $DEFAULT_WORD_REGEXP;
         }
-        my $r = $self->_compile_regexp($regexp);
-        if ( !Undef->check($r) ) {
-            $self->_set__word_regexp($r);
+        #
+        # Check it compiles
+        #
+        my $r = MarpaX::Languages::M4::Impl::Regexp->new();
+        if ( $r->regexp_compile( $self, $self->_regexp_type, $regexpString ) )
+        {
+            $self->_set__word_regexp($regexpString);
+            $self->_set__regexp_word($r);
         }
 
         return;
@@ -1392,7 +1468,13 @@ EVAL_GRAMMAR
     # Why perltidier does not like it without @args ?
     #
     method _build__word_regexp (@args) {
-        $self->_compile_regexp($DEFAULT_WORD_REGEXP);
+        return $DEFAULT_WORD_REGEXP;
+    }
+
+    method _build__regexp_word (@args) {
+        my $r = MarpaX::Languages::M4::Impl::Regexp->new();
+        $r->regexp_compile( $self, $self->_regexp_type, $self->_word_regexp );
+        return $r;
     }
 
     # =========================
@@ -1406,31 +1488,52 @@ EVAL_GRAMMAR
         trigger => 1,
         format  => 's',
         doc =>
-            "Issue a warning if a macro defined via builtins define or pushdef is matching this regexp. An empty string disables the check. Default: \"$DEFAULT_WARN_MACRO_SEQUENCE\"."
+            "Issue a warning if a macro defined via builtins define or pushdef is matching this regexp. An empty string disables the check. Take care, the option value will have to obey current --regex-type (i.e. perl or GNU Emacs syntax). Default: \"$DEFAULT_WARN_MACRO_SEQUENCE\"."
     );
 
     has _warn_macro_sequence => (
         is      => 'rwp',
         lazy    => 1,
         builder => 1,
-        isa     => Undef | RegexpRef
+        isa     => Undef | Str
     );
 
-    method _trigger_warn_macro_sequence (Str $regexp, @rest --> Undef) {
-        if ( length($regexp) <= 0 ) {
+    has _regexp_warn_macro_sequence => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => Undef | M4Regexp
+    );
+
+    method _trigger_warn_macro_sequence (Str $regexpString, @rest --> Undef) {
+        if ( length($regexpString) <= 0 ) {
             $self->_set__warn_macro_sequence(undef);
+            $self->_set__regexp_warn_macro_sequence(undef);
             return;
         }
-        my $r = $self->_compile_regexp($regexp);
-        if ( !Undef->check($r) ) {
-            $self->_set__warn_macro_sequence($r);
+
+        #
+        # Check it compiles
+        #
+        my $r = MarpaX::Languages::M4::Impl::Regexp->new();
+        if ( $r->regexp_compile( $self, $self->_regexp_type, $regexpString ) )
+        {
+            $self->_set__warn_macro_sequence($regexpString);
+            $self->_set__regexp_warn_macro_sequence($r);
         }
 
         return;
     }
 
     method _build__warn_macro_sequence {
-        $self->_compile_regexp($DEFAULT_WARN_MACRO_SEQUENCE);
+        return $DEFAULT_WARN_MACRO_SEQUENCE;
+    }
+
+    method _build__regexp_warn_macro_sequence {
+        my $r = MarpaX::Languages::M4::Impl::Regexp->new();
+        $r->regexp_compile( $self, $self->_regexp_type,
+            $self->_warn_macro_sequence );
+        return $r;
     }
 
     # ---------------------------------------------------------------
@@ -1440,14 +1543,20 @@ EVAL_GRAMMAR
     method parser_isWord (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
         pos($input) = $pos;
 
-        my $word_regexp  = $self->_word_regexp;
+        my $regexp_word  = $self->_regexp_word;
         my $lastPos      = $pos;
         my $lexemeLength = 0;
         my $lexemeValue;
         my $thisInput = substr( $input, $pos, 1 );
+        my $r = $self->_regexp_word;
         while ( $lastPos <= $maxPos ) {
-            if ( $thisInput =~ $word_regexp ) {
-                my $thisLength = $+[0] - $-[0];
+            if (   $r->regexp_exec( $self, $thisInput )
+                && $r->regexp_lpos_count > 0
+                && $r->regexp_lpos_get(0) == 0 )
+            {
+              my $lpos = ($r->regexp_lpos_get(0));
+              my $rpos = ($r->regexp_rpos_get(0));
+              my $thisLength = $rpos - $lpos;
                 if ( $lexemeLength > 0 && $lexemeLength == $thisLength ) {
                     #
                     # We went one character too far
@@ -1456,18 +1565,17 @@ EVAL_GRAMMAR
                 }
                 $lexemeLength = $thisLength;
                 #
-                # Take care: Undef->check() is likely to modify %-
-                #
-                my ( $beg, $end ) = ( $-[1], $+[1] );
-                #
                 # It is perfectly legal to have an empty string
                 # as word "value"
                 #
-                if ( !Undef->check($beg) && !Undef->check($end) ) {
-                    $lexemeValue = substr( $thisInput, $beg, $end - $beg );
+                if ( $r->regexp_lpos_count > 1) {
+                  $lpos = ($r->regexp_lpos_get(1));
+                  $rpos = ($r->regexp_rpos_get(1));
+                    $lexemeValue = substr( $thisInput, $lpos, $rpos - $lpos );
                 }
                 else {
-                    $lexemeValue = substr( $thisInput, $-[0], $lexemeLength );
+                    $lexemeValue
+                        = substr( $thisInput, $lpos, $lexemeLength );
                 }
                 $thisInput .= substr( $input, ++$lastPos, 1 );
             }
@@ -2433,8 +2541,11 @@ EVAL_GRAMMAR
 
         my @includes = (
             reverse( $self->_prepend_include_elements ),
-            File::Spec->curdir(), reverse( $self->_include_elements ),
-            (exists($ENV{M4PATH}) && defined($ENV{M4PATH})) ? M4PATH->List : ()
+            File::Spec->curdir(),
+            reverse( $self->_include_elements ),
+            ( exists( $ENV{M4PATH} ) && defined( $ENV{M4PATH} ) )
+            ? M4PATH->List
+            : ()
         );
 
         my @candidates;
@@ -2756,54 +2867,6 @@ EVAL_GRAMMAR
         return index( $string, $substring );
     }
 
-    method _regexpDollarOneToIndice (Str $dollarOne --> PositiveOrZeroInt) {
-        $dollarOne =~ s/^\\\{//;
-        #
-        # Note: int('&') will return 0
-        #
-        return int($dollarOne);
-    }
-
-    method _regexpIndiceToReplacement (PositiveOrZeroInt $indice, HashRef $wantedIndicesRef) {
-        $wantedIndicesRef->{$indice}++;
-        return "\$match\[$indice\]";
-    }
-
-    method _compile_regexp (Str $regexpString --> Undef|RegexpRef) {
-
-        my $regexp;
-        try {
-            if ( $self->_regex_engine eq 'perl' ) {
-                #
-                # Just make sure this really is perl
-                #
-                my $hasPreviousRegcomp = exists( $^H{regcomp} );
-                my $previousRegcomp
-                    = $hasPreviousRegcomp ? $^H{regcomp} : undef;
-                delete( $^H{regcomp} );
-                #
-                # regexp can be empty and perl have a very special
-                # behaviour in this case. Avoid empty regexp.
-                #
-                $regexp = qr/$regexpString(?#)/sm;
-                $hasPreviousRegcomp
-                    ? $^H{regcomp} = $previousRegcomp
-                    : delete( $^H{regcomp} );
-            }
-            else {
-                use re::engine::GNU;
-                $regexp = qr/$regexpString/sm;
-                no re::engine::GNU;
-            }
-        }
-        catch {
-            $self->logger_error( '%s: %s',
-                $self->impl_quote($regexpString), $_ );
-        };
-
-        return $regexp;
-    }
-
     method builtin_regexp (Undef|Str $string?, Undef|Str $regexpString?, Undef|Str $replacement?, @ignored --> Str) {
         if ( Undef->check($string) || Undef->check($regexpString) ) {
             $self->logger_error(
@@ -2813,8 +2876,8 @@ EVAL_GRAMMAR
             return '0';
         }
 
-        my $regexp = $self->_compile_regexp($regexpString);
-        if ( Undef->check($regexp) ) {
+        my $r = MarpaX::Languages::M4::Impl::Regexp->new();
+        if (! $r->regexp_compile($self, $self->_regexp_type, $regexpString)) {
             return '';
         }
 
@@ -2824,67 +2887,25 @@ EVAL_GRAMMAR
             #
             # Expands to the index of first match in string
             #
-            my $index = ( $string =~ $regexp ) ? $-[0] : -1;
-            return "$index";
+          if ($r->regexp_exec ($self, $string)) {
+                return $r->regexp_lpos_get(0);
+              } else {
+                return -1;
+              }
         }
         else {
-            #
-            # Sanitize
-            #
-            my $safeReplacement = quotemeta($replacement);
-            #
-            # We allow only:
-            # * $&                       quotemeta: \$\&
-            # * $digits                  quotemeta: \$digits
-            # * ${&}                     quotemeta: \$\{\&\}
-            # * ${digits}                quotemeta: \$\{digits\}
-            #
-            # We want to warn about unexpanded thingies so, as in
-            # _expansion2CodeRef we will count expected
-            # replacements.
-            #
-            my $maxRegexpIndice    = -1;
-            my %wantedRegexpIndice = ();
-            $safeReplacement = $self->_allowBlockInSanitizedString(
-                $safeReplacement,
-                qr/\\\$((?:\\\&|\\\{\\\&\\\})|(?:[0-9]+|\\\{[0-9]+\\\}))/,
-                \&_regexpDollarOneToIndice,
-                \&_regexpIndiceToReplacement,
-                \%wantedRegexpIndice,
-                \$maxRegexpIndice
-            );
-            if ( $string =~ $regexp ) {
-                my @match = ();
-                foreach ( 0 .. $maxRegexpIndice ) {
-                    if ( $_ <= $#+ ) {
-                        $match[$_]
-                            = substr( $string, $-[$_], $+[$_] - $-[$_] );
-                    }
-                    else {
-                        $self->logger_warn(
-                            '%s: sub-expression number %d not present',
-                            $self->impl_quote('regexp'), $_ );
-                        $match[$_] = '';
-                    }
-                }
-                my $rc = eval "\"$safeReplacement\"";
-                if ($@) {
-                 #
-                 # Should not happen, we have sanitized the replacement string
-                 #
-                    $self->logger_error( '%s: Internal error %s',
-                        $self->impl_quote('regexp'), $@ );
-                    return '';
-                }
-                else {
-                    return $rc;
-                }
+          if ($r->regexp_exec ($self, $string)) {
+            my $replaced;
+            if ($r->regexp_replace ($self, $string, $self->_regexp_replacement_type, $replacement, \$replaced)) {
+              return $replaced;
+            } else {
+              return '';
             }
-            else {
-                return '';
-            }
+          } else {
+            return '';
+          }
         }
-    }
+      }
 
     method builtin_substr (Undef|Str $string?, Undef|Str $from?, Undef|Str $length?, @ignored --> Str) {
         if ( Undef->check($string) ) {
@@ -3058,8 +3079,8 @@ EVAL_GRAMMAR
             return $string;
         }
 
-        my $regexp = $self->_compile_regexp($regexpString);
-        if ( Undef->check($regexp) ) {
+        my $r = MarpaX::Languages::M4::Impl::Regexp->new();
+        if (! $r->regexp_compile($self, $self->_regexp_type, $regexpString)) {
             return '';
         }
 
@@ -3069,60 +3090,17 @@ EVAL_GRAMMAR
         # If not supplied, default replacement is deletion
         $replacement //= '';
 
-        #
-        # This is quite the same as builtin_regexp
-        #
-        #
-        # Sanitize
-        #
-        my $safeReplacement = quotemeta($replacement);
-        #
-        # We allow only:
-        # * $&                       quotemeta: \$\&
-        # * $digits                  quotemeta: \$digits
-        # * ${&}                     quotemeta: \$\{\&\}
-        # * ${digits}                quotemeta: \$\{digits\}
-        #
-        # We want to warn about unexpanded thingies so, as in
-        # _expansion2CodeRef we will count expected
-        # replacements.
-        #
-        my $maxRegexpIndice    = -1;
-        my %wantedRegexpIndice = ();
-        $safeReplacement = $self->_allowBlockInSanitizedString(
-            $safeReplacement,
-            qr/\\\$((?:\\\&|\\\{\\\&\\\})|(?:[0-9]+|\\\{[0-9]+\\\}))/,
-            \&_regexpDollarOneToIndice,
-            \&_regexpIndiceToReplacement,
-            \%wantedRegexpIndice,
-            \$maxRegexpIndice
-        );
-        $string =~ s/$regexp/
-          {
-           my @match = ();
-           foreach (0..$maxRegexpIndice) {
-             if ($_ <= $#+) {
-               $match[$_] = substr($string, $-[$_], $+[$_] - $-[$_]);
-             } else {
-               $self->logger_warn( '%s: sub-expression number %d not present',
-                                   $self->impl_quote('patsubst'), $_ );
-               $match[$_] = '';
-             }
-           }
-           my $rc = eval "\"$safeReplacement\"";
-           if ($@) {
-             #
-             # Should not happen, we have sanitized the replacement string
-             #
-             $self->logger_error( '%s: Internal error %s',
-                                  $self->impl_quote('patsubst'), $@ );
-             '';
-           } else {
-             $rc;
-           }
-          }/eg;
-        return $string;
-    }
+        if ($r->regexp_exec ($self, $string)) {
+          my $replaced;
+          if ($r->regexp_replace ($self, $string, $self->_regexp_replacement_type, $replacement, \$replaced)) {
+            return $replaced;
+          } else {
+            return '';
+          }
+        } else {
+          return $string;
+        }
+      }
 
     method builtin_format (Undef|Str $format?, Str @arguments --> Str) {
         if ( Undef->check($format) ) {
@@ -3426,23 +3404,6 @@ EVAL_GRAMMAR
         return $self->__line__;
     }
 
-    method _allowBlockInSanitizedString (Str $string, RegexpRef $regexp, CodeRef $dollarOneToIndiceRef, CodeRef $indiceToReplacementRef, HashRef $wantedIndicesRef, Ref['SCALAR'] $maxArgumentIndiceRef --> Str) {
-
-        $string =~ s/$regexp/
-          {
-           #
-           # Writen like this to show that this is a BLOCK on the right-side of eval
-           #
-           my $indice = $self->$dollarOneToIndiceRef(substr($string, $-[1], $+[1] - $-[1]));
-           if ($indice > ${$maxArgumentIndiceRef}) {
-             ${$maxArgumentIndiceRef} = $indice;
-           }
-           $self->$indiceToReplacementRef($indice, $wantedIndicesRef);
-          }/eg;
-
-        return $string;
-    }
-
     method builtin___program__ (Str @ignored --> Str) {
         $self->_checkIgnored( '__program__', @ignored );
         return $self->__program__;
@@ -3459,16 +3420,18 @@ EVAL_GRAMMAR
                                 #
                                 # Check macro content
                                 #
-        my $warnMacroSequence = $self->_warn_macro_sequence;
-        if ( !Undef->check($warnMacroSequence) ) {
-            while ( $expansion =~ m/$warnMacroSequence/smg ) {
+        my $r = $self->_regexp_warn_macro_sequence;
+        if ( !Undef->check($r) ) {
+            my $current = $expansion;
+            while ( $r->regexp_exec( $self, $current )) {
                 $self->logger_warn(
                     'Definition of %s contains sequence %s',
                     $self->impl_quote($name),
                     $self->impl_quote(
-                        substr( $expansion, $-[0], $+[0] - $-[0] )
+                        substr( $current, $r->regexp_lpos_get(0), $r->regexp_rpos_get(0) - $r->regexp_lpos_get(0) )
                     )
                 );
+                $current = substr($current, $r->regexp_rpos_get(0));
             }
         }
 

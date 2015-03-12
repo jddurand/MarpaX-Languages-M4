@@ -22,7 +22,7 @@ use Data::Section -setup => {
 my $log = Log::Handler->new(
     screen => {
         log_to   => "STDOUT",
-        maxlevel => "warn",
+        maxlevel => "debug",
         minlevel => "error",
         dateformat     => "%Y-%m-%d",
         timeformat     => "%H:%M:%S",
@@ -1030,7 +1030,7 @@ __! 075 changeword - prevent accidentical call of builtin: output !__
 esyscmd(foo)
 hi
 
-__! 076 changeword - word-regexp is character per character - perl engine: input('--regex-engine', 'perl') !__
+__! 076 changeword - word-regexp is character per character - perl engine: input('--regex-type', 'perl') !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`foo
@@ -1098,7 +1098,7 @@ foo
 foo
 
 bar
-__! 077 changeword - change of symbol lookup - perl engine: input('--regex-engine', 'perl') !__
+__! 077 changeword - change of symbol lookup - perl engine: input('--regex-type', 'perl') !__
 define(`foo', `bar')dnl
 define(`echo', `$*')dnl
 changecom(`/*', `*/')dnl Because comment have higher precedence to word
@@ -1114,7 +1114,7 @@ changeword(`#\([_a-zA-Z0-9]*\)')#dnl
 #echo(`foo #foo')
 __! 077 changeword - change of symbol lookup - GNU emacs engine: output !__
 foo bar
-__! 078 changeword - Difference v.s. TeX - perl engine: input('--regex-engine', 'perl') !__
+__! 078 changeword - Difference v.s. TeX - perl engine: input('--regex-type', 'perl') !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`a', `errprint(`Hello')')dnl
@@ -1366,7 +1366,7 @@ __! 102 index - empty substring: output !__
 0
 0
 1
-__! 103 regexp - perl: input('--regex-engine', 'perl') !__
+__! 103 regexp - perl: input('--regex-type', 'perl') !__
 regexp(`GNUs not Unix', `\b[a-z]\w+')
 regexp(`GNUs not Unix', `\bQ\w*')
 regexp(`GNUs not Unix', `\w(\w+)$', `*** $& *** $1 ***')
