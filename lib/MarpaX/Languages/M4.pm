@@ -63,7 +63,7 @@ This package is an implementation of M4.
 
 =head1 SEE ALSO
 
-L<Marpa::R2>, L<Moops>, <M4 POSIX|http://pubs.opengroup.org/onlinepubs/9699919799/utilities/m4.html>, <M4 GNU|https://www.gnu.org/software/m4/manual/m4.html>
+L<Marpa::R2>, L<Moops>, L<M4 POSIX|http://pubs.opengroup.org/onlinepubs/9699919799/utilities/m4.html>, L<M4 GNU|https://www.gnu.org/software/m4/manual/m4.html>
 
 =cut
 
