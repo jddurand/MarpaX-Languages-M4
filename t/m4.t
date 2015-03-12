@@ -1030,7 +1030,7 @@ __! 075 changeword - prevent accidentical call of builtin: output !__
 esyscmd(foo)
 hi
 
-__! 076 changeword - word-regexp is character per character - perl regexp: input('--regex-engine', 'perl') !__
+__! 076 changeword - word-regexp is character per character - perl engine: input('--regex-engine', 'perl') !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`foo
@@ -1054,7 +1054,7 @@ changeword(`[cd][a-z]*|fo*[
 ]?')
 dnl Now we can call `foo\n'.
 foo
-__! 076 changeword - word-regexp is character per character - perl regexp: output !__
+__! 076 changeword - word-regexp is character per character - perl engine: output !__
 
 0
 0
@@ -1064,7 +1064,7 @@ foo
 foo
 
 bar
-__! 076 changeword - word-regexp is character per character - GNU Emacs regexp: input !__
+__! 076 changeword - word-regexp is character per character - GNU Emacs engine: input !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`foo
@@ -1088,7 +1088,7 @@ changeword(`[cd][a-z]*\|fo*[
 ]?')
 dnl Now we can call `foo\n'.
 foo
-__! 076 changeword - word-regexp is character per character - GNU Emacs regexp: output !__
+__! 076 changeword - word-regexp is character per character - GNU Emacs engine: output !__
 
 0
 0
@@ -1098,13 +1098,21 @@ foo
 foo
 
 bar
-__! 077 changeword - change of symbol lookup: input !__
+__! 077 changeword - change of symbol lookup - perl engine: input('--regex-engine', 'perl') !__
 define(`foo', `bar')dnl
 define(`echo', `$*')dnl
 changecom(`/*', `*/')dnl Because comment have higher precedence to word
 changeword(`#([_a-zA-Z0-9]*)')#dnl
 #echo(`foo #foo')
-__! 077 changeword - change of symbol lookup: output !__
+__! 077 changeword - change of symbol lookup - perl engine: output !__
+foo bar
+__! 077 changeword - change of symbol lookup - GNU emacs engine: input !__
+define(`foo', `bar')dnl
+define(`echo', `$*')dnl
+changecom(`/*', `*/')dnl Because comment have higher precedence to word
+changeword(`#\([_a-zA-Z0-9]*\)')#dnl
+#echo(`foo #foo')
+__! 077 changeword - change of symbol lookup - GNU emacs engine: output !__
 foo bar
 __! 078 changeword - Difference v.s. TeX: input !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
