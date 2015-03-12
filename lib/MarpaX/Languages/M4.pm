@@ -32,7 +32,6 @@ class MarpaX::Languages::M4 {
     method isImplException (@args) { $self->impl_isImplException (@args) }
     method macroExecute    (@args) { $self->impl_macroExecute    (@args) }
     method macroCallId     (@args) { $self->impl_macroCallId     (@args) }
-    method debugfile       (@args) { $self->impl_debugfile       (@args) }
 }
 
 =head1 DESCRIPTION
