@@ -1030,7 +1030,7 @@ __! 075 changeword - prevent accidentical call of builtin: output !__
 esyscmd(foo)
 hi
 
-__! 076 changeword - word-regexp is character per character - perl regexp: input('--regex-type', 'perl') !__
+__! 076 changeword - word-regexp is character per character - perl regexp: input('--regex-engine', 'perl') !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`foo
@@ -1064,7 +1064,7 @@ foo
 foo
 
 bar
-__! 076b changeword - word-regexp is character per character - GNU Emacs regexp: input !__
+__! 076 changeword - word-regexp is character per character - GNU Emacs regexp: input !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`foo
@@ -1088,7 +1088,7 @@ changeword(`[cd][a-z]*\|fo*[
 ]?')
 dnl Now we can call `foo\n'.
 foo
-__! 076b changeword - word-regexp is character per character - GNU Emacs regexp: output !__
+__! 076 changeword - word-regexp is character per character - GNU Emacs regexp: output !__
 
 0
 0
@@ -1349,7 +1349,7 @@ __! 102 index - empty substring: output !__
 0
 0
 1
-__! 103 regexp - perl: input('--regex-type', 'perl') !__
+__! 103 regexp - perl: input('--regex-engine', 'perl') !__
 regexp(`GNUs not Unix', `\b[a-z]\w+')
 regexp(`GNUs not Unix', `\bQ\w*')
 regexp(`GNUs not Unix', `\w(\w+)$', `*** $& *** $1 ***')

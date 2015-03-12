@@ -71,21 +71,6 @@ class MarpaX::Languages::M4::Impl::Default {
     use Throwable::Factory
         ImplException           => undef,
         ArgumentDecodeException => undef;
-   #
-   # This is just to load re::engine::GNU once, without affecting $^H{regcomp}
-   #
-    our $HAVE_re__engine__GNU;
-    BEGIN {
-        my $hasPreviousRegcomp = exists( $^H{regcomp} );
-        my $previousRegcomp = $hasPreviousRegcomp ? $^H{regcomp} : undef;
-        $HAVE_re__engine__GNU = eval 'use re::engine::GNU; 1;' || 0;
-        #
-        # Always restore previous regcomp engine
-        #
-        if ($hasPreviousRegcomp) {
-            $^H{regcomp} = $previousRegcomp;
-        }
-    }
 
     BEGIN {
         #
@@ -456,27 +441,27 @@ EVAL_GRAMMAR
     # =========================
     # --regex-type
     # =========================
-    option regex_type => (
+    option regex_engine => (
         is      => 'rw',
         isa     => Str,
         trigger => 1,
         format  => 's',
         doc =>
-            q{Regular expression type. Possible values: "emacs", "perl". Default: "emacs" (the engine equivalent to M4 default).}
+            q{Regular expression engine. Affect the syntax of regexp! Possible values: "emacs", "perl". Default: "emacs" (the engine equivalent to M4 default).}
     );
-    has _regex_type => (
+    has _regex_engine => (
         is      => 'rwp',
         lazy    => 1,
         builder => 1,
         isa     => Enum [qw/emacs perl/]
     );
 
-    method _trigger_regex_type (Str $regex_type, @rest --> Undef) {
-        $self->_set__regex_type($regex_type);
+    method _trigger_regex_engine (Str $regex_engine, @rest --> Undef) {
+        $self->_set__regex_engine($regex_engine);
         return;
     }
 
-    method _build__regex_type {'emacs'}
+    method _build__regex_engine {'emacs'}
 
     # =========================
     # --integer-bits
@@ -1406,7 +1391,7 @@ EVAL_GRAMMAR
     #
     # Why perltidier does not like it without @args ?
     #
-    method _build__word_regexp(@args) {
+    method _build__word_regexp (@args) {
         $self->_compile_regexp($DEFAULT_WORD_REGEXP);
     }
 
@@ -2449,7 +2434,7 @@ EVAL_GRAMMAR
         my @includes = (
             reverse( $self->_prepend_include_elements ),
             File::Spec->curdir(), reverse( $self->_include_elements ),
-            M4PATH->List
+            (exists($ENV{M4PATH}) && defined($ENV{M4PATH})) ? M4PATH->List : ()
         );
 
         my @candidates;
@@ -2785,46 +2770,36 @@ EVAL_GRAMMAR
     }
 
     method _compile_regexp (Str $regexpString --> Undef|RegexpRef) {
-        my $regexp;
-        my $hasPreviousRegcomp = exists( $^H{regcomp} );
-        my $previousRegcomp = $hasPreviousRegcomp ? $^H{regcomp} : undef;
 
-        my $doCompile = true;
-        if ( $self->_regex_type ne 'perl' ) {
-            if ( !$HAVE_re__engine__GNU ) {
+        my $regexp;
+        try {
+            if ( $self->_regex_engine eq 'perl' ) {
                 #
-                # No need to go further
+                # Just make sure this really is perl
                 #
-                $self->logger_error('re::engine::GNU cannot be loaded ');
-                $doCompile = false;
+                my $hasPreviousRegcomp = exists( $^H{regcomp} );
+                my $previousRegcomp
+                    = $hasPreviousRegcomp ? $^H{regcomp} : undef;
+                delete( $^H{regcomp} );
+                #
+                # regexp can be empty and perl have a very special
+                # behaviour in this case. Avoid empty regexp.
+                #
+                $regexp = qr/$regexpString(?#)/sm;
+                $hasPreviousRegcomp
+                    ? $^H{regcomp} = $previousRegcomp
+                    : delete( $^H{regcomp} );
+            }
+            else {
+                use re::engine::GNU;
+                $regexp = qr/$regexpString/sm;
+                no re::engine::GNU;
             }
         }
-        if ($doCompile) {
-            try {
-                if ( $self->_regex_type eq 'perl' ) {
-                    #
-                    # regexp can be empty and perl have a very special
-                    # behaviour in this case. Avoid empty regexp.
-                    #
-                    delete( $^H{regcomp} );
-                    $regexp = qr/$regexpString(?#)/sm;
-                }
-                else {
-                    $^H{regcomp} = $re::engine::GNU::ENGINE;
-                    $regexp = qr/$regexpString/sm;
-                }
-            }
-            catch {
-                $self->logger_error( '%s: %s',
-                    $self->impl_quote($regexpString), $_ );
-            };
-        }
-        #
-        # Always restore previous regcomp engine
-        #
-        if ($hasPreviousRegcomp) {
-            $^H{regcomp} = $previousRegcomp;
-        }
+        catch {
+            $self->logger_error( '%s: %s',
+                $self->impl_quote($regexpString), $_ );
+        };
 
         return $regexp;
     }
