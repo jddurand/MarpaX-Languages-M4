@@ -447,7 +447,7 @@ EVAL_GRAMMAR
         trigger => 1,
         format  => 's',
         doc =>
-            q{Regular expression engine. Affect the syntax of regexp! Possible values: "GNU", "perl". Default: "GNU" (i.e. the GNU M4 default engine).}
+            q{Regular expression engine. Affect the syntax of regexp! Possible values: "GNU", "perl". Default: "GNU" (i.e. the GNU M4 default engine). Please note that this has NO effect on the eventual replacement string, that follows striclty GNU convention, i.e. only \\0 (deprecated), \\& and \\1 to \\9 are supported.}
     );
     has _regexp_type => (
         is      => 'rwp',
@@ -462,31 +462,6 @@ EVAL_GRAMMAR
     }
 
     method _build__regexp_type {'GNU'}
-
-    # =========================
-    # --regexp-replacement-type
-    # =========================
-    option regexp_replacement_type => (
-        is      => 'rw',
-        isa     => Str,
-        trigger => 1,
-        format  => 's',
-        doc =>
-            q{Regular expression engine replacement type. Affect the syntax of replacement string! Possible values: "GNU", "GNUext", "perl". In perl mode, $&, $1, etc... and ${&}, ${1}, etc... are replaced, the eventual trailing $ character is ignored and issues a warning. In GNU mode, \\&, \\1 up to \\9 max are replaced, the eventual trailing \\ character is ignored and issues a warning. In GNUext mode, \\&, \\1 etc... and \\{&}, \\{1} etc... are replaced, same remark for trailing \\ character. Default: "GNU" (i.e. the GNU M4 default replacement syntax).}
-    );
-    has _regexp_replacement_type => (
-        is      => 'rwp',
-        lazy    => 1,
-        builder => 1,
-        isa     => M4RegexpReplacementType
-    );
-
-    method _trigger_regexp_replacement_type (Str $regexp_replacement_type, @rest --> Undef) {
-        $self->_set__regexp_replacement_type($regexp_replacement_type);
-        return;
-    }
-
-    method _build__regexp_replacement_type {'GNU'}
 
     # =========================
     # --integer-bits
@@ -2896,18 +2871,7 @@ EVAL_GRAMMAR
         }
         else {
             if ( $r->regexp_exec( $self, $string ) ) {
-                my $replaced;
-                if ($r->regexp_replace(
-                        $self, $string, $self->_regexp_replacement_type,
-                        $replacement, \$replaced
-                    )
-                    )
-                {
-                    return $replaced;
-                }
-                else {
-                    return '';
-                }
+                return $r->regexp_substitute( $self, $string, $replacement );
             }
             else {
                 return '';
@@ -3100,18 +3064,7 @@ EVAL_GRAMMAR
         $replacement //= '';
 
         if ( $r->regexp_exec( $self, $string ) ) {
-            my $replaced;
-            if ($r->regexp_replace(
-                    $self, $string, $self->_regexp_replacement_type,
-                    $replacement, \$replaced
-                )
-                )
-            {
-                return $replaced;
-            }
-            else {
-                return '';
-            }
+            return $r->regexp_substitute( $self, $string, $replacement );
         }
         else {
             return $string;

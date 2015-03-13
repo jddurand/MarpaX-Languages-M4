@@ -18,7 +18,7 @@ role MarpaX::Languages::M4::Role::Regexp {
     requires 'regexp_rpos_count';
     requires 'regexp_rpos_get';
     requires 'regexp_exec';
-    requires 'regexp_replace';
+    requires 'regexp_substitute';
 }
 
 1;

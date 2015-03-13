@@ -45,7 +45,7 @@ close($fhfoo);
 my $echo = File::Spec->catfile('inc', 'echo.pl');
 my $tmpfile = File::Spec->catfile(File::Spec->tmpdir(), 'fooXXXXXX');
 
-foreach (grep {/regexp warnings/} grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
+foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $testName = $_;
   my $inputRef = __PACKAGE__->section_data($testName);
   local @ARGV = ();
@@ -1366,11 +1366,11 @@ __! 102 index - empty substring: output !__
 0
 0
 1
-__! 103 regexp - perl: input('--regexp-type', 'perl', '--regexp-replacement-type', 'perl') !__
+__! 103 regexp - perl: input('--regexp-type', 'perl') !__
 regexp(`GNUs not Unix', `\b[a-z]\w+')
 regexp(`GNUs not Unix', `\bQ\w*')
-regexp(`GNUs not Unix', `\w(\w+)$', `*** $& *** $1 ***')
-regexp(`GNUs not Unix', `\bQ\w*', `*** $& *** $1 ***')
+regexp(`GNUs not Unix', `\w(\w+)$', `*** \& *** \1 ***')
+regexp(`GNUs not Unix', `\bQ\w*', `*** \& *** \1 ***')
 __! 103 regexp - perl: output !__
 5
 -1
@@ -1386,10 +1386,10 @@ __! 103 regexp - GNU emacs: output !__
 -1
 *** Unix *** nix ***
 
-__! 104 regexp warnings - perl: input('--regexp-type', 'perl', '--regexp-replacement-type', 'perl') !__
-regexp(`abc', `(b)', `\${1}0a')
-regexp(`abc', `b', `$1$')
-regexp(`abc', `((d)?)(c)', `$1$2$3$4$5$6')
+__! 104 regexp warnings - perl: input('--regexp-type', 'perl') !__
+regexp(`abc', `(b)', `\\\10\a')
+regexp(`abc', `b', `\1\')
+regexp(`abc', `((d)?)(c)', `\1\2\3\4\5\6')
 __! 104 regexp warnings - perl: output !__
 \\b0a
 
@@ -1405,7 +1405,7 @@ c
 __! 105 regexp - ommiting regexp -;: input !__
 regexp(`abc')
 regexp(`abc', `')
-regexp(`abc', `', `\def')
+regexp(`abc', `', `\\def')
 __! 105 regexp - ommiting regexp -;: output !__
 0
 0
@@ -1442,12 +1442,11 @@ tmfs not fnix
 bgced
 _! 109 patsubst: input !__
 patsubst(`GNUs not Unix', `^', `OBS: ')
-dnl # Perl has no notion of begin-word v.s. end-word
-patsubst(`GNUs not Unix', `\b(\w)', `OBS: $1')
-patsubst(`GNUs not Unix', `\w*', `($&)')
-patsubst(`GNUs not Unix', `\w+', `($&)')
+patsubst(`GNUs not Unix', `\<', `OBS: ')
+patsubst(`GNUs not Unix', `\w*', `(\&)')
+patsubst(`GNUs not Unix', `\w+', `(\&)')
 patsubst(`GNUs not Unix', `[A-Z][a-z]+')
-patsubst(`GNUs not Unix', `not', `NOT')
+patsubst(`GNUs not Unix', `not', `NOT\')
 _! 109 patsubst: output !__
 OBS: GNUs not Unix
 OBS: GNUs OBS: not OBS: Unix
@@ -1469,22 +1468,21 @@ _! 111 patsubst - cont'ed: input !__
 define(`patreg',
 `patsubst($@)
 regexp($@)')dnl
-patreg(`bar foo baz Foo', `foo|Foo', `FOO')
-patreg(`aba abb 121', `(.)(.)\1', `${2}${1}${2}')
+patreg(`bar foo baz Foo', `foo\|Foo', `FOO')
+patreg(`aba abb 121', `\(.\)\(.\)\1', `\2\1\2')
 _! 111 patsubst - cont'ed: output !__
 bar FOO baz FOO
 FOO
 bab abb 212
 bab
 _! 112 patsubst - warning: input !__
-dnl Take care of backslash interpretation in the test suite
 patsubst(`abc')
 patsubst(`abc', `')
-patsubst(`abc', `', `\-')
+patsubst(`abc', `', `\\-')
 _! 112 patsubst - warning: output !__
 abc
 abc
-\\-a\-b\-c\-
+\-a\-b\-c\-
 _! 113 format: input !__
 dnl the followings are a priori portable and will give the
 dnl same result regardless from Perl or with GNU M4

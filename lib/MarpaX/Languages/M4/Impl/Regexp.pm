@@ -20,16 +20,6 @@ class MarpaX::Languages::M4::Impl::Regexp {
         isa => M4RegexpType
     );
 
-    has _replacement => (
-        is  => 'rwp',
-        isa => M4RegexpReplacementType,
-    );
-
-    has regexp_errstr => (
-        is  => 'rwp',
-        isa => Str
-    );
-
     has _regexp => (
         is  => 'rwp',
         isa => RegexpRef
@@ -54,25 +44,6 @@ class MarpaX::Languages::M4::Impl::Regexp {
             'regexp_rpos_get'   => 'get'
         }
     );
-
-    method _regexpDollarOneToIndice (M4RegexpReplacementType $replacementType, Str $dollarOne --> PositiveOrZeroInt) {
-        if ( $replacementType eq 'perl' ) {
-            $dollarOne =~ s/^\\\{//;
-        }
-        elsif ( $replacementType eq 'GNUext' ) {
-        }
-        else {
-        }
-        #
-        # Note: int('&') will return 0
-        #
-        return int($dollarOne);
-    }
-
-    method _regexpIndiceToReplacement (PositiveOrZeroInt $indice, HashRef $wantedIndicesRef) {
-        $wantedIndicesRef->{$indice}++;
-        return "\$match\[$indice\]";
-    }
 
     method regexp_compile (ConsumerOf['MarpaX::Languages::M4::Role::Impl'] $impl, M4RegexpType $regexpType, Str $regexpString --> Bool) {
 
@@ -187,110 +158,71 @@ class MarpaX::Languages::M4::Impl::Regexp {
         return $rc;
     }
 
-    method _allowBlockInSanitizedString (Str $string, M4RegexpReplacementType $replacementType, RegexpRef $regexp, CodeRef $dollarOneToIndiceRef, CodeRef $indiceToReplacementRef, HashRef $wantedIndicesRef, Ref['SCALAR'] $maxArgumentIndiceRef --> Str) {
+    #
+    # A perl version of GNU M4's internal
+    # substitute routine
+    #
+    method regexp_substitute (ConsumerOf['MarpaX::Languages::M4::Role::Impl'] $impl, Str $victim, Str $repl --> Str) {
+        my $rc         = '';
+        my $replPos    = 0;
+        my $maxReplPos = length($repl) - 1;
+        my $maxIndice  = $self->regexp_lpos_count - 1;
+        my %warned     = ();
 
-        #
-        # Note: we know we are using perl regexp here
-        #
-        $string =~ s/$regexp/
-          {
-           #
-           # Writen like this to show that this is a BLOCK on the right-side of eval
-           #
-           my $indice = $self->$dollarOneToIndiceRef($replacementType, substr($string, $-[1], $+[1] - $-[1]));
-           if ($indice > ${$maxArgumentIndiceRef}) {
-             ${$maxArgumentIndiceRef} = $indice;
-           }
-           $self->$indiceToReplacementRef($indice, $wantedIndicesRef);
-          }/eg;
-
-        return $string;
-    }
-
-    method regexp_replace (ConsumerOf['MarpaX::Languages::M4::Role::Impl'] $impl, Str $string, M4RegexpReplacementType $replacementType, Str $replacement, Ref $replacedRef --> Bool) {
-                            #
-                            # Check for trailing
-                            #
-        if (   ( $replacementType eq 'perl' && $replacement =~ /\$\z/ )
-            || ( $replacementType ne 'perl' && $replacement =~ /\\\z/ ) )
-        {
-            $impl->logger_warn(
-                '%s: trailing %s ignored in replacement',
-                $impl->impl_quote('regexp'),
-                $impl->impl_quote(
-                    ( $replacementType eq 'perl' ) ? '$' : '\\'
-                )
-            );
-            substr( $replacement, -1, 1, '' );
-        }
-        #
-        # Sanitize
-        #
-        my $safeReplacement = quotemeta($replacement);
-        #
-        # We allow only:
-        # * $&                       quotemeta: \$\&
-        # * $digits                  quotemeta: \$digits
-        # * ${&}                     quotemeta: \$\{\&\}
-        # * ${digits}                quotemeta: \$\{digits\}
-        #
-        # We want to warn about unexpanded thingies so, as in
-        # _expansion2CodeRef we will count expected
-        # replacements.
-        #
-        my $maxRegexpIndice    = -1;
-        my %wantedRegexpIndice = ();
-        $safeReplacement = $self->_allowBlockInSanitizedString(
-            $safeReplacement,
-            $replacementType,
-            #
-            # In perl mode this $& $1 etc... or ${&}, ${1} etc...
-            #
-            ( $replacementType eq 'perl' )
-            ? qr/\\\$((?:\\\&|\\\{\\\&\\\})|(?:[0-9]+|\\\{[0-9]+\\\}))/
-            :
-                #
-                # In extended GNU mode this \& \1 etc... or \{&}, \{1} etc...
-                #
-                ( $replacementType eq 'GNUext' )
-            ? qr/\\\\((?:\\\&|\\\{\\\&\\\})|(?:[0-9]+|\\\{[0-9]+\\\}))/
-            :
-                #
-                # In emacs mode this \& \1 up to \9 max
-                #
-                qr/\\\\(\\\&|[1-9])/,
-            \&_regexpDollarOneToIndice,
-            \&_regexpIndiceToReplacement,
-            \%wantedRegexpIndice,
-            \$maxRegexpIndice
-        );
-        my @match        = ();
-        my $maxPosIndice = $self->regexp_lpos_count - 1;
-        foreach ( 0 .. $maxRegexpIndice ) {
-            if ( $_ <= $maxPosIndice ) {
-                my $l = $self->regexp_lpos_get($_);
-                my $r = $self->regexp_rpos_get($_);
-                $match[$_] = substr( $string, $l, $r - $l );
+        while ( $replPos <= $maxReplPos ) {
+            my $backslashPos = index( $repl, '\\', $replPos );
+            if ( $backslashPos < 0 ) {
+                $rc .= substr( $repl, $replPos );
+                last;
+            }
+            $rc .= substr( $repl, $replPos, $backslashPos - $replPos );
+            $replPos = $backslashPos;
+            my $ch = substr( $repl, ++$replPos, 1 );
+            if ( $replPos > $maxReplPos ) {
+                $impl->logger_warn( 'trailing %s ignored in replacement',
+                    '\\' );
+                $warned{undef} = 1;
+                last;
+            }
+            elsif ( $ch eq '0' || $ch eq '&' ) {
+                if ( $ch eq '0' ) {
+                    if ( !$warned{$ch} ) {
+                        $impl->logger_warn('\\0 should be replaced by \\&');
+                        $warned{$ch} = 1;
+                    }
+                }
+                $rc .= substr(
+                    $victim,
+                    $self->regexp_lpos_get(0),
+                    $self->regexp_rpos_get(0) - $self->regexp_lpos_get(0)
+                );
+                ++$replPos;
+            }
+            elsif ( $ch =~ /[1-9]/ ) {
+                if ( $maxIndice < $ch ) {
+                    if ( !$warned{$ch} ) {
+                        $impl->logger_warn( 'sub-expression %d not present',
+                            $ch );
+                        $warned{$ch} = 1;
+                    }
+                }
+                else {
+                    my $rpos = $self->regexp_rpos_get($ch);
+                    if ( $rpos > 0 ) {
+                        $rc .= substr( $victim, $self->regexp_lpos_get($ch),
+                                  $self->regexp_rpos_get($ch)
+                                - $self->regexp_lpos_get($ch) );
+                    }
+                }
+                ++$replPos;
             }
             else {
-                $impl->logger_warn(
-                    '%s: sub-expression number %d not present',
-                    $impl->impl_quote('regexp'), $_ );
-                $match[$_] = '';
+                $rc .= $ch;
+                ++$replPos;
             }
         }
-        my $replaced = eval "\"$safeReplacement\"";
-        if ($@) {
-            #
-            # Should not happen, we have sanitized the replacement string
-            #
-            $impl->logger_error( '%s: Internal error %s',
-                $impl->impl_quote('regexp'), $@ );
-            return false;
-        }
 
-        ${$replacedRef} = $replaced;
-        return true;
+        return $rc;
     }
 
     with 'MarpaX::Languages::M4::Role::Regexp';
