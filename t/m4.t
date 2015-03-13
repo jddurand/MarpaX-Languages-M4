@@ -45,7 +45,7 @@ close($fhfoo);
 my $echo = File::Spec->catfile('inc', 'echo.pl');
 my $tmpfile = File::Spec->catfile(File::Spec->tmpdir(), 'fooXXXXXX');
 
-foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
+foreach (grep {/regexp warnings/} grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
   my $testName = $_;
   my $inputRef = __PACKAGE__->section_data($testName);
   local @ARGV = ();
@@ -1030,7 +1030,7 @@ __! 075 changeword - prevent accidentical call of builtin: output !__
 esyscmd(foo)
 hi
 
-__! 076 changeword - word-regexp is character per character - perl engine: input('--regex-type', 'perl') !__
+__! 076 changeword - word-regexp is character per character - perl engine: input('--regexp-type', 'perl') !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`foo
@@ -1098,7 +1098,7 @@ foo
 foo
 
 bar
-__! 077 changeword - change of symbol lookup - perl engine: input('--regex-type', 'perl') !__
+__! 077 changeword - change of symbol lookup - perl engine: input('--regexp-type', 'perl') !__
 define(`foo', `bar')dnl
 define(`echo', `$*')dnl
 changecom(`/*', `*/')dnl Because comment have higher precedence to word
@@ -1114,7 +1114,7 @@ changeword(`#\([_a-zA-Z0-9]*\)')#dnl
 #echo(`foo #foo')
 __! 077 changeword - change of symbol lookup - GNU emacs engine: output !__
 foo bar
-__! 078 changeword - Difference v.s. TeX - perl engine: input('--regex-type', 'perl') !__
+__! 078 changeword - Difference v.s. TeX - perl engine: input('--regexp-type', 'perl') !__
 ifdef(`changeword', `', `errprint(` skipping: no changeword support
 ')m4exit(`77')')dnl
 define(`a', `errprint(`Hello')')dnl
@@ -1366,7 +1366,7 @@ __! 102 index - empty substring: output !__
 0
 0
 1
-__! 103 regexp - perl: input('--regex-type', 'perl') !__
+__! 103 regexp - perl: input('--regexp-type', 'perl', '--regexp-replacement-type', 'perl') !__
 regexp(`GNUs not Unix', `\b[a-z]\w+')
 regexp(`GNUs not Unix', `\bQ\w*')
 regexp(`GNUs not Unix', `\w(\w+)$', `*** $& *** $1 ***')
@@ -1386,11 +1386,19 @@ __! 103 regexp - GNU emacs: output !__
 -1
 *** Unix *** nix ***
 
-__! 104 regexp warnings: input !__
+__! 104 regexp warnings - perl: input('--regexp-type', 'perl', '--regexp-replacement-type', 'perl') !__
 regexp(`abc', `(b)', `\${1}0a')
-regexp(`abc', `b', `$1')
+regexp(`abc', `b', `$1$')
 regexp(`abc', `((d)?)(c)', `$1$2$3$4$5$6')
-__! 104 regexp warnings: output !__
+__! 104 regexp warnings - perl: output !__
+\\b0a
+
+c
+__! 104 regexp warnings - GNU Emacs: input !__
+regexp(`abc', `\(b\)', `\\\10\a')
+regexp(`abc', `b', `\1\')
+regexp(`abc', `\(\(d\)?\)\(c\)', `\1\2\3\4\5\6')
+__! 104 regexp warnings - GNU Emacs: output !__
 \\b0a
 
 c

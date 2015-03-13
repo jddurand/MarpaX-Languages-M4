@@ -455,6 +455,9 @@ COMMA ~ ',' _WS_any
                 #
                 # We are at the top level: flush to current diversion
                 #
+                # $self->logger_debug( '[%d->%d/%d] %s: %s',
+                #     $prevPos, $rc{pos}, $maxPos, $lexeme, $lexemeValue );
+
                 my $tmpValue = MarpaX::Languages::M4::Impl::Value->new()
                     ->value_push($lexemeValue);
                 $self->impl_appendValue(

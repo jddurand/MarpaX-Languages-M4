@@ -464,7 +464,7 @@ EVAL_GRAMMAR
     method _build__regexp_type {'GNU'}
 
     # =========================
-    # --regex-replacement-type
+    # --regexp-replacement-type
     # =========================
     option regexp_replacement_type => (
         is      => 'rw',
@@ -472,7 +472,7 @@ EVAL_GRAMMAR
         trigger => 1,
         format  => 's',
         doc =>
-            q{Regular expression engine replacement type. Affect the syntax of replacement string! Possible values: "GNU", "GNUext", "perl". In perl mode, $&, $1, etc... and ${&}, ${1}, etc... are replaced. In GNU mode, only \&, \1 etc... are replaced. In GNUext mode, \\&, \\1 etc... and \\{&}, \\{1} are replaced. Default: "GNU" (i.e. the GNU M4 default replacement syntax).}
+            q{Regular expression engine replacement type. Affect the syntax of replacement string! Possible values: "GNU", "GNUext", "perl". In perl mode, $&, $1, etc... and ${&}, ${1}, etc... are replaced, the eventual trailing $ character is ignored and issues a warning. In GNU mode, \\&, \\1 up to \\9 max are replaced, the eventual trailing \\ character is ignored and issues a warning. In GNUext mode, \\&, \\1 etc... and \\{&}, \\{1} etc... are replaced, same remark for trailing \\ character. Default: "GNU" (i.e. the GNU M4 default replacement syntax).}
     );
     has _regexp_replacement_type => (
         is      => 'rwp',
@@ -1554,9 +1554,9 @@ EVAL_GRAMMAR
                 && $r->regexp_lpos_count > 0
                 && $r->regexp_lpos_get(0) == 0 )
             {
-              my $lpos = ($r->regexp_lpos_get(0));
-              my $rpos = ($r->regexp_rpos_get(0));
-              my $thisLength = $rpos - $lpos;
+                my $lpos       = ( $r->regexp_lpos_get(0) );
+                my $rpos       = ( $r->regexp_rpos_get(0) );
+                my $thisLength = $rpos - $lpos;
                 if ( $lexemeLength > 0 && $lexemeLength == $thisLength ) {
                     #
                     # We went one character too far
@@ -1568,14 +1568,13 @@ EVAL_GRAMMAR
                 # It is perfectly legal to have an empty string
                 # as word "value"
                 #
-                if ( $r->regexp_lpos_count > 1) {
-                  $lpos = ($r->regexp_lpos_get(1));
-                  $rpos = ($r->regexp_rpos_get(1));
+                if ( $r->regexp_lpos_count > 1 ) {
+                    $lpos        = ( $r->regexp_lpos_get(1) );
+                    $rpos        = ( $r->regexp_rpos_get(1) );
                     $lexemeValue = substr( $thisInput, $lpos, $rpos - $lpos );
                 }
                 else {
-                    $lexemeValue
-                        = substr( $thisInput, $lpos, $lexemeLength );
+                    $lexemeValue = substr( $thisInput, $lpos, $lexemeLength );
                 }
                 $thisInput .= substr( $input, ++$lastPos, 1 );
             }
@@ -2877,7 +2876,8 @@ EVAL_GRAMMAR
         }
 
         my $r = MarpaX::Languages::M4::Impl::Regexp->new();
-        if (! $r->regexp_compile($self, $self->_regexp_type, $regexpString)) {
+        if (!$r->regexp_compile( $self, $self->_regexp_type, $regexpString ) )
+        {
             return '';
         }
 
@@ -2887,25 +2887,33 @@ EVAL_GRAMMAR
             #
             # Expands to the index of first match in string
             #
-          if ($r->regexp_exec ($self, $string)) {
+            if ( $r->regexp_exec( $self, $string ) ) {
                 return $r->regexp_lpos_get(0);
-              } else {
+            }
+            else {
                 return -1;
-              }
+            }
         }
         else {
-          if ($r->regexp_exec ($self, $string)) {
-            my $replaced;
-            if ($r->regexp_replace ($self, $string, $self->_regexp_replacement_type, $replacement, \$replaced)) {
-              return $replaced;
-            } else {
-              return '';
+            if ( $r->regexp_exec( $self, $string ) ) {
+                my $replaced;
+                if ($r->regexp_replace(
+                        $self, $string, $self->_regexp_replacement_type,
+                        $replacement, \$replaced
+                    )
+                    )
+                {
+                    return $replaced;
+                }
+                else {
+                    return '';
+                }
             }
-          } else {
-            return '';
-          }
+            else {
+                return '';
+            }
         }
-      }
+    }
 
     method builtin_substr (Undef|Str $string?, Undef|Str $from?, Undef|Str $length?, @ignored --> Str) {
         if ( Undef->check($string) ) {
@@ -3080,7 +3088,8 @@ EVAL_GRAMMAR
         }
 
         my $r = MarpaX::Languages::M4::Impl::Regexp->new();
-        if (! $r->regexp_compile($self, $self->_regexp_type, $regexpString)) {
+        if (!$r->regexp_compile( $self, $self->_regexp_type, $regexpString ) )
+        {
             return '';
         }
 
@@ -3090,17 +3099,24 @@ EVAL_GRAMMAR
         # If not supplied, default replacement is deletion
         $replacement //= '';
 
-        if ($r->regexp_exec ($self, $string)) {
-          my $replaced;
-          if ($r->regexp_replace ($self, $string, $self->_regexp_replacement_type, $replacement, \$replaced)) {
-            return $replaced;
-          } else {
-            return '';
-          }
-        } else {
-          return $string;
+        if ( $r->regexp_exec( $self, $string ) ) {
+            my $replaced;
+            if ($r->regexp_replace(
+                    $self, $string, $self->_regexp_replacement_type,
+                    $replacement, \$replaced
+                )
+                )
+            {
+                return $replaced;
+            }
+            else {
+                return '';
+            }
         }
-      }
+        else {
+            return $string;
+        }
+    }
 
     method builtin_format (Undef|Str $format?, Str @arguments --> Str) {
         if ( Undef->check($format) ) {
@@ -3423,15 +3439,19 @@ EVAL_GRAMMAR
         my $r = $self->_regexp_warn_macro_sequence;
         if ( !Undef->check($r) ) {
             my $current = $expansion;
-            while ( $r->regexp_exec( $self, $current )) {
+            while ( $r->regexp_exec( $self, $current ) ) {
                 $self->logger_warn(
                     'Definition of %s contains sequence %s',
                     $self->impl_quote($name),
                     $self->impl_quote(
-                        substr( $current, $r->regexp_lpos_get(0), $r->regexp_rpos_get(0) - $r->regexp_lpos_get(0) )
+                        substr(
+                            $current,
+                            $r->regexp_lpos_get(0),
+                            $r->regexp_rpos_get(0) - $r->regexp_lpos_get(0)
+                        )
                     )
                 );
-                $current = substr($current, $r->regexp_rpos_get(0));
+                $current = substr( $current, $r->regexp_rpos_get(0) );
             }
         }
 
