@@ -59,6 +59,18 @@ foreach (grep {/: input/} sort {$a cmp $b} __PACKAGE__->section_data_names) {
     $outputRef = __PACKAGE__->section_data("$testName: output");
     $testIsCmp = 1;
   }
+  #
+  # Take care: Data::Section does not reproduce data EXACTLY
+  #
+  # For instance, test 112, I MIGHT write: \\-a\-b\-c\- to have it read \-a\-b\-c\-
+  # ...
+  #
+  if ($testName eq '112 patsubst - warning') {
+      $outputRef = \"abc
+abc
+\\-a\\-b\\-c\\-
+";
+  }
 
   my $input = ${$inputRef};
   #
@@ -1480,9 +1492,9 @@ patsubst(`abc')
 patsubst(`abc', `')
 patsubst(`abc', `', `\\-')
 _! 112 patsubst - warning: output !__
-abc
-abc
-\-a\-b\-c\-
+#
+# C.f. MAIN PROGRAM
+#
 _! 113 format: input !__
 dnl the followings are a priori portable and will give the
 dnl same result regardless from Perl or with GNU M4

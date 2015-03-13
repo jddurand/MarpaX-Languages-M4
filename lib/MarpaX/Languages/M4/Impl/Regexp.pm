@@ -91,9 +91,15 @@ class MarpaX::Languages::M4::Impl::Regexp {
         }
     }
 
-    method regexp_exec (ConsumerOf['MarpaX::Languages::M4::Role::Impl'] $impl, Str $string --> Bool) {
+    #
+    # Return value is:
+    #  -2 if failure (the engine croaked)
+    #  -1 if match failed
+    # >=0 Position where it matches
+    #
+    method regexp_exec (ConsumerOf['MarpaX::Languages::M4::Role::Impl'] $impl, Str $string --> Int) {
 
-        my $rc = false;
+        my $rc = -1;
 
         #
         # Just make sure this really is perl
@@ -116,13 +122,13 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 # Execute perl engine
                 #
                 if ( $string =~ $self->_regexp ) {
-                    $rc = true;
                     my @lpos = ();
                     my @rpos = ();
                     map { ( $lpos[$_], $rpos[$_] ) = ( $-[$_], $+[$_] ) }
                         ( 0 .. $#- );
                     $self->_set_regexp_lpos( \@lpos );
                     $self->_set_regexp_rpos( \@rpos );
+                    $rc = $self->regexp_lpos_get(0);
                 }
             }
             else {
@@ -131,13 +137,13 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 # Execute re::engine::GNU engine
                 #
                 if ( $string =~ $self->_regexp ) {
-                    $rc = true;
                     my @lpos = ();
                     my @rpos = ();
                     map { ( $lpos[$_], $rpos[$_] ) = ( $-[$_], $+[$_] ) }
                         ( 0 .. $#- );
                     $self->_set_regexp_lpos( \@lpos );
                     $self->_set_regexp_rpos( \@rpos );
+                    $rc = $self->regexp_lpos_get(0);
                 }
                 no re::engine::GNU;
             }
@@ -148,6 +154,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 $impl->impl_quote( $self->_regexp ),
                 $impl->impl_quote($string), $_
             );
+            $rc = -2;
         };
 
         $hasPreviousRegcomp

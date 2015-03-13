@@ -609,10 +609,7 @@ EVAL_GRAMMAR
     method _trigger_builtin_need_param (ArrayRef[Str] $builtin_need_param, @rest --> Undef) {
         my $r = $self->_regexp_word;
         foreach ( @{$builtin_need_param} ) {
-            if (   $r->regexp_exec( $self, $_ )
-                && $r->regexp_lpos_count > 0
-                && $r->regexp_lpos_get(0) == 0 )
-            {
+            if ( $r->regexp_exec( $self, $_ ) == 0 ) {
                 if (   $r->regexp_lpos_count > 1
                     && $r->regexp_rpos_get(1) > $r->regexp_lpos_get(1) )
                 {
@@ -703,10 +700,7 @@ EVAL_GRAMMAR
         my $r   = $self->_regexp_word;
         my %ref = ();
         foreach ( @{$param_can_be_macro} ) {
-            if (   $r->regexp_exec( $self, $_ )
-                && $r->regexp_lpos_count > 0
-                && $r->regexp_lpos_get(0) == 0 )
-            {
+            if ( $r->regexp_exec( $self, $_ ) == 0 ) {
                 my $macroName;
                 my $nextPos = $r->regexp_rpos_get(0);
                 if (   $r->regexp_lpos_count > 1
@@ -948,10 +942,7 @@ EVAL_GRAMMAR
     method _trigger_define (ArrayRef[Str] $arrayRef, @rest --> Undef) {
         my $r = $self->_regexp_word;
         foreach ( @{$arrayRef} ) {
-            if (   $r->regexp_exec( $self, $_ )
-                && $r->regexp_lpos_count > 0
-                && $r->regexp_lpos_get(0) == 0 )
-            {
+            if ( $r->regexp_exec( $self, $_ ) == 0 ) {
                 my $macroName;
                 my $nextPos = $r->regexp_rpos_get(0);
                 if (   $r->regexp_lpos_count > 1
@@ -996,10 +987,7 @@ EVAL_GRAMMAR
     method _trigger_undefine (ArrayRef[Str] $arrayRef, @rest --> Undef) {
         my $r = $self->_regexp_word;
         foreach ( @{$arrayRef} ) {
-            if (   $r->regexp_exec( $self, $_ )
-                && $r->regexp_lpos_count > 0
-                && $r->regexp_lpos_get(0) == 0 )
-            {
+            if ( $r->regexp_exec( $self, $_ ) == 0 ) {
                 my $macroName;
                 my $nextPos = $r->regexp_rpos_get(0);
                 if (   $r->regexp_lpos_count > 1
@@ -1525,10 +1513,7 @@ EVAL_GRAMMAR
         my $thisInput = substr( $input, $pos, 1 );
         my $r = $self->_regexp_word;
         while ( $lastPos <= $maxPos ) {
-            if (   $r->regexp_exec( $self, $thisInput )
-                && $r->regexp_lpos_count > 0
-                && $r->regexp_lpos_get(0) == 0 )
-            {
+            if ( $r->regexp_exec( $self, $thisInput ) == 0 ) {
                 my $lpos       = ( $r->regexp_lpos_get(0) );
                 my $rpos       = ( $r->regexp_rpos_get(0) );
                 my $thisLength = $rpos - $lpos;
@@ -2862,7 +2847,7 @@ EVAL_GRAMMAR
             #
             # Expands to the index of first match in string
             #
-            if ( $r->regexp_exec( $self, $string ) ) {
+            if ( $r->regexp_exec( $self, $string ) >= 0 ) {
                 return $r->regexp_lpos_get(0);
             }
             else {
@@ -2870,7 +2855,7 @@ EVAL_GRAMMAR
             }
         }
         else {
-            if ( $r->regexp_exec( $self, $string ) ) {
+            if ( $r->regexp_exec( $self, $string ) >= 0 ) {
                 return $r->regexp_substitute( $self, $string, $replacement );
             }
             else {
@@ -3061,14 +3046,63 @@ EVAL_GRAMMAR
 
         #
         # If not supplied, default replacement is deletion
+        #
         $replacement //= '';
 
-        if ( $r->regexp_exec( $self, $string ) ) {
-            return $r->regexp_substitute( $self, $string, $replacement );
+# print STDERR "patsubst(\"$string\", \"$regexpString\", \"$replacement\")\n";
+
+        #
+        # Copy of the GNU M4's algorithm
+        #
+        my $offset = 0;
+        my $length = length($string);
+        my $rc     = '';
+        while ( $offset <= $length ) {
+            my $substring = substr( $string, $offset );
+            my $matchPos = $r->regexp_exec( $self, $substring );
+            if ( $matchPos < 0 ) {
+                if ( $matchPos < -1 ) {
+                    $self->logger_error(
+                        'error matching regular expression %s',
+                        $self->impl_quote($regexpString)
+                    );
+                }
+                elsif ( $offset < $length ) {
+                    $rc .= $substring;
+                }
+                last;
+            }
+            if ( $matchPos > 0 ) {
+                #
+                # Part of the string skipped by regexp_exec
+                #
+                $rc .= substr( $substring, 0, $matchPos );
+            }
+            #
+            # Do substitution in substring:
+            #
+            $rc .= $r->regexp_substitute( $self, $substring, $replacement );
+            #
+            # Continue to the end of the match
+            #
+            my $rpos = $r->regexp_rpos_get(0);
+
+            # print STDERR " ... += $rpos\n";
+            $offset += $rpos;
+            #
+            # If the regexp matched an empty string,
+            # advance once more
+            #
+            if ( $rpos == $r->regexp_lpos_get(0) ) {
+
+                # print STDERR " ... $offset++\n";
+                $rc .= substr( $string, $offset++, 1 );
+            }
         }
-        else {
-            return $string;
-        }
+
+        # print STDERR "... \"$rc\"\n";
+
+        return $rc;
     }
 
     method builtin_format (Undef|Str $format?, Str @arguments --> Str) {
@@ -3392,7 +3426,7 @@ EVAL_GRAMMAR
         my $r = $self->_regexp_warn_macro_sequence;
         if ( !Undef->check($r) ) {
             my $current = $expansion;
-            while ( $r->regexp_exec( $self, $current ) ) {
+            while ( $r->regexp_exec( $self, $current ) >= 0 ) {
                 $self->logger_warn(
                     'Definition of %s contains sequence %s',
                     $self->impl_quote($name),
