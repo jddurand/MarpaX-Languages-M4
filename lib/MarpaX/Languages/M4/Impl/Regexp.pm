@@ -55,8 +55,14 @@ class MarpaX::Languages::M4::Impl::Regexp {
         }
     );
 
-    method _regexpDollarOneToIndice (Str $dollarOne --> PositiveOrZeroInt) {
-        $dollarOne =~ s/^\\\{//;
+    method _regexpDollarOneToIndice (M4RegexpReplacementType $replacementType, Str $dollarOne --> PositiveOrZeroInt) {
+        if ( $replacementType eq 'perl' ) {
+            $dollarOne =~ s/^\\\{//;
+        }
+        elsif ( $replacementType eq 'GNUext' ) {
+        }
+        else {
+        }
         #
         # Note: int('&') will return 0
         #
@@ -181,7 +187,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
         return $rc;
     }
 
-    method _allowBlockInSanitizedString (Str $string, RegexpRef $regexp, CodeRef $dollarOneToIndiceRef, CodeRef $indiceToReplacementRef, HashRef $wantedIndicesRef, Ref['SCALAR'] $maxArgumentIndiceRef --> Str) {
+    method _allowBlockInSanitizedString (Str $string, M4RegexpReplacementType $replacementType, RegexpRef $regexp, CodeRef $dollarOneToIndiceRef, CodeRef $indiceToReplacementRef, HashRef $wantedIndicesRef, Ref['SCALAR'] $maxArgumentIndiceRef --> Str) {
 
         #
         # Note: we know we are using perl regexp here
@@ -191,7 +197,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
            #
            # Writen like this to show that this is a BLOCK on the right-side of eval
            #
-           my $indice = $self->$dollarOneToIndiceRef(substr($string, $-[1], $+[1] - $-[1]));
+           my $indice = $self->$dollarOneToIndiceRef($replacementType, substr($string, $-[1], $+[1] - $-[1]));
            if ($indice > ${$maxArgumentIndiceRef}) {
              ${$maxArgumentIndiceRef} = $indice;
            }
@@ -236,6 +242,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
         my %wantedRegexpIndice = ();
         $safeReplacement = $self->_allowBlockInSanitizedString(
             $safeReplacement,
+            $replacementType,
             #
             # In perl mode this $& $1 etc... or ${&}, ${1} etc...
             #
