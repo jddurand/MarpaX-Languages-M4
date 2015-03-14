@@ -1443,7 +1443,7 @@ EVAL_GRAMMAR
     # =========================
     # --warn-macro-sequence
     # =========================
-    our $DEFAULT_WARN_MACRO_SEQUENCE = '\$(?:\{[^\}]*\}|[0-9][0-9]+)';
+    our $DEFAULT_WARN_MACRO_SEQUENCE = '\$\({[^}]*}\|[0-9][0-9]+\)';
     option warn_macro_sequence => (
         is      => 'rw',
         isa     => Str,
@@ -3415,20 +3415,37 @@ EVAL_GRAMMAR
                                 #
         my $r = $self->_regexp_warn_macro_sequence;
         if ( !Undef->check($r) ) {
-            my $current = $expansion;
-            while ( $r->regexp_exec( $self, $current ) >= 0 ) {
-                $self->logger_warn(
-                    'Definition of %s contains sequence %s',
-                    $self->impl_quote($name),
-                    $self->impl_quote(
-                        substr(
-                            $current,
-                            $r->regexp_lpos_get(0),
-                            $r->regexp_rpos_get(0) - $r->regexp_lpos_get(0)
+            my $offset = 0;
+            my $len    = length($expansion);
+            while ( $offset
+                = $r->regexp_exec( $self, $expansion, $offset ) >= 0 )
+            {
+                #
+                # Skip empty matches
+                #
+                if ( $r->regexp_lpos_get(0) == $r->regexp_rpos_get(0) ) {
+                    $offset++;
+                }
+                else {
+                    $offset = $r->regexp_rpos_get(0);
+                    $self->logger_warn(
+                        'Definition of %s contains sequence %s',
+                        $self->impl_quote($name),
+                        $self->impl_quote(
+                            substr(
+                                $expansion,
+                                $r->regexp_lpos_get(0),
+                                $r->regexp_rpos_get(0)
+                                    - $r->regexp_lpos_get(0)
+                            )
                         )
-                    )
-                );
-                $current = substr( $current, $r->regexp_rpos_get(0) );
+                    );
+                }
+            }
+            if ( $offset < -1 ) {
+                $self->logger_warn(
+                    'error checking --warn-macro-sequence for macro %s',
+                    $self->impl_quote($name) );
             }
         }
 
