@@ -97,8 +97,9 @@ class MarpaX::Languages::M4::Impl::Regexp {
     #  -1 if match failed
     # >=0 Position where it matches
     #
-    method regexp_exec (ConsumerOf['MarpaX::Languages::M4::Role::Impl'] $impl, Str $string --> Int) {
+    method regexp_exec (ConsumerOf['MarpaX::Languages::M4::Role::Impl'] $impl, Str $string, PositiveOrZeroInt $pos? --> Int) {
 
+        pos($string) = $pos;    # undef is ok
         my $rc = -1;
 
         #
@@ -113,6 +114,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
         # lexically scoped, and our scope depend on the engine
         #
         try {
+            my $regexp = $self->_regexp;
             if ( $self->_regexp_type eq 'perl' ) {
                 #
                 # Just make sure this really is perl
@@ -121,7 +123,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 #
                 # Execute perl engine
                 #
-                if ( $string =~ $self->_regexp ) {
+                if ( $string =~ m/$regexp/gc ) {
                     my @lpos = ();
                     my @rpos = ();
                     map { ( $lpos[$_], $rpos[$_] ) = ( $-[$_], $+[$_] ) }
@@ -136,7 +138,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 #
                 # Execute re::engine::GNU engine
                 #
-                if ( $string =~ $self->_regexp ) {
+                if ( $string =~ m/$regexp/gc ) {
                     my @lpos = ();
                     my @rpos = ();
                     map { ( $lpos[$_], $rpos[$_] ) = ( $-[$_], $+[$_] ) }
@@ -149,11 +151,9 @@ class MarpaX::Languages::M4::Impl::Regexp {
             }
         }
         catch {
-            $impl->logger_error(
-                '%s =~ %s: %s',
-                $impl->impl_quote( $self->_regexp ),
-                $impl->impl_quote($string), $_
-            );
+            my $regexp = $self->_regexp;
+            $impl->logger_error( '%s =~ %s: %s', $impl->impl_quote($string),
+                "$regexp", $_ );
             $rc = -2;
         };
 

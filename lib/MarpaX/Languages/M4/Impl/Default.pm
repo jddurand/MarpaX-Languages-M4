@@ -3048,9 +3048,6 @@ EVAL_GRAMMAR
         # If not supplied, default replacement is deletion
         #
         $replacement //= '';
-
-# print STDERR "patsubst(\"$string\", \"$regexpString\", \"$replacement\")\n";
-
         #
         # Copy of the GNU M4's algorithm
         #
@@ -3058,8 +3055,7 @@ EVAL_GRAMMAR
         my $length = length($string);
         my $rc     = '';
         while ( $offset <= $length ) {
-            my $substring = substr( $string, $offset );
-            my $matchPos = $r->regexp_exec( $self, $substring );
+            my $matchPos = $r->regexp_exec( $self, $string, $offset );
             if ( $matchPos < 0 ) {
                 if ( $matchPos < -1 ) {
                     $self->logger_error(
@@ -3068,7 +3064,7 @@ EVAL_GRAMMAR
                     );
                 }
                 elsif ( $offset < $length ) {
-                    $rc .= $substring;
+                    $rc .= substr( $string, $offset );
                 }
                 last;
             }
@@ -3076,31 +3072,25 @@ EVAL_GRAMMAR
                 #
                 # Part of the string skipped by regexp_exec
                 #
-                $rc .= substr( $substring, 0, $matchPos );
+                $rc .= substr( $string, $offset, $matchPos - $offset );
             }
             #
-            # Do substitution in substring:
+            # Do substitution in string:
             #
-            $rc .= $r->regexp_substitute( $self, $substring, $replacement );
+            $rc .= $r->regexp_substitute( $self, $string, $replacement );
             #
             # Continue to the end of the match
             #
-            my $rpos = $r->regexp_rpos_get(0);
-
-            # print STDERR " ... += $rpos\n";
-            $offset += $rpos;
+            $offset = $r->regexp_rpos_get(0);
             #
             # If the regexp matched an empty string,
             # advance once more
             #
-            if ( $rpos == $r->regexp_lpos_get(0) ) {
+            if ( $r->regexp_lpos_get(0) == $offset ) {
 
-                # print STDERR " ... $offset++\n";
                 $rc .= substr( $string, $offset++, 1 );
             }
         }
-
-        # print STDERR "... \"$rc\"\n";
 
         return $rc;
     }
