@@ -1767,7 +1767,7 @@ __! 132 warn-macro-sequence and -E twice: input('-E', '-E') !__
 define(`foo', `$001 ${1} $1')
 foo(`bar')
 __! 132 warn-macro-sequence and -E twice: output !__
-__! 133 regexp: input !__
+__! 133 regexp error: input !__
 regexp(`GNUs not Unix', `\(')
-__! 133 regexp: output !__
+__! 133 regexp error: output !__
 
