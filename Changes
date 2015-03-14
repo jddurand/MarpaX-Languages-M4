@@ -1,6 +1,28 @@
 Changelog for MarpaX-Languages-M4
 
-0.007 2015-03-02T04:07:47
+0.008 2015-03-14T10:41:05
+ [Jean-Damien Durand <jeandamiendurand@free.fr>]
+ - t/m4.t: renamed test "regexp" to "regexp error"
+ - Impl/Default.pm: --warn-macro-sequence fix
+ - Impl/Regexp.pm: use re::engine::GNU 0.009
+ - patsubst fix
+ - Regexp: dev+
+ - Regepx: dev+
+ - Regexp role revival
+ - debugfile declared twice
+ - M4.pm: POD fix
+ - t/m4.t: 078 changeword - Difference v.s. TeX - regexp engine derivation
+ - t/m4.t: 077 changeword - change of symbol lookup - regexp engine
+   derivation
+ - re::engine::GNU dev+ (and fix of possible unitialized M4PATH via
+   Env::Path)
+ - Regexp role/type/impl: dev+
+ - re-engine-GNU integration: dev+
+ - Impl/Default.pm: defaults to m4 regex style and use re::engine::GNU
+ - M4.pm: Moops style
+ - Impl/Default.pm: Gnulib::Regex dev+
+
+0.007 2015-03-02T04:07:47Z
  [Jean-Damien Durand <jeandamiendurand@free.fr>]
  - lib/MarpaX/Languages/M4.pm
  - Revert "posix regexp dev+"
@@ -31,7 +53,7 @@ Changelog for MarpaX-Languages-M4
  - Impl/Default.pm: fix strange runtime behaviour under perl < 5.18
  - AUTHORITY
  - dist.ini: remove some unwanted stuff
- - Impl/Parser.pm: add #Â VERSION
+ - Impl/Parser.pm: add #ÃÂ VERSION
  - Move MarpaX::Languages::M4::Impl::Parser::Actions to its own file
 
 0.005 2015-02-23T19:51:43Z
