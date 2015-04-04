@@ -1,6 +1,12 @@
 Changelog for MarpaX-Languages-M4
 
-0.008 2015-03-14T10:41:05
+0.009 2015-04-04T08:52:37
+ [Jean-Damien Durand <jeandamiendurand@free.fr>]
+ - use re::engine::GNU 0.018
+ - dist.ini: moved to PodWeaver +config_plugin = @RJBS
+ - Impl/Regexp.pm: use re::engine::GNU 0.011;
+
+0.008 2015-03-14T10:41:05Z
  [Jean-Damien Durand <jeandamiendurand@free.fr>]
  - t/m4.t: renamed test "regexp" to "regexp error"
  - Impl/Default.pm: --warn-macro-sequence fix
@@ -53,7 +59,8 @@ Changelog for MarpaX-Languages-M4
  - Impl/Default.pm: fix strange runtime behaviour under perl < 5.18
  - AUTHORITY
  - dist.ini: remove some unwanted stuff
- - Impl/Parser.pm: add #ÃÂ VERSION
+ - Impl/Parser.pm: add
+   #ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ VERSION
  - Move MarpaX::Languages::M4::Impl::Parser::Actions to its own file
 
 0.005 2015-02-23T19:51:43Z
