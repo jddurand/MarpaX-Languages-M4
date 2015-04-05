@@ -53,6 +53,11 @@ class MarpaX::Languages::M4::Impl::Regexp {
         my $previousRegcomp = $hasPreviousRegcomp ? $^H{regcomp} : undef;
 
         try {
+            #
+            # Some versions of perl warn, some others don't -;
+            # We are only interested by real failures.
+            #
+            no warnings;
             if ( $regexpType eq 'perl' ) {
                 #
                 # Just make sure this really is perl
@@ -114,6 +119,11 @@ class MarpaX::Languages::M4::Impl::Regexp {
         # lexically scoped, and our scope depend on the engine
         #
         try {
+            #
+            # Some versions of perl warn, some others don't -;
+            # We are only interested by real failures.
+            #
+            no warnings;
             my $regexp = $self->_regexp;
             if ( $self->_regexp_type eq 'perl' ) {
                 #
