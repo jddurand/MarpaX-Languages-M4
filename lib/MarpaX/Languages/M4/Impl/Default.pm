@@ -260,6 +260,12 @@ EVAL_GRAMMAR
         #
         my $class = $self;
         $self = $class->${^NEXT}(@_);
+        #
+        # Because this is done before caller got the returned value:
+        # in the logger callback he gan get the $self value using
+        # this localized variable
+        #
+        local $MarpaX::Languages::M4::SELF = $self;
         while (@ARGV) {
             #
             # Process this non-option
@@ -283,10 +289,16 @@ EVAL_GRAMMAR
                 return;
             };
             if ( !Undef->check($fh) ) {
-                local $MarpaX::Languages::M4::SELF = $self;
                 $self->impl_parseIncremental(
                     do { local $/; <$fh> }
                 );
+                try {
+                    $fh->close;
+                }
+                catch {
+                    $self->logger_warn( '%s: %s', $file, $_ );
+                    return;
+                };
                 print $self->impl_value;
                 ${ $self->impl_valueRef } = '';
             }
@@ -312,18 +324,61 @@ EVAL_GRAMMAR
         return $self;
     }
 
-    # ---------------------------------------------------------------
-    # OPTIONS
-    # ---------------------------------------------------------------
-    # * Options always have triggers
-    # * If an option xxx maps to an internal attribute _xxx,
-    #   this attribute is always rwp + lazy + builder
-    # ---------------------------------------------------------------
+# ---------------------------------------------------------------
+# OPTIONS
+# ---------------------------------------------------------------
+# * Options always have triggers
+# * If an option xxx maps to an internal attribute _xxx,
+#   this attribute is always rwp + lazy + builder
+#
+# Exception are:
+# --reload-state: option have order 0 to be seen first, but it is processed explicitely
+#                 only before options D, U and t.
+# --freeze-state: it is implemented at end-of-input
+# ---------------------------------------------------------------
+
+    # =========================
+    # --reload-state
+    # =========================
+    option reload_state => (
+        is      => 'rw',
+        isa     => Str,
+        trigger => 1,
+        order   => 0,
+        format  => 's',
+        short   => 'R',
+        doc =>
+            q{Before execution starts, recover the internal state from the specified frozen file. The options -D, -U, and -t take effect after state is reloaded, but before the input files are read. This option is always processed first.}
+    );
+
+    has _stateReloaded => ( is => 'rwp', isa => Bool, default => false );
+
+    method _trigger_reload_state (Str $reloadState, @rest --> Undef) {
+        $self->impl_reloadState;
+        return;
+    }
+
+    # =========================
+    # --freeze-state
+    # =========================
+    option freeze_state => (
+        order   => 1,
+        is      => 'rw',
+        isa     => Str,
+        default => '',
+        format  => 's',
+        short   => 'F',
+        doc =>
+            q{Once execution is finished, write out the frozen state on the specified file. It is conventional, but not required, for file to end in ‘.m4f’. This is implemented at object destruction and is executed once.}
+    );
+
+    has _stateFreezed => ( is => 'rwp', isa => Bool, default => false );
 
     # =========================
     # --cmdtounix
     # =========================
     option cmdtounix => (
+        order   => 1,
         is      => 'rw',
         isa     => Bool,
         trigger => 1,
@@ -343,6 +398,7 @@ EVAL_GRAMMAR
     # --inctounix
     # =========================
     option inctounix => (
+        order   => 1,
         is      => 'rw',
         isa     => Bool,
         trigger => 1,
@@ -363,6 +419,7 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_TOKENS_PRIORITY = [qw/COMMENT WORD QUOTEDSTRING CHARACTER/];
     option tokens_priority => (
+        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         format      => 's@',
@@ -417,6 +474,7 @@ EVAL_GRAMMAR
     # --integer-type
     # =========================
     option integer_type => (
+        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -442,6 +500,7 @@ EVAL_GRAMMAR
     # --regexp-type
     # =========================
     option regexp_type => (
+        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -468,6 +527,7 @@ EVAL_GRAMMAR
     # =========================
     our $INTEGER_BITS_DEFAULT_VALUE = 32;
     option integer_bits => (
+        order   => 1,
         is      => 'rw',
         isa     => PositiveInt,
         trigger => 1,
@@ -494,6 +554,7 @@ EVAL_GRAMMAR
     # --m4wrap-order
     # =========================
     option m4wrap_order => (
+        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -520,6 +581,7 @@ EVAL_GRAMMAR
     # --divert-type
     # =========================
     option divert_type => (
+        order   => 1,
         is      => 'rw',
         trigger => 1,
         isa     => Str,
@@ -579,6 +641,7 @@ EVAL_GRAMMAR
             /
     ];
     option builtin_need_param => (
+        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         trigger     => 1,
@@ -656,6 +719,7 @@ EVAL_GRAMMAR
         },
     };
     option param_can_be_macro => (
+        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         trigger     => 1,
@@ -756,6 +820,7 @@ EVAL_GRAMMAR
     # --interactive
     # =========================
     option interactive => (
+        order   => 1,
         is      => 'rw',
         isa     => Bool,
         short   => 'i',
@@ -772,7 +837,6 @@ EVAL_GRAMMAR
         # If interactive mode is triggered via new_with_options()
         # the caller is likely to not have $self yet.
         #
-        local $MarpaX::Languages::M4::SELF = $self;
         while ( defined( $_ = <STDIN> ) ) {
             $self->impl_parseIncremental($_);
             print $self->impl_value;
@@ -784,6 +848,7 @@ EVAL_GRAMMAR
     # --version
     # =========================
     option version => (
+        order   => 1,
         is      => 'rw',
         isa     => Bool,
         short   => 'v',
@@ -811,6 +876,7 @@ EVAL_GRAMMAR
     # --prefix-builtins
     # =========================
     option prefix_builtins => (
+        order   => 1,
         is      => 'rw',
         isa     => Bool,
         short   => 'P',
@@ -836,6 +902,7 @@ EVAL_GRAMMAR
     # --fatal-warnings
     # =========================
     option fatal_warnings => (
+        order      => 1,
         is         => 'rw',
         isa        => PositiveInt,
         repeatable => 1,
@@ -864,6 +931,7 @@ EVAL_GRAMMAR
     # --silent
     # =========================
     option silent => (
+        order   => 1,
         is      => 'rw',
         default => false,
         short   => 'Q',
@@ -888,6 +956,7 @@ EVAL_GRAMMAR
     # --trace
     # =========================
     option trace => (
+        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         default     => sub { [] },
@@ -917,6 +986,7 @@ EVAL_GRAMMAR
     );
 
     method _trigger_trace (ArrayRef[Str] $arrayRef, @rest --> Undef) {
+        $self->impl_reloadState;
         foreach ( @{$arrayRef} ) {
             $self->_trace_set($_);
         }
@@ -928,6 +998,7 @@ EVAL_GRAMMAR
     # --define
     # =========================
     option define => (
+        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         handles_via => 'Array',
@@ -940,6 +1011,7 @@ EVAL_GRAMMAR
     );
 
     method _trigger_define (ArrayRef[Str] $arrayRef, @rest --> Undef) {
+        $self->impl_reloadState;
         my $r = $self->_regexp_word;
         foreach ( @{$arrayRef} ) {
             if ( $r->regexp_exec( $self, $_ ) == 0 ) {
@@ -972,6 +1044,7 @@ EVAL_GRAMMAR
     # --undefine
     # =========================
     option undefine => (
+        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         handles_via => 'Array',
@@ -985,6 +1058,7 @@ EVAL_GRAMMAR
     );
 
     method _trigger_undefine (ArrayRef[Str] $arrayRef, @rest --> Undef) {
+        $self->impl_reloadState;
         my $r = $self->_regexp_word;
         foreach ( @{$arrayRef} ) {
             if ( $r->regexp_exec( $self, $_ ) == 0 ) {
@@ -1016,6 +1090,7 @@ EVAL_GRAMMAR
     # --prepend-include
     # =========================
     option prepend_include => (
+        order   => 1,
         is      => 'rw',
         isa     => ArrayRef [Str],
         format  => 's@',
@@ -1044,6 +1119,7 @@ EVAL_GRAMMAR
     # --include
     # =========================
     option include => (
+        order   => 1,
         is      => 'rw',
         isa     => ArrayRef [Str],
         format  => 's@',
@@ -1072,6 +1148,7 @@ EVAL_GRAMMAR
     # --gnu
     # =========================
     option gnu => (
+        order   => 1,
         is      => 'rw',
         isa     => Bool,
         short   => 'g',
@@ -1096,6 +1173,7 @@ EVAL_GRAMMAR
     # --traditional
     # =========================
     option traditional => (
+        order   => 1,
         is      => 'rw',
         isa     => Bool,
         short   => 'G',
@@ -1114,6 +1192,7 @@ EVAL_GRAMMAR
     our @DEBUG_FLAGS         = qw/a c e f i l p q t x/;
     our @DEFAULT_DEBUG_FLAGS = qw/a e q/;
     option debugmode => (
+        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1190,6 +1269,7 @@ EVAL_GRAMMAR
     # --debugfile
     # =========================
     option debugfile => (
+        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1217,6 +1297,7 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_QUOTE_START = '`';
     option quote_start => (
+        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1258,6 +1339,7 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_QUOTE_END = '\'';
     option quote_end => (
+        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1299,6 +1381,7 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_COMMENT_START = '#';
     option comment_start => (
+        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1343,6 +1426,7 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_COMMENT_END = "\n";
     option comment_end => (
+        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1387,6 +1471,7 @@ EVAL_GRAMMAR
 #
     our $DEFAULT_WORD_REGEXP = '[_a-zA-Z][_a-zA-Z0-9]*';
     option word_regexp => (
+        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1445,6 +1530,7 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_WARN_MACRO_SEQUENCE = '\$\({[^}]*}\|[0-9][0-9]+\)';
     option warn_macro_sequence => (
+        order   => 1,
         is      => 'rw',
         isa     => Str,
         default => $DEFAULT_WARN_MACRO_SEQUENCE,
@@ -1686,9 +1772,22 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
     # LOGGER REQUIRED METHODS
     # ---------------------------------------------------------------
-    method logger_error (@args --> Undef) { $self->_logger->errorf(@args); return; }
+    method logger_error (@args --> Undef) {
+            #
+            # Localize anyway, because there can be an error within
+            # new_with_options() -;
+            #
+        local $MarpaX::Languages::M4::SELF = $self;
+        $self->_logger->errorf(@args);
+        return;
+    }
 
     method logger_warn (@args --> Undef) {
+            #
+            # Localize anyway, because there can be an error within
+            # new_with_options() -;
+            #
+        local $MarpaX::Languages::M4::SELF = $self;
         if ( !$self->silent ) {
             $self->_logger->warnf(@args);
         }
@@ -1849,7 +1948,7 @@ EVAL_GRAMMAR
             my $name = '__gnu__';
             $ref{$name} = MarpaX::Languages::M4::Impl::Macro->new(
                 name      => $name,
-                expansion => "<$_>",
+                expansion => '',
                 stub      => sub { return ''; }
             );
         }
@@ -1866,7 +1965,7 @@ EVAL_GRAMMAR
             }
             $ref{$name} = MarpaX::Languages::M4::Impl::Macro->new(
                 name      => $name,
-                expansion => "<$_>",
+                expansion => '',
                 stub      => sub { return ''; }
             );
         }
@@ -1874,7 +1973,7 @@ EVAL_GRAMMAR
             my $name = $self->_no_gnu_extensions ? 'unix' : '__unix__';
             $ref{$name} = MarpaX::Languages::M4::Impl::Macro->new(
                 name      => $name,
-                expansion => "<$_>",
+                expansion => '',
                 stub      => sub { return ''; }
             );
         }
@@ -2553,12 +2652,18 @@ EVAL_GRAMMAR
                 my $content;
                 try {
                     $content = do { local $/; <$fh>; };
-                    $fh->close;
                 }
                 catch {
                     if ( !$silent ) {
                         $self->logger_warn( '%s: %s', $file, $_ );
                     }
+                    return;
+                };
+                try {
+                    $fh->close;
+                }
+                catch {
+                    $self->logger_warn( '%s: %s', $file, $_ );
                     return;
                 };
                 if ( !Undef->check($content) ) {
@@ -3146,7 +3251,7 @@ EVAL_GRAMMAR
             catch {
                 $self->logger_warn( '%s: %s', $self->impl_quote('incr'), $! );
                 return;
-            }
+            };
         }
         return $rc;
     }
@@ -3183,7 +3288,7 @@ EVAL_GRAMMAR
             catch {
                 $self->logger_warn( '%s: %s', $self->impl_quote('decr'), $! );
                 return;
-            }
+            };
         }
         return $rc;
     }
@@ -3531,6 +3636,307 @@ STUB
         return $codeRef;
     }
 
+    method _issue_expect_message (Str $expected) {
+        if ( $expected eq "\n" ) {
+            $self->logger_error('expecting line feed in frozen file');
+        }
+        else {
+            $self->logger_error(
+                sprintf( 'expecting character %s in frozen file',
+                    $self->impl_quote($expected) )
+            );
+        }
+    }
+
+    method impl_freezeState (--> Bool) {
+        if ( !$self->_stateFreezed ) {
+            if ( length( $self->freeze_state ) > 0 ) {
+                try {
+                    my $file = $self->freeze_state;
+                    my $fh   = IO::File->new(
+                        $ENV{M4_ENCODE_LOCALE}
+                        ? encode( locale_fs => $file )
+                        : $file,
+                        'w'
+                        )
+                        || die "$file: $!";
+                    if ( $ENV{M4_ENCODE_LOCALE} ) {
+                        binmode( $fh, ':encoding(locale)' );
+                    }
+                    else {
+                        binmode($fh);
+                    }
+
+                    my $CURRENTVERSION;
+                    {
+           #
+           # Because $VERSION is generated by dzil, not available in dev. tree
+           #
+                        no strict 'vars';
+                        $CURRENTVERSION = $VERSION;
+                    }
+                    $CURRENTVERSION ||= 'dev';
+
+                    $fh->print(
+                        sprintf(
+                            "# This is a frozen state file generated by %s version %s\n",
+                            __PACKAGE__, $CURRENTVERSION
+                        )
+                    );
+                    $fh->print("V1\n");
+                    #
+                    # Dump quote delimiters
+                    #
+                    if (   $self->_quote_start ne $DEFAULT_QUOTE_START
+                        || $self->_quote_end ne $DEFAULT_QUOTE_END )
+                    {
+                        $fh->print(
+                            sprintf( "Q%d,%d\n",
+                                length( $self->_quote_start ),
+                                length( $self->_quote_end ) )
+                        );
+                        $fh->print( $self->_quote_start );
+                        $fh->print( $self->_quote_end );
+                        $fh->print("\n");
+                    }
+                    #
+                    # Dump comment delimiters
+                    #
+                    if (   $self->_comment_start ne $DEFAULT_COMMENT_START
+                        || $self->_comment_end ne $DEFAULT_COMMENT_END )
+                    {
+                        $fh->print(
+                            sprintf( "Q%d,%d\n",
+                                length( $self->_comment_start ),
+                                length( $self->_comment_end ) )
+                        );
+                        $fh->print( $self->_comment_start );
+                        $fh->print( $self->_comment_end );
+                        $fh->print("\n");
+                    }
+                    #
+                    # Dump all symbols, for each of them do
+                    # it in reverse order until builtin is reached
+                    #
+                    foreach ( $self->_macros_keys ) {
+                        foreach (
+                            reverse(
+                                $self->_macros_get($_)->macros_elements
+                            )
+                            )
+                        {
+                            my $name      = $_->macro_name;
+                            my $expansion = $_->macro_expansion;
+                            #
+                            # Expansion is either Str or M4Macro
+                            #
+                            if ( Str->check($expansion) ) {
+                                $fh->print(
+                                    sprintf( "T%d,%d\n",
+                                        length($name), length($expansion) )
+                                );
+                                $fh->print($name);
+                                $fh->print($expansion);
+                                $fh->print("\n");
+                            }
+                            else {
+                                $fh->print(
+                                    sprintf( "F%d,%d\n",
+                                        length($name),
+                                        length( $expansion->macro_name ) )
+                                );
+                                $fh->print($name);
+                                $fh->print( $expansion->macro_name );
+                                $fh->print("\n");
+                            }
+                        }
+                    }
+                    $fh->print("# End of frozen state file\n");
+                    $fh->close;
+                }
+                catch {
+                    $self->logger_error( 'failed to freeze state: %s', "$_" );
+                    return;
+                };
+            }
+            $self->_set__stateFreezed(true);
+        }
+        return true;
+    }
+
+    method impl_reloadState (--> Bool) {
+        if ( !$self->_stateReloaded ) {
+            if ( length( $self->reload_state ) > 0 ) {
+                try {
+                    my $file    = $self->reload_state;
+                    my $content = $self->_includeFile( false, $file );
+                    my $fh      = IO::Scalar->new( \$content );
+               #
+               # Process frozened file character per character. This is a copy
+               # of m4-1.4.17 algorithm
+               #
+                    my $character;
+                    my $operation;
+                    my $advance_line = true;
+                    my $current_line = 0;
+                    my @allocated    = ( undef, undef );
+                    my @number       = ( undef, undef );
+                    my @string       = ( undef, undef );
+
+                    my $GET_CHARACTER = sub {
+                        my ($self) = @_;
+
+                        if ($advance_line) {
+                            $current_line++;
+                            $advance_line = false;
+                        }
+                        $character = $fh->getc();
+                        if ( $character eq "\n" ) {
+                            $advance_line = false;
+                        }
+                    };
+                    my $GET_NUMBER = sub {
+              #
+              # AllowNeg is not used. We let perl croak if there i an overflow
+              #
+                        my ( $self, $allowneg ) = @_;
+                        my $n = 0;
+                        while ( $character =~ /[[:digit:]]/ ) {
+                            $n = 10 * $n + $character;
+                            $self->$GET_CHARACTER();
+                        }
+                        return $n;
+                    };
+                    my $VALIDATE = sub {
+                        my ( $self, $expected ) = @_;
+
+                        if ( $character ne $expected ) {
+                            $self->_issue_expect_message($expected);
+                        }
+                    };
+                    my $GET_DIRECTIVE = sub {
+                        my ($self) = @_;
+
+                        do {
+                            $self->$GET_CHARACTER();
+                            if ( $character eq '#' ) {
+                                while ( !$fh->eof() && $character ne "\n" ) {
+                                    $self->$GET_CHARACTER();
+                                }
+                                $self->$VALIDATE("\n");
+                            }
+                        } while ( $character eq "\n" );
+                    };
+                    my $GET_STRING = sub {
+                        my ( $self, $i ) = @_;
+
+                        if ( $number[$i] + 1 > $allocated[$i] ) {
+                            $allocated[$i]++;
+                            $string[$i] = ' ' x $allocated[$i];
+                        }
+                        if ( $number[$i] > 0
+                            && !$fh->read( $string[$i], $number[$i] ) )
+                        {
+                            $self->impl_raiseException(
+                                'premature end of frozen file');
+                        }
+                        $current_line += $string[$i] =~ tr/\n//;
+                    };
+
+                    $allocated[0] = 100;
+                    $string[0]    = ' ' x $allocated[0];
+                    $allocated[1] = 100;
+                    $string[1]    = ' ' x $allocated[1];
+
+                    $self->$GET_DIRECTIVE();
+                    $self->$VALIDATE('V');
+                    $self->$GET_CHARACTER();
+                    $number[0] = $self->$GET_NUMBER(false);
+                    if ( $number[0] > 1 ) {
+                        die sprintf(
+                            'frozen file version %d greater than max supported of 1',
+                            $number[0] );
+                    }
+                    elsif ( $number[0] < 1 ) {
+                        die
+                            'ill-formed frozen file, version directive expected';
+                    }
+                    $self->$VALIDATE("\n");
+
+                    $self->$GET_DIRECTIVE();
+                    while ( !$fh->eof() ) {
+                        if (   $character eq 'C'
+                            || $character eq 'D'
+                            || $character eq 'F'
+                            || $character eq 'T'
+                            || $character eq 'Q' )
+                        {
+                            $operation = $character;
+                            $self->$GET_CHARACTER();
+
+                      # Get string lengths. Accept a negative diversion number
+
+                            if ( $operation eq 'D' && $character eq '-' ) {
+                                $self->$GET_CHARACTER();
+                                $number[0] = -$self->$GET_NUMBER(true);
+                            }
+                            else {
+                                $number[0] = $self->$GET_NUMBER(false);
+                            }
+                            $self->$VALIDATE(',');
+                            $self->$GET_CHARACTER();
+                            $number[1] = $self->$GET_NUMBER(false);
+                            $self->$VALIDATE("\n");
+                            if ( $operation ne 'D' ) {
+                                $self->$GET_STRING(0);
+                            }
+                            $self->$GET_STRING(1);
+                            $self->$GET_CHARACTER();
+                            $self->$VALIDATE("\n");
+
+                            if ( $operation eq 'C' ) {
+                                $self->builtin_changecom( $string[0],
+                                    $string[1] );
+                            }
+                            elsif ( $operation eq 'D' ) {
+                                $self->builtin_divert( $number[0] );
+                                if ( $number[1] > 0 ) {
+                                    $self->impl_appendValue( $string[1] );
+                                }
+                            }
+                            elsif ( $operation eq 'F' ) {
+                                $self->builtin_pushdef( $string[0],
+                                    $self->builtin_defn( $string[1] ) );
+                            }
+                            elsif ( $operation eq 'T' ) {
+                                $self->builtin_pushdef( $string[0],
+                                    $string[1] );
+                            }
+                            elsif ( $operation eq 'Q' ) {
+                                $self->builtin_changequote( $string[0],
+                                    $string[1] );
+                            }
+                            else {
+                                # Cannot happen
+                            }
+                        }
+                        else {
+                            die 'ill-formed frozen file';
+                        }
+                        $self->$GET_DIRECTIVE();
+                    }
+                }
+                catch {
+                    $self->logger_error( 'failed to reload state: %s', "$_" );
+                    return;
+                };
+            }
+            $self->_set__stateReloaded(true);
+        }
+
+        return true;
+    }
+
     method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
         try {
             #
@@ -3588,6 +3994,7 @@ STUB
 
     method impl_setEoi (--> ConsumerOf[M4Impl]) {
         $self->_set__eoi(true);
+        $self->impl_freezeState;
         return $self;
     }
 

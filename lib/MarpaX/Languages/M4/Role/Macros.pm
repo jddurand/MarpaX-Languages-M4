@@ -15,6 +15,7 @@ role MarpaX::Languages::M4::Role::Macros {
     requires 'macros_pop';
     requires 'macros_set';
     requires 'macros_get';
+    requires 'macros_elements';
 }
 
 1;

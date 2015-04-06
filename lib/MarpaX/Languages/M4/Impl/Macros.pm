@@ -23,7 +23,8 @@ class MarpaX::Languages::M4::Impl::Macros {
             macros_push     => 'push',
             macros_pop      => 'pop',
             macros_set      => 'set',
-            macros_get      => 'get'
+            macros_get      => 'get',
+            macros_elements => 'elements'
         }
     );
 
