@@ -348,7 +348,7 @@ EVAL_GRAMMAR
         format  => 's',
         short   => 'R',
         doc =>
-            q{Before execution starts, recover the internal state from the specified frozen file. The options -D, -U, and -t take effect after state is reloaded, but before the input files are read. This option is always processed first.}
+            q{Before execution starts, recover the internal state from the specified frozen file. The options -D, -U, and -t take effect after state is reloaded, but before the input files are read. This option is always processed first. GNU autoconf likes to check the help searching for reload-state... So here it is -;}
     );
 
     has _stateReloaded => ( is => 'rwp', isa => Bool, default => false );
