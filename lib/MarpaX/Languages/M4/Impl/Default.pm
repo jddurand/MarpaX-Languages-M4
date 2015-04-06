@@ -1145,6 +1145,32 @@ EVAL_GRAMMAR
     method _build__include { [] }
 
     # =========================
+    # --synclines
+    # =========================
+    option synclines => (
+        order   => 1,
+        is      => 'rw',
+        isa     => Bool,
+        short   => 's',
+        trigger => 1,
+        doc =>
+            q{Generate synchronization lines. Although option exist it is not yet supported.}
+    );
+
+    has _synclines => (
+        is          => 'rwp',
+        lazy        => 1,
+        builder     => 1,
+        isa         => Bool,
+    );
+
+    method _trigger_synclines (Bool $synclines, @rest --> Undef) {
+        $self->_set__synclines($synclines);
+        return;
+    }
+    method _build__synclines { return false }
+
+    # =========================
     # --gnu
     # =========================
     option gnu => (
