@@ -1,6 +1,12 @@
 Changelog for MarpaX-Languages-M4
 
-0.010 2015-04-05T14:03:55
+0.011 2015-04-06T18:42:10
+ [Jean-Damien Durand <jeandamiendurand@free.fr>]
+ - --synclines even if not yet supported
+ - say reload-state in reload-state help -;
+ - state reload and freeze support
+
+0.010 2015-04-05T14:03:55Z
  [Jean-Damien Durand <jeandamiendurand@free.fr>]
  - disable all Perl warnings when executing regexps
 
@@ -64,8 +70,10 @@ Changelog for MarpaX-Languages-M4
  - AUTHORITY
  - dist.ini: remove some unwanted stuff
  - Impl/Parser.pm: add
-   #ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
-   ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ VERSION
+   #ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
+   ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃ
+   ÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃ
+   ÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ VERSION
  - Move MarpaX::Languages::M4::Impl::Parser::Actions to its own file
 
 0.005 2015-02-23T19:51:43Z
