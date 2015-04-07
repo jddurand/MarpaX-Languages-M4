@@ -299,7 +299,9 @@ EVAL_GRAMMAR
                     $self->logger_warn( '%s: %s', $file, $_ );
                     return;
                 };
+                my $old = STDOUT->autoflush(1);
                 print $self->impl_value;
+                STDOUT->autoflush($old);
                 ${ $self->impl_valueRef } = '';
             }
             #
@@ -829,19 +831,25 @@ EVAL_GRAMMAR
     );
 
     method _trigger_interactive {
-        my $buf;
-
-        STDOUT->autoflush();
-
-        #
-        # If interactive mode is triggered via new_with_options()
-        # the caller is likely to not have $self yet.
-        #
+            #
+            # If interactive mode is triggered via new_with_options()
+            # the caller is likely to not have $self yet.
+            #
         while ( defined( $_ = <STDIN> ) ) {
             $self->impl_parseIncremental($_);
-            print $self->impl_value;
-            ${ $self->impl_valueRef } = '';
+            my $valueRef = $self->_diversions_get(0)->sref;
+
+            my $old = STDOUT->autoflush(1);
+            print STDOUT ${$valueRef};
+            STDOUT->autoflush($old);
+
+            ${$valueRef} = '';
         }
+        #
+        # EOF: the caller should have called impl_value,
+        # and this will trigger all cleanup stuff,
+        # in particular m4wrap.
+        #
     }
 
     # =========================
@@ -1158,10 +1166,10 @@ EVAL_GRAMMAR
     );
 
     has _synclines => (
-        is          => 'rwp',
-        lazy        => 1,
-        builder     => 1,
-        isa         => Bool,
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => Bool,
     );
 
     method _trigger_synclines (Bool $synclines, @rest --> Undef) {
@@ -1855,6 +1863,11 @@ EVAL_GRAMMAR
     }
 
     method logger_debug (@args --> Undef) {
+            #
+            # Localize anyway, because there can be an error within
+            # new_with_options() -;
+            #
+        local $MarpaX::Languages::M4::SELF = $self;
         if ( !$self->_canDebug ) {
             return;
         }
@@ -2030,7 +2043,12 @@ EVAL_GRAMMAR
             while ( $self->_m4wrap_count > 0 ) {
                 my @m4wrap = $self->_m4wrap_elements;
                 $self->_set___m4wrap( [] );
-                $self->impl_parseIncremental( join( '', @m4wrap ) );
+                $self->impl_parseIncremental(
+                    join( '',
+                        ( $self->_m4wrap_order eq 'FIFO' )
+                        ? @m4wrap
+                        : reverse @m4wrap )
+                );
             }
             #
             # Then, diverted thingies, that are not rescanned
@@ -2096,7 +2114,7 @@ EVAL_GRAMMAR
     );
 
     has _eof => (
-        is      => 'rw',
+        is      => 'rwp',
         isa     => Bool,
         trigger => 1,
         default => false
@@ -2592,12 +2610,7 @@ EVAL_GRAMMAR
     method builtin_m4wrap (@args --> Str) {
 
         my $text = join( ' ', grep { !Undef->check($_) } @args );
-        if ( $self->_m4wrap_order eq 'LIFO' ) {
-            $self->_m4wrap_unshift($text);
-        }
-        else {
-            $self->_m4wrap_push($text);
-        }
+        $self->_m4wrap_push($text);
 
         return '';
     }
@@ -4032,7 +4045,7 @@ STUB
         #
         # Trigger EOF
         #
-        $self->_eof(true);
+        $self->_set__eof(true);
         #
         # Return a reference to the value
         #
