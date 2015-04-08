@@ -3373,7 +3373,7 @@ EVAL_GRAMMAR
                 }
             );
             $rc = MarpaX::Languages::M4::Impl::Default::BaseConversion
-                ->to_base( $radix, ${$valuep}, $width );
+                ->bitvector_to_base( $radix, ${$valuep}, $width );
         }
         catch {
             #

@@ -32,7 +32,7 @@ class MarpaX::Languages::M4::Impl::Default::Eval {
     };
 
     method _eval (ConsumerOf['Bit::Vector'] $expression) {
-        return $expression->to_Dec();
+        return $expression;
     }
 
     method _invalidOp (Str $op) {
@@ -250,25 +250,23 @@ class MarpaX::Languages::M4::Impl::Default::Eval {
         return $rc;
     }
     #
-    # Raw inputs are not allowed to fail. Eventual croaks are left alive.
+    # Raw inputs are not allowed to fail. That's why we always subcall the _radix method
+    # whose implementation will use Bit::Vector::Multiply -> this will detect any
+    # overflow
     #
     method _decimal (Str $lexeme) {
         #
         # decimalNumber ~      _DECDIGITS
         #
-        my $rc = Bit::Vector->new( $self->bits );
-        $rc->from_Dec("$lexeme");
-        return $rc;
+        return $self->_radix("0r10:$lexeme");
     }
 
     method _octal (Str $lexeme) {
         #
         # octalNumber   ~ '0'  _OCTDIGITS
         #
-        my $rc = Bit::Vector->new( $self->bits );
         substr($lexeme, 0, 1, '');
-        $rc->Chunk_List_Store(3, split(//, reverse("$lexeme")));
-        return $rc;
+        return $self->_radix("0r8:$lexeme");
     }
 
     method _hex (Str $lexeme) {
@@ -276,9 +274,7 @@ class MarpaX::Languages::M4::Impl::Default::Eval {
         # hexaNumber    ~ '0x' _HEXDIGITS
         #
         substr($lexeme, 0, 2, '');
-        my $rc = Bit::Vector->new( $self->bits );
-        $rc->from_Hex("$lexeme");
-        return $rc;
+        return $self->_radix("0r16:$lexeme");
     }
 
     method _binary (Str $lexeme) {
@@ -286,37 +282,40 @@ class MarpaX::Languages::M4::Impl::Default::Eval {
         # binaryNumber  ~ '0b' _BINDIGITS
         #
         substr($lexeme, 0, 2, '');
-        my $rc = Bit::Vector->new( $self->bits );
-        $rc->from_Bin("$lexeme");
-        return $rc;
+        return $self->_radix("0r1:$lexeme");
     }
 
     method _radix (Str $lexeme) {
-                      #
-                      # Per def this is this regexp
-                      #
+      #
+      # Per def it is this regexp
+      # C.f. grammar
+      #
         $lexeme =~ /0r([\d]+):([\da-zA-Z]+)/;
         my $radix = substr( $lexeme, $-[1], $+[1] - $-[1] );
-        my $digits = lc( substr( $lexeme, $-[2], $+[2] - $-[2] ) )
-            ;         # Because max base is 36
-        if ( $radix == 1 ) {
-
-            # For radix 1, leading zeros are ignored,
-            # and all remaining digits must be 1
-            $digits =~ s/^0*//;
-            if ( $digits =~ /[^1]/ ) {
-                Marpa::R2::Context::bail(
-                    $self->SELF->impl_quote($lexeme) . ': '
-                        . 'for radix 1, digits must be eventual zeroes followed by 1\'s'
-                );
-            }
+        my $input = substr( $lexeme, $-[2], $+[2] - $-[2] );
+        my $error = false;
+        my $errorString = '';
+        my $rc;
+        try {
+          $rc = MarpaX::Languages::M4::Impl::Default::BaseConversion->bitvector_fr_base($self->bits,
+                                                                                         $radix,
+                                                                                         $input
+                                                                                        );
+        } catch {
+          $error = true;
+          $errorString = "$_";
+          return;
+        };
+        if ($error) {
+          Marpa::R2::Context::bail( 'Cannot create number '
+                                    . $self->SELF->impl_quote($input)
+                                    . ' writen in base '
+                                    . $self->SELF->impl_quote($radix)
+                                    . ' using a bit vector of size '
+                                    . $self->SELF->impl_quote($self->bits)
+                                    . ' : '
+                                    . $errorString );
         }
-        my $rc = Bit::Vector->new( $self->bits );
-        $rc->from_Dec(
-                      MarpaX::Languages::M4::Impl::Default::BaseConversion->fr_base(
-                                                                                    $radix, $digits
-                                                                                   )
-                     );
         return $rc;
     }
 
