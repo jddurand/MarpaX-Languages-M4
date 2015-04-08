@@ -253,21 +253,42 @@ class MarpaX::Languages::M4::Impl::Default::Eval {
     # Raw inputs are not allowed to fail. Eventual croaks are left alive.
     #
     method _decimal (Str $lexeme) {
-        return Bit::Vector->new_Dec( $self->bits, $lexeme + 0 );
+        #
+        # decimalNumber ~      _DECDIGITS
+        #
+        my $rc = Bit::Vector->new( $self->bits );
+        $rc->from_Dec("$lexeme");
+        return $rc;
     }
 
     method _octal (Str $lexeme) {
-        return Bit::Vector->new_Dec( $self->bits, oct($lexeme) );
+        #
+        # octalNumber   ~ '0'  _OCTDIGITS
+        #
+        my $rc = Bit::Vector->new( $self->bits );
+        substr($lexeme, 0, 1, '');
+        $rc->Chunk_List_Store(3, split(//, reverse("$lexeme")));
+        return $rc;
     }
 
-    # oct() supportx 0x notation
     method _hex (Str $lexeme) {
-        return Bit::Vector->new_Dec( $self->bits, oct($lexeme) );
+        #
+        # hexaNumber    ~ '0x' _HEXDIGITS
+        #
+        substr($lexeme, 0, 2, '');
+        my $rc = Bit::Vector->new( $self->bits );
+        $rc->from_Hex("$lexeme");
+        return $rc;
     }
 
-    # oct() supportx 0b notation
     method _binary (Str $lexeme) {
-        return Bit::Vector->new_Dec( $self->bits, oct($lexeme) );
+        #
+        # binaryNumber  ~ '0b' _BINDIGITS
+        #
+        substr($lexeme, 0, 2, '');
+        my $rc = Bit::Vector->new( $self->bits );
+        $rc->from_Bin("$lexeme");
+        return $rc;
     }
 
     method _radix (Str $lexeme) {
@@ -290,12 +311,13 @@ class MarpaX::Languages::M4::Impl::Default::Eval {
                 );
             }
         }
-        return Bit::Vector->new_Dec(
-            $self->bits,
-            MarpaX::Languages::M4::Impl::Default::BaseConversion->fr_base(
-                $radix, $digits
-            )
-        );
+        my $rc = Bit::Vector->new_Dec( $self->bits );
+        $rc->from_Dec(
+                      MarpaX::Languages::M4::Impl::Default::BaseConversion->fr_base(
+                                                                                    $radix, $digits
+                                                                                   )
+                     );
+        return $rc;
     }
 
 }
