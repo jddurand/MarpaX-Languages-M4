@@ -533,6 +533,7 @@ EVAL_GRAMMAR
         is      => 'rw',
         isa     => PositiveInt,
         trigger => 1,
+        format  => 'i',
         doc =>
             "Number of bits for integer arithmetic. Possible values: any positive integer. Meaningful for builtins incr and decr only when policy_integer_type is \"bitvector\", always meaningful for builtin eval. Default: $INTEGER_BITS_DEFAULT_VALUE."
     );
