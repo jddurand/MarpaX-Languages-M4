@@ -346,7 +346,6 @@ EVAL_GRAMMAR
         is      => 'rw',
         isa     => Str,
         trigger => 1,
-        order   => 0,
         format  => 's',
         short   => 'R',
         doc =>
@@ -364,7 +363,6 @@ EVAL_GRAMMAR
     # --freeze-state
     # =========================
     option freeze_state => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         default => '',
@@ -380,7 +378,6 @@ EVAL_GRAMMAR
     # --cmdtounix
     # =========================
     option cmdtounix => (
-        order   => 1,
         is      => 'rw',
         isa     => Bool,
         trigger => 1,
@@ -400,7 +397,6 @@ EVAL_GRAMMAR
     # --inctounix
     # =========================
     option inctounix => (
-        order   => 1,
         is      => 'rw',
         isa     => Bool,
         trigger => 1,
@@ -421,7 +417,6 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_TOKENS_PRIORITY = [qw/COMMENT WORD QUOTEDSTRING CHARACTER/];
     option tokens_priority => (
-        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         format      => 's@',
@@ -476,7 +471,6 @@ EVAL_GRAMMAR
     # --integer-type
     # =========================
     option integer_type => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -502,7 +496,6 @@ EVAL_GRAMMAR
     # --regexp-type
     # =========================
     option regexp_type => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -529,7 +522,6 @@ EVAL_GRAMMAR
     # =========================
     our $INTEGER_BITS_DEFAULT_VALUE = 32;
     option integer_bits => (
-        order   => 1,
         is      => 'rw',
         isa     => PositiveInt,
         trigger => 1,
@@ -556,7 +548,6 @@ EVAL_GRAMMAR
     # --m4wrap-order
     # =========================
     option m4wrap_order => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -583,7 +574,6 @@ EVAL_GRAMMAR
     # --divert-type
     # =========================
     option divert_type => (
-        order   => 1,
         is      => 'rw',
         trigger => 1,
         isa     => Str,
@@ -643,7 +633,6 @@ EVAL_GRAMMAR
             /
     ];
     option builtin_need_param => (
-        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         trigger     => 1,
@@ -721,7 +710,6 @@ EVAL_GRAMMAR
         },
     };
     option param_can_be_macro => (
-        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         trigger     => 1,
@@ -822,7 +810,6 @@ EVAL_GRAMMAR
     # --interactive
     # =========================
     option interactive => (
-        order   => 1,
         is      => 'rw',
         isa     => Bool,
         short   => 'i',
@@ -856,7 +843,6 @@ EVAL_GRAMMAR
     # --version
     # =========================
     option version => (
-        order   => 1,
         is      => 'rw',
         isa     => Bool,
         short   => 'v',
@@ -884,7 +870,6 @@ EVAL_GRAMMAR
     # --prefix-builtins
     # =========================
     option prefix_builtins => (
-        order   => 1,
         is      => 'rw',
         isa     => Bool,
         short   => 'P',
@@ -910,7 +895,6 @@ EVAL_GRAMMAR
     # --fatal-warnings
     # =========================
     option fatal_warnings => (
-        order      => 1,
         is         => 'rw',
         isa        => PositiveInt,
         repeatable => 1,
@@ -939,7 +923,6 @@ EVAL_GRAMMAR
     # --silent
     # =========================
     option silent => (
-        order   => 1,
         is      => 'rw',
         default => false,
         short   => 'Q',
@@ -964,7 +947,6 @@ EVAL_GRAMMAR
     # --trace
     # =========================
     option trace => (
-        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         default     => sub { [] },
@@ -1006,7 +988,6 @@ EVAL_GRAMMAR
     # --define
     # =========================
     option define => (
-        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         handles_via => 'Array',
@@ -1052,7 +1033,6 @@ EVAL_GRAMMAR
     # --undefine
     # =========================
     option undefine => (
-        order       => 1,
         is          => 'rw',
         isa         => ArrayRef [Str],
         handles_via => 'Array',
@@ -1098,7 +1078,6 @@ EVAL_GRAMMAR
     # --prepend-include
     # =========================
     option prepend_include => (
-        order   => 1,
         is      => 'rw',
         isa     => ArrayRef [Str],
         format  => 's@',
@@ -1127,7 +1106,6 @@ EVAL_GRAMMAR
     # --include
     # =========================
     option include => (
-        order   => 1,
         is      => 'rw',
         isa     => ArrayRef [Str],
         format  => 's@',
@@ -1156,7 +1134,6 @@ EVAL_GRAMMAR
     # --synclines
     # =========================
     option synclines => (
-        order   => 1,
         is      => 'rw',
         isa     => Bool,
         short   => 's',
@@ -1182,7 +1159,6 @@ EVAL_GRAMMAR
     # --gnu
     # =========================
     option gnu => (
-        order   => 1,
         is      => 'rw',
         isa     => Bool,
         short   => 'g',
@@ -1207,7 +1183,6 @@ EVAL_GRAMMAR
     # --traditional
     # =========================
     option traditional => (
-        order   => 1,
         is      => 'rw',
         isa     => Bool,
         short   => 'G',
@@ -1226,7 +1201,6 @@ EVAL_GRAMMAR
     our @DEBUG_FLAGS         = qw/a c e f i l p q t x/;
     our @DEFAULT_DEBUG_FLAGS = qw/a e q/;
     option debugmode => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1303,7 +1277,6 @@ EVAL_GRAMMAR
     # --debugfile
     # =========================
     option debugfile => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1331,7 +1304,6 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_QUOTE_START = '`';
     option quote_start => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1373,7 +1345,6 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_QUOTE_END = '\'';
     option quote_end => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1415,7 +1386,6 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_COMMENT_START = '#';
     option comment_start => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1460,7 +1430,6 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_COMMENT_END = "\n";
     option comment_end => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1505,7 +1474,6 @@ EVAL_GRAMMAR
 #
     our $DEFAULT_WORD_REGEXP = '[_a-zA-Z][_a-zA-Z0-9]*';
     option word_regexp => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1564,7 +1532,6 @@ EVAL_GRAMMAR
     # =========================
     our $DEFAULT_WARN_MACRO_SEQUENCE = '\$\({[^}]*}\|[0-9][0-9]+\)';
     option warn_macro_sequence => (
-        order   => 1,
         is      => 'rw',
         isa     => Str,
         default => $DEFAULT_WARN_MACRO_SEQUENCE,
