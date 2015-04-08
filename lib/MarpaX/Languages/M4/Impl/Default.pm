@@ -240,6 +240,7 @@ _RADIX ~  '1' |  '2' |  '3' |  '4' |  '5' |  '6' |  '7' |  '8' |  '9'
 | '30' | '31' | '32' | '33' | '34' | '35' | '36'
 
 decimalNumber ~      _DECDIGITS
+:lexeme ~ <octalNumber>  priority => 1 # An octal number is ambiguous v.s. decimal, and wins
 octalNumber   ~ '0'  _OCTDIGITS
 hexaNumber    ~ '0x' _HEXDIGITS
 binaryNumber  ~ '0b' _BINDIGITS
