@@ -311,7 +311,7 @@ class MarpaX::Languages::M4::Impl::Default::Eval {
                 );
             }
         }
-        my $rc = Bit::Vector->new_Dec( $self->bits );
+        my $rc = Bit::Vector->new( $self->bits );
         $rc->from_Dec(
                       MarpaX::Languages::M4::Impl::Default::BaseConversion->fr_base(
                                                                                     $radix, $digits
