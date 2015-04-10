@@ -267,73 +267,62 @@ EVAL_GRAMMAR
         # this localized variable
         #
         local $MarpaX::Languages::M4::SELF = $self;
-        #
-        # If there is no @ARGV, enter automatically interactive mode
-        #
-        if (! @ARGV) {
-          $self->interactive(true);
-        } else {
-          while (@ARGV) {
+        while (@ARGV) {
             #
             # Process this non-option
             #
             my $file = shift(@ARGV);
             my $fh;
             try {
-              $fh = IO::File->new(
-                                  $ENV{M4_ENCODE_LOCALE}
-                                  ? encode( locale_fs => $file )
-                                  : $file,
-                                  'r'
-                                 )
-                || die "$file: $!";
-              if ( $ENV{M4_ENCODE_LOCALE} ) {
-                binmode( $fh, ':encoding(locale)' );
-              }
+                $fh = IO::File->new(
+                    $ENV{M4_ENCODE_LOCALE}
+                    ? encode( locale_fs => $file )
+                    : $file,
+                    'r'
+                    )
+                    || die "$file: $!";
+                if ( $ENV{M4_ENCODE_LOCALE} ) {
+                    binmode( $fh, ':encoding(locale)' );
+                }
             }
-              catch {
+            catch {
                 $self->logger_error( '%s: %s', $file, $@ );
                 return;
-              };
+            };
             if ( !Undef->check($fh) ) {
-              $self->_currentFile_push($file);
-              $self->_currentLine_push(0);   # We use 0 to indicate information was never printed out
-              $self->impl_parseIncremental(
-                                           do { local $/; <$fh> }
-                                          );
-              try {
-                $fh->close;
-              }
+                $self->impl_parseIncremental(
+                    do { local $/; <$fh> }
+                );
+                try {
+                    $fh->close;
+                }
                 catch {
-                  $self->logger_warn( '%s: %s', $file, $_ );
-                  return;
+                    $self->logger_warn( '%s: %s', $file, $_ );
+                    return;
                 };
-              $self->_currentLine_pop();
-              $self->_currentFile_pop();
-              my $old = STDOUT->autoflush(1);
-              print $self->impl_value;
-              STDOUT->autoflush($old);
-              ${ $self->impl_valueRef } = '';
+                my $old = STDOUT->autoflush(1);
+                print $self->impl_value;
+                STDOUT->autoflush($old);
+                ${ $self->impl_valueRef } = '';
             }
             #
             # Merge next option values
             #
             my %nextOpts = $class->parse_options();
             foreach ( keys %nextOpts ) {
-              #
-              # Look to options. I made sure all ArrayRef have
-              # an 'elements' handle.
-              #
-              if ( ArrayRef->check( $nextOpts{$_} ) ) {
-                my $elementsMethod = $_ . '_elements';
-                $self->$_(
-                          [ $self->$elementsMethod, @{ $nextOpts{$_} } ] );
-              }
-              else {
-                $self->$_( $nextOpts{$_} );
-              }
+                #
+                # Look to options. I made sure all ArrayRef have
+                # an 'elements' handle.
+                #
+                if ( ArrayRef->check( $nextOpts{$_} ) ) {
+                    my $elementsMethod = $_ . '_elements';
+                    $self->$_(
+                        [ $self->$elementsMethod, @{ $nextOpts{$_} } ] );
+                }
+                else {
+                    $self->$_( $nextOpts{$_} );
+                }
             }
-          }
         }
         return $self;
     }
@@ -826,36 +815,29 @@ EVAL_GRAMMAR
         isa     => Bool,
         short   => 'i',
         trigger => 1,
-        doc     => q{Read STDIN and parse it line by line, until EOF. Enabled by default if there is no non-option argument.}
+        doc     => q{Read STDIN and parse it line by line, until EOF.}
     );
 
-    method _trigger_interactive (Bool $bool, @rest --> Undef) {
-      if ($bool) {
-        #
-        # If interactive mode is triggered
-        # via new_with_options()
-        # the caller is likely to not have $self yet.
-        #
-        $self->_currentFile_push('stdin');
-        $self->_currentLine_push(0);   # We use 0 to indicate information was never printed out
+    method _trigger_interactive {
+            #
+            # If interactive mode is triggered via new_with_options()
+            # the caller is likely to not have $self yet.
+            #
         while ( defined( $_ = <STDIN> ) ) {
-          $self->impl_parseIncremental($_);
-          my $valueRef = $self->_diversions_get(0)->sref;
+            $self->impl_parseIncremental($_);
+            my $valueRef = $self->_diversions_get(0)->sref;
 
-          my $old = STDOUT->autoflush(1);
-          print STDOUT ${$valueRef};
-          STDOUT->autoflush($old);
+            my $old = STDOUT->autoflush(1);
+            print STDOUT ${$valueRef};
+            STDOUT->autoflush($old);
 
-          ${$valueRef} = '';
+            ${$valueRef} = '';
         }
-        $self->_currentLine_pop();
-        $self->_currentFile_pop();
         #
         # EOF: the caller should have called impl_value,
         # and this will trigger all cleanup stuff,
         # in particular m4wrap.
         #
-      }
     }
 
     # =========================
@@ -1173,32 +1155,6 @@ EVAL_GRAMMAR
         return;
     }
     method _build__synclines { return false }
-
-    has _currentFile => (
-                         is => 'rwp',
-                         isa => ArrayRef[Str],
-                         default => sub { [] },
-                         handles_via => 'Array',
-                         handles     => {
-                                         _currentFile_push => 'push',
-                                         _currentFile_pop  => 'pop',
-                                         _currentFile_get => 'get',
-                                         _currentFile_set => 'set',
-                                        }
-                        );
-
-    has _currentLine => (
-                         is => 'rwp',
-                         isa => ArrayRef[PositiveOrZeroInt],
-                         default => sub { return [] },
-                         handles_via => 'Array',
-                         handles     => {
-                                         _currentLine_push => 'push',
-                                         _currentLine_pop  => 'pop',
-                                         _currentLine_get => 'get',
-                                         _currentLine_set => 'set',
-                                        }
-                        );
 
     # =========================
     # --gnu
