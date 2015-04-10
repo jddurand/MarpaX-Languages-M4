@@ -249,72 +249,74 @@ class MarpaX::Languages::M4::Impl::Default::Eval {
         }
         return $rc;
     }
-    #
-    # Raw inputs are not allowed to fail. That's why we always subcall the _radix method
-    # whose implementation will use Bit::Vector::Multiply -> this will detect any
-    # overflow
-    #
+#
+# Raw inputs are not allowed to fail. That's why we always subcall the _radix method
+# whose implementation will use Bit::Vector::Multiply -> this will detect any
+# overflow
+#
     method _decimal (Str $lexeme) {
-        #
-        # decimalNumber ~      _DECDIGITS
-        #
+                      #
+                      # decimalNumber ~      _DECDIGITS
+                      #
         return $self->_radix("0r10:$lexeme");
     }
 
     method _octal (Str $lexeme) {
-        #
-        # octalNumber   ~ '0'  _OCTDIGITS
-        #
-        substr($lexeme, 0, 1, '');
+                      #
+                      # octalNumber   ~ '0'  _OCTDIGITS
+                      #
+        substr( $lexeme, 0, 1, '' );
         return $self->_radix("0r8:$lexeme");
     }
 
     method _hex (Str $lexeme) {
-        #
-        # hexaNumber    ~ '0x' _HEXDIGITS
-        #
-        substr($lexeme, 0, 2, '');
+                      #
+                      # hexaNumber    ~ '0x' _HEXDIGITS
+                      #
+        substr( $lexeme, 0, 2, '' );
         return $self->_radix("0r16:$lexeme");
     }
 
     method _binary (Str $lexeme) {
-        #
-        # binaryNumber  ~ '0b' _BINDIGITS
-        #
-        substr($lexeme, 0, 2, '');
-        return $self->_radix("0r1:$lexeme");
+                      #
+                      # binaryNumber  ~ '0b' _BINDIGITS
+                      #
+        substr( $lexeme, 0, 2, '' );
+        return $self->_radix( $lexeme, true );
     }
 
-    method _radix (Str $lexeme) {
-      #
-      # Per def it is this regexp
-      # C.f. grammar
-      #
-        $lexeme =~ /0r([\d]+):([\da-zA-Z]+)/;
-        my $radix = substr( $lexeme, $-[1], $+[1] - $-[1] );
-        my $input = substr( $lexeme, $-[2], $+[2] - $-[2] );
-        my $error = false;
+    method _radix (Str $lexeme, Bool $binary?) {
+                      #
+                      # Per def it is this regexp
+                      # C.f. grammar
+                      #
+        my $radix;
+        my $input = $lexeme;
+        if ( !$binary ) {
+            $lexeme =~ /0r([\d]+):([\da-zA-Z]+)/;
+            $radix = substr( $lexeme, $-[1], $+[1] - $-[1] );
+            $input = substr( $lexeme, $-[2], $+[2] - $-[2] );
+        }
+        my $error       = false;
         my $errorString = '';
         my $rc;
         try {
-          $rc = MarpaX::Languages::M4::Impl::Default::BaseConversion->bitvector_fr_base($self->bits,
-                                                                                         $radix,
-                                                                                         $input
-                                                                                        );
-        } catch {
-          $error = true;
-          $errorString = "$_";
-          return;
+            $rc = MarpaX::Languages::M4::Impl::Default::BaseConversion
+                ->bitvector_fr_base( $self->bits, $radix, $input, $binary );
+        }
+        catch {
+            $error       = true;
+            $errorString = "$_";
+            return;
         };
         if ($error) {
-          Marpa::R2::Context::bail( 'Cannot create number '
-                                    . $self->SELF->impl_quote($input)
-                                    . ' writen in base '
-                                    . $self->SELF->impl_quote($radix)
-                                    . ' using a bit vector of size '
-                                    . $self->SELF->impl_quote($self->bits)
-                                    . ' : '
-                                    . $errorString );
+            Marpa::R2::Context::bail( 'Cannot create number '
+                    . $self->SELF->impl_quote($input)
+                    . ' writen in base '
+                    . $self->SELF->impl_quote($radix)
+                    . ' using a bit vector of size '
+                    . $self->SELF->impl_quote( $self->bits ) . ' : '
+                    . $errorString );
         }
         return $rc;
     }
