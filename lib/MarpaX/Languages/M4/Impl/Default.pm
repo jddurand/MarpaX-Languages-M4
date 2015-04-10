@@ -296,8 +296,6 @@ EVAL_GRAMMAR
                 return;
               };
             if ( !Undef->check($fh) ) {
-              $self->_currentFile_push($file);
-              $self->_currentLine_push(0);   # We use 0 to indicate information was never printed out
               $self->impl_parseIncremental(
                                            do { local $/; <$fh> }
                                           );
@@ -308,8 +306,6 @@ EVAL_GRAMMAR
                   $self->logger_warn( '%s: %s', $file, $_ );
                   return;
                 };
-              $self->_currentLine_pop();
-              $self->_currentFile_pop();
               my $old = STDOUT->autoflush(1);
               print $self->impl_value;
               STDOUT->autoflush($old);
@@ -836,8 +832,6 @@ EVAL_GRAMMAR
         # via new_with_options()
         # the caller is likely to not have $self yet.
         #
-        $self->_currentFile_push('stdin');
-        $self->_currentLine_push(0);   # We use 0 to indicate information was never printed out
         while ( defined( $_ = <STDIN> ) ) {
           $self->impl_parseIncremental($_);
           my $valueRef = $self->_diversions_get(0)->sref;
@@ -848,8 +842,6 @@ EVAL_GRAMMAR
 
           ${$valueRef} = '';
         }
-        $self->_currentLine_pop();
-        $self->_currentFile_pop();
         #
         # EOF: the caller should have called impl_value,
         # and this will trigger all cleanup stuff,
@@ -1173,32 +1165,6 @@ EVAL_GRAMMAR
         return;
     }
     method _build__synclines { return false }
-
-    has _currentFile => (
-                         is => 'rwp',
-                         isa => ArrayRef[Str],
-                         default => sub { [] },
-                         handles_via => 'Array',
-                         handles     => {
-                                         _currentFile_push => 'push',
-                                         _currentFile_pop  => 'pop',
-                                         _currentFile_get => 'get',
-                                         _currentFile_set => 'set',
-                                        }
-                        );
-
-    has _currentLine => (
-                         is => 'rwp',
-                         isa => ArrayRef[PositiveOrZeroInt],
-                         default => sub { return [] },
-                         handles_via => 'Array',
-                         handles     => {
-                                         _currentLine_push => 'push',
-                                         _currentLine_pop  => 'pop',
-                                         _currentLine_get => 'get',
-                                         _currentLine_set => 'set',
-                                        }
-                        );
 
     # =========================
     # --gnu
