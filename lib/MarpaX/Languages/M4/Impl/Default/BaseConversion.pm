@@ -103,7 +103,7 @@ class MarpaX::Languages::M4::Impl::Default::BaseConversion {
         #
         my $rep    = '';
         my $s      = '';
-        my $signed = ( $v->Sign() < 0 ) ? 1 : 0;
+        my $signed = ( $v->Sign() < 0 ) ? true : false;
         my $abs;
         if ($signed) {
             $abs = $v->Shadow;
@@ -134,7 +134,10 @@ class MarpaX::Languages::M4::Impl::Default::BaseConversion {
                 $abs->Shadow->Divide( $abs, $b, $s );
                 $mod = $s;
             }
-            $s = $nums[ $mod->to_Dec() ] . $s;
+            #
+            # Why abs() ? Because when $v is equal to 2^(n-1), number remains the same.
+            #
+            $s = $nums[ abs($mod->to_Dec()) ] . $s;
             {
                 my $s = $abs->Shadow;
                 $s->Divide( $abs, $b, $abs->Shadow );

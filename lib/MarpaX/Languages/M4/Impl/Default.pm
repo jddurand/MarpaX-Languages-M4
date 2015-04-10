@@ -3248,17 +3248,7 @@ EVAL_GRAMMAR
             $rc = $number + 1;
         }
         else {
-            try {
-                my $v1
-                    = Bit::Vector->new_Dec( $self->_integer_bits, $number );
-                my $v2 = Bit::Vector->new( $self->_integer_bits );
-                $v2->inc($v1);
-                $rc = $v2->to_Dec();
-            }
-            catch {
-                $self->logger_warn( '%s: %s', $self->impl_quote('incr'), $! );
-                return;
-            };
+            $rc = $self->builtin_eval("$number + 1");
         }
         return $rc;
     }
@@ -3285,17 +3275,7 @@ EVAL_GRAMMAR
             $rc = $number - 1;
         }
         else {
-            try {
-                my $v1
-                    = Bit::Vector->new_Dec( $self->_integer_bits, $number );
-                my $v2 = Bit::Vector->new( $self->_integer_bits );
-                $v2->dec($v1);
-                $rc = $v2->to_Dec();
-            }
-            catch {
-                $self->logger_warn( '%s: %s', $self->impl_quote('decr'), $! );
-                return;
-            };
+            $rc = $self->builtin_eval("$number - 1");
         }
         return $rc;
     }
