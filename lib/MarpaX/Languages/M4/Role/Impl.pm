@@ -34,6 +34,8 @@ role MarpaX::Languages::M4::Role::Impl {
     requires 'impl_debugfile';
     requires 'impl_reloadState';
     requires 'impl_freezeState';
+    requires 'impl_nbInputProcessed';
+    requires 'impl_readFromStdin';
 
     with 'MarpaX::Languages::M4::Role::Builtin';
     with 'MarpaX::Languages::M4::Role::Logger';

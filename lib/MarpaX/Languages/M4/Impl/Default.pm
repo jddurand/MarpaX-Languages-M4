@@ -290,6 +290,7 @@ EVAL_GRAMMAR
                 return;
             };
             if ( !Undef->check($fh) ) {
+                $self->_nbInputProcessed_add(1);
                 $self->impl_parseIncremental(
                     do { local $/; <$fh> }
                 );
@@ -804,8 +805,8 @@ EVAL_GRAMMAR
     }
 
     sub _build__param_can_be_macro {
-        $PARAMCANBEMACRO_DEFAULT_VALUE;
-    }    #__METHOD 17
+        return $PARAMCANBEMACRO_DEFAULT_VALUE;
+    }
 
     # =========================
     # --interactive
@@ -1423,8 +1424,8 @@ EVAL_GRAMMAR
     method _build__comment_start {$DEFAULT_COMMENT_START}
 
     sub _build__commentStartLength {
-        length($DEFAULT_COMMENT_START);
-    }    #__METHOD 52
+        return length($DEFAULT_COMMENT_START);
+    }
 
     # =========================
     # --comment-end
@@ -4004,7 +4005,11 @@ STUB
         return ${ $self->impl_valueRef };
     }
 
-    method impl_line (@args --> Str) {
+    method impl_file (@args --> Str) {
+        return $self->__file__(@args);
+    }
+
+    method impl_line (@args --> PositiveOrZeroInt) {
         return $self->__line__(@args);
     }
 
@@ -4012,7 +4017,7 @@ STUB
         return $self->_debugfile;
     }
 
-    method impl_rc (@args --> Str) {
+    method impl_rc (@args --> Int) {
         return $self->_rc(@args);
     }
 
@@ -4090,6 +4095,23 @@ STUB
     method impl_raiseException (Str $message --> Undef) {
         $self->logger_error($message);
         ImplException->throw($message);
+    }
+
+    has _nbInputProcessed => (
+        is          => 'rwp',
+        isa         => PositiveOrZeroInt,
+        handles_via => 'Number',
+        handles     => { _nbInputProcessed_add => 'add' },
+        default     => 0
+    );
+
+    method impl_nbInputProcessed (--> PositiveOrZeroInt) {
+        return $self->_nbInputProcessed;
+    }
+
+    method impl_readFromStdin (--> ConsumerOf[M4Impl]) {
+        $self->interactive(true);
+        return $self;
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';

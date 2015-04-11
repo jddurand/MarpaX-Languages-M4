@@ -1,9 +1,11 @@
 #!perl
+use strict;
+use diagnostics;
 use Encode;
 use Encode::Locale;
 use IO::Interactive qw/is_interactive/;
 use POSIX qw/EXIT_SUCCESS/;
-use MarpaX::Languages::M4::Impl::Default;
+use MarpaX::Languages::M4;
 use Log::Any;
 use Log::Any::Adapter;
 use Log::Any::Adapter::Callback;
@@ -20,72 +22,83 @@ use Log::Any::Adapter::Callback;
 # Get the numbers associated to levels
 #
 my @logging_methods = Log::Any->logging_methods;
-my $i = -1;
-my %logging_levels = map {++$i; $logging_methods[$i] => $i} (0..$#logging_methods);
+my $i               = -1;
+my %logging_levels
+    = map { ++$i; $logging_methods[$i] => $i } ( 0 .. $#logging_methods );
 #
 # Set logger
 #
-Log::Any::Adapter->set('Callback', min_level => 'trace', logging_cb => \&_logging_cb);
+Log::Any::Adapter->set(
+    'Callback',
+    min_level  => 'trace',
+    logging_cb => \&_logging_cb
+);
 #
 # Call implementation
 #
-my $impl = MarpaX::Languages::M4::Impl::Default->new_with_options();
-print $impl->impl_value;
-exit($impl->impl_rc);
+my $m4 = MarpaX::Languages::M4->new_with_options();
+if ( $m4->nbInputProcessed <= 0 ) {
+    $m4->readFromStdin();
+}
+print $m4->value;
+exit( $m4->rc );
 
 sub _logging_cb {
-  my ($method, $self, $format, @params) = @_;
+    my ( $method, $self, $format, @params ) = @_;
 
-  my $level = $logging_levels{$method};
-  #
-  # If level is >= error, then check debugfile
-  #
-  if (! defined($level)) {
-    return;
-  }
-  #
-  # If called within new_with_options(), $impl
-  # is not yet setted
-  #
-  my $_impl = $impl || $MarpaX::Languages::M4::SELF;
-
-  my $fh;
-  open($fh, '>>&STDERR');
-  my $fhName = 'STDERR';
-  my $prefix;
-  if ($level >= $logging_levels{error}) {
-    my $debugfile = $_impl->impl_debugfile;
-    if (defined($debugfile)) {
-      if (! open($fh, '>>', $debugfile)) {
-        #
-        # Hmmm...
-        #
-        warn "Cannot open $debugfile, $!";
-        $fh = \*STDERR;
-      } else {
-        $fhName = $debugfile;
-      }
+    my $level = $logging_levels{$method};
+    #
+    # If level is >= error, then check debugfile
+    #
+    if ( !defined($level) ) {
+        return;
     }
-    $prefix = 'm4error: ';
-  } elsif ($level >= $logging_levels{warning}) {
-      $prefix = '';
-  } else {
-      my $macroCallId = $MarpaX::Languages::M4::MACROCALLID;
-      $prefix = 'm4trace: ';
-      if (defined($macroCallId)) {
-          $prefix .= sprintf('-%d- ', $macroCallId);
-      }
-  }
-  if ($ENV{M4_ENCODE_LOCALE}) {
-    binmode $fh, ":encoding(console_out)" if (is_interactive($fh));
-  }
+    #
+    # If called within new_with_options(), $m4
+    # is not yet setted
+    #
+    my $_m4 = $m4 || $MarpaX::Languages::M4::SELF;
 
-  my $program     = $_impl->builtin___program__;
+    my $fh;
+    open( $fh, '>>&STDERR' );
+    my $fhName = 'STDERR';
+    my $prefix;
+    if ( $level >= $logging_levels{error} ) {
+        my $debugfile = $_m4->impl_debugfile;
+        if ( defined($debugfile) ) {
+            if ( !open( $fh, '>>', $debugfile ) ) {
+                #
+                # Hmmm...
+                #
+                warn "Cannot open $debugfile, $!";
+                $fh = \*STDERR;
+            }
+            else {
+                $fhName = $debugfile;
+            }
+        }
+        $prefix = 'm4error: ';
+    }
+    elsif ( $level >= $logging_levels{warning} ) {
+        $prefix = '';
+    }
+    else {
+        my $macroCallId = $MarpaX::Languages::M4::MACROCALLID;
+        $prefix = 'm4trace: ';
+        if ( defined($macroCallId) ) {
+            $prefix .= sprintf( '-%d- ', $macroCallId );
+        }
+    }
+    if ( $ENV{M4_ENCODE_LOCALE} ) {
+        binmode $fh, ":encoding(console_out)" if ( is_interactive($fh) );
+    }
 
-  printf $fh "$prefix$format\n", @params;
-  if (! close($fh)) {
-    warn "Cannot close $fhName, $!";
-  }
+    my $program = $_m4->builtin___program__;
+
+    printf $fh "$prefix$format\n", @params;
+    if ( !close($fh) ) {
+        warn "Cannot close $fhName, $!";
+    }
 }
 
 exit(EXIT_SUCCESS);
