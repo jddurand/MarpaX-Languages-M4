@@ -8,7 +8,7 @@ MarpaX::Languages::M4 - M4 pre-processor
 
 =head1 VERSION
 
-version 0.012
+version 0.013
 
 =head1 SYNOPSIS
 
@@ -34,9 +34,99 @@ version 0.012
 
 This package is an implementation of M4.
 
+=head1 METHODS
+
+=head2 $class->new(%options --> ConsumerOf[M4Impl])
+
+Please do m4pp --help for a list of all options. Returns a new M4 object instance.
+
+=head2 $self->quote(Str $string --> Str)
+
+Returns $string enclosed by current quote start and quote end.
+
+=head2 $self->unquote(Str $string --> Str)
+
+Returns the unquoted $string.
+
+=head2 $self->appendValue(Str $result --> ConsumerOf[M4Impl])
+
+Append string $result to M4 preprocessing output.
+
+=head2 $self->value(--> Str)
+
+Return M4 preprocessing output.
+
+=head2 $self->valueRef(--> Ref['SCALAR'])
+
+Return a reference to the M4 preprocessing output.
+
+=head2 $self->parseIncremental(Str $input --> ConsumerOf[M4Impl])
+
+Parses $input. Can be called any number of times.
+
+=head2 $self->parse(Str $input --> Str)
+
+Wrapper on parseIncremental(). Calling this method parses a single input and disable any later call to parseIncremental().
+
+=head2 $self->unparsed(--> Str)
+
+Returns the input not yet parsed. For example, when input ends with a macro call that requires parameters, and the parameters list is not complete.
+
+=head2 $self->setEoi(--> ConsumerOf[M4Impl])
+
+Turns on end-of-input flag. Then no call to parseIncremental() or parse() will be possible.
+
+=head2 $self->eoi(--> Bool)
+
+Get current end-of-input flag.
+
+=head2 $self->raiseException(Str $message --> Undef)
+
+Log $message to error stream and throw an exception of class ImplException.
+
+=head2 $self->file(--> Str)
+
+Get current file name. See NOTES.
+
+=head2 $self->line(--> PositiveOrZeroInt)
+
+Get current line number. See NOTES.
+
+=head2 $self->debugfile(--> Undef|Str)
+
+Get current debug file name.
+
+=head2 $self->rc(--> Int)
+
+Get current parse return code. Should be POSIX::EXIT_SUCCESS() or POSIX::EXIT_FAILURE().
+
+=head2 $self->isImplException(Any $obj --> Bool)
+
+Return a boolean saying if $obj argument is an ImplException consumer.
+
+=head2 $self->macroExecute(ConsumerOf[M4Macro] $macro, @args --> Str|M4Macro)
+
+Execute macro $macro with arguments @args. Output is dependent of current parsing context, and can return an internal token instead of a string.
+
+=head2 $self->macroCallId(--> PositiveOrZeroInt)
+
+Return current macro internal call identifier. This number increases every time a macro is called.
+
+=head2 $self->nbInputProcessed(--> PositiveOrZeroInt)
+
+Return number of input processed so far.
+
+=head2 $self->readFromStdin(--> ConsumerOf[M4Impl])
+
+Enters interactive mode.
+
+=head1 NOTES
+
+file() and line() methods, nor synchronisation output, are currently not supported. This is on the TODO list for this package.
+
 =head1 SEE ALSO
 
-L<Marpa::R2>, L<Moops>, L<M4 POSIX|http://pubs.opengroup.org/onlinepubs/9699919799/utilities/m4.html>, L<M4 GNU|https://www.gnu.org/software/m4/manual/m4.html>
+L<Marpa::R2>, L<Moops>, L<POSIX>, L<M4 POSIX|http://pubs.opengroup.org/onlinepubs/9699919799/utilities/m4.html>, L<M4 GNU|https://www.gnu.org/software/m4/manual/m4.html>
 
 =head1 AUTHOR
 
