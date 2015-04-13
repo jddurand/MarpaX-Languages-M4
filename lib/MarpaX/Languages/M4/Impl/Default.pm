@@ -290,7 +290,7 @@ EVAL_GRAMMAR
                 return;
             };
             if ( !Undef->check($fh) ) {
-                $self->_nbInputProcessed_add(1);
+                $self->_set__nbInputProcessed($self->_nbInputProcessed_add(1));
                 $self->impl_parseIncremental(
                     do { local $/; <$fh> }
                 );
