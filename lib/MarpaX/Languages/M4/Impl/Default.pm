@@ -290,7 +290,8 @@ EVAL_GRAMMAR
                 return;
             };
             if ( !Undef->check($fh) ) {
-                $self->_set__nbInputProcessed($self->_nbInputProcessed_add(1));
+                $self->_set__nbInputProcessed(
+                    $self->_nbInputProcessed_add(1) );
                 $self->impl_parseIncremental(
                     do { local $/; <$fh> }
                 );
@@ -666,21 +667,20 @@ EVAL_GRAMMAR
         my $r = $self->_regexp_word;
         foreach ( @{$builtin_need_param} ) {
             if ( $r->regexp_exec( $self, $_ ) == 0 ) {
-                if (   $r->regexp_lpos_count > 1
-                    && $r->regexp_rpos_get(1) > $r->regexp_lpos_get(1) )
-                {
-                    $self->_builtin_need_param_set(
-                        substr(
-                            $_,
-                            $r->regexp_lpos_get(1),
-                            $r->regexp_rpos_get(1) - $r->regexp_lpos_get(1)
-                        ),
-                        true
-                    );
+                my $lpos;
+                my $length;
+
+                if ( $r->regexp_lpos_count > 1 ) {
+                    $lpos   = $r->regexp_lpos_get(1);
+                    $length = $r->regexp_rpos_get(1) - $lpos;
                 }
                 else {
-                    $self->_builtin_need_param_set( $_, true );
+                    $lpos   = $r->regexp_lpos_get(0);
+                    $length = $r->regexp_rpos_get(0) - $lpos;
                 }
+
+                $self->_builtin_need_param_set( substr( $_, $lpos, $length ),
+                    true );
             }
             else {
                 $self->logger_warn( '%s: %s: does not match word regexp',
@@ -758,19 +758,22 @@ EVAL_GRAMMAR
         foreach ( @{$param_can_be_macro} ) {
             if ( $r->regexp_exec( $self, $_ ) == 0 ) {
                 my $macroName;
-                my $nextPos = $r->regexp_rpos_get(0);
-                if (   $r->regexp_lpos_count > 1
-                    && $r->regexp_rpos_get(1) > $r->regexp_lpos_get(1) )
-                {
-                    $macroName = substr(
-                        $_,
-                        $r->regexp_lpos_get(1),
-                        $r->regexp_rpos_get(1) - $r->regexp_lpos_get(1)
-                    );
+                my $lpos;
+                my $nextPos;
+                my $length;
+
+                if ( $r->regexp_lpos_count > 1 ) {
+                    $lpos    = $r->regexp_lpos_get(1);
+                    $nextPos = $r->regexp_rpos_get(1);
                 }
                 else {
-                    $macroName = $_;
+                    $lpos    = $r->regexp_lpos_get(0);
+                    $nextPos = $r->regexp_rpos_get(0);
                 }
+
+                $length = $nextPos - $lpos;
+                $macroName = substr( $_, $lpos, $length );
+
                 $ref{$macroName} = {};
                 if (   $nextPos < length($_)
                     && substr( $_, $nextPos++, 1 ) eq '='
@@ -1007,20 +1010,32 @@ EVAL_GRAMMAR
         foreach ( @{$arrayRef} ) {
             if ( $r->regexp_exec( $self, $_ ) == 0 ) {
                 my $macroName;
-                my $nextPos = $r->regexp_rpos_get(0);
-                if (   $r->regexp_lpos_count > 1
-                    && $r->regexp_rpos_get(1) > $r->regexp_lpos_get(1) )
-                {
-                    $macroName = substr(
-                        $_,
-                        $r->regexp_lpos_get(1),
-                        $r->regexp_rpos_get(1) - $r->regexp_lpos_get(1)
-                    );
+                my $lpos;
+                my $nextPos;
+                my $length;
+
+                if ( $r->regexp_lpos_count > 1 ) {
+                    $lpos    = $r->regexp_lpos_get(1);
+                    $nextPos = $r->regexp_rpos_get(1);
                 }
                 else {
-                    $macroName = $_;
+                    $lpos    = $r->regexp_lpos_get(0);
+                    $nextPos = $r->regexp_rpos_get(0);
                 }
+
+                $length = $nextPos - $lpos;
+                $macroName = substr( $_, $lpos, $length );
+
                 my $value = substr( $_, $nextPos );
+                if ( length($value) > 0 ) {
+                    if ( substr( $value, 0, 1 ) ne '=' ) {
+                        $self->logger_warn( '%s: %s: not in form name=value',
+                            'define', $_ );
+                    }
+                    else {
+                        substr( $value, 0, 1, '' );
+                    }
+                }
                 $self->builtin_define( $macroName, $value );
             }
             else {
@@ -1053,19 +1068,19 @@ EVAL_GRAMMAR
         foreach ( @{$arrayRef} ) {
             if ( $r->regexp_exec( $self, $_ ) == 0 ) {
                 my $macroName;
-                my $nextPos = $r->regexp_rpos_get(0);
-                if (   $r->regexp_lpos_count > 1
-                    && $r->regexp_rpos_get(1) > $r->regexp_lpos_get(1) )
-                {
-                    $macroName = substr(
-                        $_,
-                        $r->regexp_lpos_get(1),
-                        $r->regexp_rpos_get(1) - $r->regexp_lpos_get(1)
-                    );
+                my $lpos;
+                my $length;
+
+                if ( $r->regexp_lpos_count > 1 ) {
+                    $lpos   = $r->regexp_lpos_get(1);
+                    $length = $r->regexp_rpos_get(1) - $lpos;
                 }
                 else {
-                    $macroName = $_;
+                    $lpos   = $r->regexp_lpos_get(0);
+                    $length = $r->regexp_rpos_get(0) - $lpos;
                 }
+
+                $macroName = substr( $_, $lpos, $length );
                 $self->builtin_undefine($macroName);
             }
             else {
