@@ -2389,6 +2389,7 @@ EVAL_GRAMMAR
             }
             catch {
                 $self->logger_error( '%s', $_ );
+                return;
             };
             return $rc;
         }
@@ -3407,6 +3408,7 @@ EVAL_GRAMMAR
             catch {
                 $self->logger_error( '%s: %s',
                     $self->impl_quote($macroName), $_ );
+                return;
             }
             finally {
                 if ( !$@ ) {
