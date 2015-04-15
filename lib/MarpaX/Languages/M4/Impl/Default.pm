@@ -1618,26 +1618,28 @@ EVAL_GRAMMAR
 
         my $r = $self->_regexp_word;
         if ( $r->regexp_exec( $self, $input, $pos ) == $pos ) {
+            my $lposp = $r->regexp_lpos;
+            my $rposp = $r->regexp_rpos;
             my $lpos;
             my $lposFull;
             my $rpos;
             my $rposFull;
 
-            if ( $r->regexp_lpos_count > 1 ) {
-                $lpos = ( $r->regexp_lpos_get(1) );
-                $rpos = ( $r->regexp_rpos_get(1) );
+            if ( $#{$lposp} > 0 ) {
+                $lpos = $lposp->[1];
+                $rpos = $rposp->[1];
                 if ( $rpos <= $lpos ) {
-                    $lpos = $lposFull = ( $r->regexp_lpos_get(0) );
-                    $rpos = $rposFull = ( $r->regexp_rpos_get(0) );
+                    $lpos = $lposFull = $lposp->[0];
+                    $rpos = $rposFull = $rposp->[0];
                 }
                 else {
-                    $lposFull = ( $r->regexp_lpos_get(0) );
-                    $rposFull = ( $r->regexp_rpos_get(0) );
+                    $lposFull = $lposp->[0];
+                    $rposFull = $rposp->[0];
                 }
             }
             else {
-                $lpos = $lposFull = ( $r->regexp_lpos_get(0) );
-                $rpos = $rposFull = ( $r->regexp_rpos_get(0) );
+                $lpos = $lposFull = $lposp->[0];
+                $rpos = $rposFull = $rposp->[0];
             }
 
             my $lexemeLength = $rposFull - $lposFull;
@@ -1648,7 +1650,6 @@ EVAL_GRAMMAR
             # if a regexp matches on characters abcdef,
             # then it must also match on a, ab, ..., abcde
             #
-            my $submatch = true;
             #
             # Nevertheless we can bypass this horrible cost in one specific case:
             # the default value. We know that the default regexp is: [_a-zA-Z][_a-zA-Z0-9]*
@@ -1662,19 +1663,16 @@ EVAL_GRAMMAR
                  #
                  $lexemeLength > 1 ) {
                 my $lengthFull = $rposFull - $lposFull;
-                foreach ( 1 .. $lengthFull ) {
+                foreach ( 1 .. $lengthFull - 1 ) {
                     my $substring = substr( $input, $lposFull, $_ );
                     if ( $r->regexp_exec( $self, $substring, 0 ) != 0 ) {
-                        $submatch = false;
-                        last;
+                        return false;
                     }
                 }
             }
-            if ($submatch) {
-                ${$lexemeLengthRef} = $lexemeLength;
-                ${$lexemeValueRef}  = $lexemeValue;
-                return true;
-            }
+            ${$lexemeLengthRef} = $lexemeLength;
+            ${$lexemeValueRef}  = $lexemeValue;
+            return true;
         }
 
         return false;
