@@ -1514,6 +1514,12 @@ EVAL_GRAMMAR
         isa     => InstanceOf [M4Regexp]
     );
 
+    has _regexp_isDefault => (
+        is      => 'rwp',
+        default => true,
+        isa     => Bool
+    );
+
     method _trigger_word_regexp (Str $regexpString, @rest --> Undef) {
         if ( length($regexpString) <= 0 ) {
             $regexpString = $DEFAULT_WORD_REGEXP;
@@ -1527,6 +1533,7 @@ EVAL_GRAMMAR
             $self->_set__word_regexp($regexpString);
             $self->_set__regexp_word($r);
         }
+        $self->_set__regexp_isDefault($regexpString eq $DEFAULT_WORD_REGEXP ? true : false);
 
         return;
     }
@@ -1642,7 +1649,18 @@ EVAL_GRAMMAR
             # then it must also match on a, ab, ..., abcde
             #
             my $submatch = true;
-            if ( $lexemeLength > 1 ) {
+            #
+            # Nevertheless we can bypass this horrible cost in one specific case:
+            # the default value. We know that the default regexp is: [_a-zA-Z][_a-zA-Z0-9]*
+            # i.e. per def when there is a match we /know/ it matches also character per
+            # character
+            #
+            if ( ! $self->_regexp_isDefault &&
+                 #
+                 # No need to check character per character if the length that matched
+                 # (and not the captured group, eventually) is one character exactly
+                 #
+                 $lexemeLength > 1 ) {
                 my $lengthFull = $rposFull - $lposFull;
                 foreach ( 1 .. $lengthFull ) {
                     my $substring = substr( $input, $lposFull, $_ );
