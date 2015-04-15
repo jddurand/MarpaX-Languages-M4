@@ -1608,49 +1608,57 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
 
     method parser_isWord (Str $input, PositiveOrZeroInt $pos, PositiveOrZeroInt $maxPos, Ref $lexemeValueRef, Ref $lexemeLengthRef --> Bool) {
-        pos($input) = $pos;
 
-        my $regexp_word  = $self->_regexp_word;
-        my $lastPos      = $pos;
-        my $lexemeLength = 0;
-        my $lexemeValue;
-        my $thisInput = substr( $input, $pos, 1 );
         my $r = $self->_regexp_word;
-        while ( $lastPos <= $maxPos ) {
-            if ( $r->regexp_exec( $self, $thisInput ) == 0 ) {
-                my $lpos       = ( $r->regexp_lpos_get(0) );
-                my $rpos       = ( $r->regexp_rpos_get(0) );
-                my $thisLength = $rpos - $lpos;
-                if ( $lexemeLength > 0 && $lexemeLength == $thisLength ) {
-                    #
-                    # We went one character too far
-                    #
-                    last;
-                }
-                $lexemeLength = $thisLength;
-                #
-                # It is perfectly legal to have an empty string
-                # as word "value"
-                #
-                if ( $r->regexp_lpos_count > 1 ) {
-                    $lpos        = ( $r->regexp_lpos_get(1) );
-                    $rpos        = ( $r->regexp_rpos_get(1) );
-                    $lexemeValue = substr( $thisInput, $lpos, $rpos - $lpos );
+        if ( $r->regexp_exec( $self, $input, $pos ) == $pos ) {
+            my $lpos;
+            my $lposFull;
+            my $rpos;
+            my $rposFull;
+
+            if ( $r->regexp_lpos_count > 1 ) {
+                $lpos = ( $r->regexp_lpos_get(1) );
+                $rpos = ( $r->regexp_rpos_get(1) );
+                if ( $rpos <= $lpos ) {
+                    $lpos = $lposFull = ( $r->regexp_lpos_get(0) );
+                    $rpos = $rposFull = ( $r->regexp_rpos_get(0) );
                 }
                 else {
-                    $lexemeValue = substr( $thisInput, $lpos, $lexemeLength );
+                    $lposFull = ( $r->regexp_lpos_get(0) );
+                    $rposFull = ( $r->regexp_rpos_get(0) );
                 }
-                $thisInput .= substr( $input, ++$lastPos, 1 );
             }
             else {
-                last;
+                $lpos = $lposFull = ( $r->regexp_lpos_get(0) );
+                $rpos = $rposFull = ( $r->regexp_rpos_get(0) );
+            }
+
+            my $lexemeLength = $rposFull - $lposFull;
+            my $lexemeValue = substr( $input, $lpos, $rpos - $lpos );
+
+            #
+            # There is an internal limitation:
+            # if a regexp matches on characters abcdef,
+            # then it must also match on a, ab, ..., abcde
+            #
+            my $submatch = true;
+            if ( $lexemeLength > 1 ) {
+                my $lengthFull = $rposFull - $lposFull;
+                foreach ( 1 .. $lengthFull ) {
+                    my $substring = substr( $input, $lposFull, $_ );
+                    if ( $r->regexp_exec( $self, $substring, 0 ) != 0 ) {
+                        $submatch = false;
+                        last;
+                    }
+                }
+            }
+            if ($submatch) {
+                ${$lexemeLengthRef} = $lexemeLength;
+                ${$lexemeValueRef}  = $lexemeValue;
+                return true;
             }
         }
-        if ( $lexemeLength > 0 ) {
-            ${$lexemeLengthRef} = $lexemeLength;
-            ${$lexemeValueRef}  = $lexemeValue;
-            return true;
-        }
+
         return false;
     }
 
