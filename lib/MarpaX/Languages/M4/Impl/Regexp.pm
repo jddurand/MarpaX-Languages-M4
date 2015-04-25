@@ -70,7 +70,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 $regexp = qr/$regexpString(?#)/sm;
             }
             else {
-                use re::engine::GNU 0.018;
+                use re::engine::GNU 0.019;
                 $regexp = qr/$regexpString/sm;
                 no re::engine::GNU;
             }
@@ -144,7 +144,7 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 }
             }
             else {
-                use re::engine::GNU 0.018;
+                use re::engine::GNU 0.019;
                 #
                 # Execute re::engine::GNU engine
                 #
