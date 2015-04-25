@@ -63,7 +63,7 @@ sub _logging_cb {
     open( $fh, '>>&STDERR' );
     my $fhName = 'STDERR';
     my $prefix;
-    if ( $level >= $logging_levels{error} ) {
+    if ( $level < $logging_levels{error} ) {
         my $debugfile = $_m4->impl_debugfile;
         if ( defined($debugfile) ) {
             if ( !open( $fh, '>>', $debugfile ) ) {
