@@ -63,7 +63,7 @@ sub _logging_cb {
     open( $fh, '>>&STDERR' );
     my $fhName = 'STDERR';
     my $prefix;
-    if ( $level < $logging_levels{error} ) {
+    if ( $level < $logging_levels{warning} ) {
         my $debugfile = $_m4->impl_debugfile;
         if ( defined($debugfile) ) {
             if ( !open( $fh, '>>', $debugfile ) ) {
@@ -77,17 +77,14 @@ sub _logging_cb {
                 $fhName = $debugfile;
             }
         }
-        $prefix = 'm4error: ';
-    }
-    elsif ( $level >= $logging_levels{warning} ) {
-        $prefix = '';
-    }
-    else {
         my $macroCallId = $MarpaX::Languages::M4::MACROCALLID;
-        $prefix = 'm4trace: ';
+        $prefix = ($level == $logging_levels{trace}) ? 'm4trace: ' : 'm4debug: ';
         if ( defined($macroCallId) ) {
             $prefix .= sprintf( '-%d- ', $macroCallId );
         }
+    }
+    else {
+        $prefix = 'm4error: ';
     }
     if ( $ENV{M4_ENCODE_LOCALE} ) {
         binmode $fh, ":encoding(console_out)" if ( is_interactive($fh) );
