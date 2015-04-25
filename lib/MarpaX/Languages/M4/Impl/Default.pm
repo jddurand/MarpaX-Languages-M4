@@ -383,9 +383,10 @@ EVAL_GRAMMAR
     option cmdtounix => (
         is      => 'rw',
         isa     => Bool,
+        negativable => 1,
         trigger => 1,
         doc =>
-            q{Convert any command output from platform's native end-of-line character set to Unix style (LF). Default to a false value.}
+            q{Convert any command output from platform's native end-of-line character set to Unix style (LF). Default to a false value. Option is negativable with '--no-' prefix.}
     );
     has _cmdtounix => ( is => 'rwp', isa => Bool, lazy => 1, builder => 1 );
 
@@ -396,15 +397,36 @@ EVAL_GRAMMAR
 
     method _build__cmdtounix {false}
 
+    # =======================================
+    # --changeword-is-character-per-character
+    # =======================================
+    option changeword_is_character_per_character => (
+        is      => 'rw',
+        isa     => Bool,
+        negativable => 1,
+        trigger => 1,
+        doc =>
+            q{Default behaviour is to construct a word character at a time. I.e. is a regular expression accepts 'foo', it must also accept 'f' and 'fo'. This flag can disable such behaviour. Default to a true value. Option is negativable with '--no-' prefix.}
+    );
+    has _changeword_is_character_per_character => ( is => 'rwp', isa => Bool, lazy => 1, builder => 1 );
+
+    method _trigger_changeword_is_character_per_character (Bool $changeword_is_character_per_character, @rest --> Undef) {
+        $self->_set__changeword_is_character_per_character($changeword_is_character_per_character);
+        return;
+    }
+
+    method _build__changeword_is_character_per_character {true}
+
     # =========================
     # --inctounix
     # =========================
     option inctounix => (
         is      => 'rw',
         isa     => Bool,
+        negativable => 1,
         trigger => 1,
         doc =>
-            q{Convert any included file from platform's native end-of-line character set to Unix style (LF). Default to a false value.}
+            q{Convert any included file from platform's native end-of-line character set to Unix style (LF). Default to a false value. Option is negativable with '--no-' prefix.}
     );
     has _inctounix => ( is => 'rwp', isa => Bool, lazy => 1, builder => 1 );
 
@@ -817,9 +839,10 @@ EVAL_GRAMMAR
     option interactive => (
         is      => 'rw',
         isa     => Bool,
+        negativable => 1,
         short   => 'i',
         trigger => 1,
-        doc     => q{Read STDIN and parse it line by line, until EOF.}
+        doc     => q{Read STDIN and parse it line by line, until EOF. Option is negativable with '--no-' prefix.}
     );
 
     method _trigger_interactive {
@@ -850,10 +873,11 @@ EVAL_GRAMMAR
     option version => (
         is      => 'rw',
         isa     => Bool,
+        negativable => 1,
         short   => 'v',
         trigger => 1,
         doc =>
-            q{Print the version number of the program on standard output, then immediately exit.}
+            q{Print the version number of the program on standard output, then immediately exit. Option is negativable with '--no-' prefix.}
     );
 
     method _trigger_version {
@@ -877,10 +901,11 @@ EVAL_GRAMMAR
     option prefix_builtins => (
         is      => 'rw',
         isa     => Bool,
+        negativable => 1,
         short   => 'P',
         trigger => 1,
         doc =>
-            q{Prefix of all builtin macros with 'm4_'. Default: a false value.}
+            q{Prefix of all builtin macros with 'm4_'. Default: a false value. Option is negativable with '--no-' prefix.}
     );
 
     has _prefix_builtins => (
@@ -1153,10 +1178,11 @@ EVAL_GRAMMAR
     option synclines => (
         is      => 'rw',
         isa     => Bool,
+        negativable => 1,
         short   => 's',
         trigger => 1,
         doc =>
-            q{Generate synchronization lines. Although option exist it is not yet supported.}
+            q{Generate synchronization lines. Although option exist it is not yet supported. Option is negativable with '--no-' prefix.}
     );
 
     has _synclines => (
@@ -1178,9 +1204,10 @@ EVAL_GRAMMAR
     option gnu => (
         is      => 'rw',
         isa     => Bool,
+        negativable => 1,
         short   => 'g',
         trigger => 1,
-        doc     => q{Enable all extensions.}
+        doc     => q{Enable all extensions. Option is negativable with '--no-' prefix.}
     );
 
     has _no_gnu_extensions => (
@@ -1202,9 +1229,10 @@ EVAL_GRAMMAR
     option traditional => (
         is      => 'rw',
         isa     => Bool,
+        negativable => 1,
         short   => 'G',
         trigger => 1,
-        doc     => q{Suppress all extensions.}
+        doc     => q{Suppress all extensions. Option is negativable with '--no-' prefix.}
     );
 
     method _trigger_traditional (Bool $traditional, @rest --> Undef) {
@@ -1654,9 +1682,12 @@ EVAL_GRAMMAR
             # Nevertheless we can bypass this horrible cost in one specific case:
             # the default value. We know that the default regexp is: [_a-zA-Z][_a-zA-Z0-9]*
             # i.e. per def when there is a match we /know/ it matches also character per
-            # character
+            # character.
             #
-            if ( ! $self->_regexp_isDefault &&
+            # This can also be disabled with the option --no-changeword-is-character-per-character
+            #
+            if ( $self->_changeword_is_character_per_character &&
+                 ! $self->_regexp_isDefault &&
                  #
                  # No need to check character per character if the length that matched
                  # (and not the captured group, eventually) is one character exactly
