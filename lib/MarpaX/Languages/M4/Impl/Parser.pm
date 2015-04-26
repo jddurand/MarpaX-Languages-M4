@@ -15,6 +15,10 @@ class MarpaX::Languages::M4::Impl::Parser {
     use Marpa::R2;                               # 2.103_004;
     use Scalar::Util qw/readonly/;
     use Types::Common::Numeric -all;
+    #
+    # --nesting_limit (SHOULD) take care of that
+    #
+    no warnings 'recursion';
 
     # VERSION
 
@@ -108,8 +112,22 @@ COMMA ~ ',' _WS_any
     has _parse_level => (
         is      => 'rwp',
         isa     => PositiveOrZeroInt,
+        # trigger => 1,
         default => 0
     );
+
+    method _trigger__parse_level (PositiveOrZeroInt $parse_level, @rest) {
+        #
+        # GNU testing of nesting_limit is another implementation, this
+        # has no meaning for us. So, even if supported, this option does
+        # nothing: the trigger is NOT enabled.
+        #
+        my $nesting_limit = $self->impl_nestingLimit;
+        if ( $nesting_limit > 0 && $parse_level > $nesting_limit ) {
+            $self->impl_raiseException( sprintf('Nesting limit of %d exceeded',
+                $nesting_limit ));
+        }
+    }
 
     method parser_parse (Str $input --> Str) {
             #

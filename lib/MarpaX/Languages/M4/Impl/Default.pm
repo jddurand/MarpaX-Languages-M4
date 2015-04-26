@@ -68,73 +68,12 @@ class MarpaX::Languages::M4::Impl::Default {
     use Marpa::R2;
     use MooX::HandlesVia;
     use Scalar::Util qw/blessed/;
-    use Throwable::Factory
-        ImplException           => undef,
-        ArgumentDecodeException => undef;
-
-    BEGIN {
-        #
-        # Decode ARGV eventually
-        #
-        if ( !Undef->check( $ENV{M4_ARGV_ENCODING} )
-            && length( $ENV{M4_ARGV_ENCODING} ) > 0 )
-        {
-#
-# C.f. http://www.perl.com/pub/2012/04/perlunicookbook-decode-argv-as-local-encoding.html
-#
-            my @NEWARGV;
-            try {
-                @NEWARGV = map {
-                    decode( $ENV{M4_ARGV_ENCODING} => $_, Encode::FB_CROAK )
-                } @ARGV;
-            }
-            catch {
-                my $error = join( "\n", @_ );
-                $error =~ s/\s*\z//;
-                ArgumentDecodeException->throw(
-                    "Cannot decode command-line arguments: $error. Change or remove M4_ARGV_ENCODING environment variable. Exception is: $_"
-                );
-                return;
-            }
-            finally {
-                if ( !@_ ) {
-                    @ARGV = @NEWARGV;
-                }
-            };
-        }
-        #
-        # I want to process options and non-options in order BUT
-        # I also want --help, --man and --usage to be processed
-        # first. So I do an internal Getopt::Long at load time
-        # and BEFORE loading MooX::Options to catch them.
-        # It appears that I have no possible clash with my own options.
-        #
-        use Getopt::Long
-            qw/:config bundling no_auto_help no_ignore_case pass_through/;
-        my %opts = ( usage => 0, help => 0, man => 0 );
-        GetOptions(
-            "usage"  => \$opts{usage},
-            "help|h" => \$opts{help},
-            "man"    => \$opts{man}
-        );
-        my @BUILTIN_OPTIONS_FIRST = @ARGV;
-        foreach ( keys %opts ) {
-            if ( $opts{$_} ) {
-                unshift( @BUILTIN_OPTIONS_FIRST, "--$_" );
-            }
-        }
-        @ARGV = @BUILTIN_OPTIONS_FIRST;
-    }
-
+    use Throwable::Factory ImplException => undef;
     use MooX::Options protect_argv => 0, flavour => [qw/require_order/];
     use MooX::Role::Logger;
     use POSIX qw/EXIT_SUCCESS EXIT_FAILURE/;
     use Perl::OSType ':all';
     use Types::Common::Numeric -all;
-
-    # --------
-    # Defaults
-    # --------
 
     # -----------------------------------------------------------------
     # The list of GNU-like extensions is known in advanced and is fixed
@@ -272,40 +211,47 @@ EVAL_GRAMMAR
             # Process this non-option
             #
             my $file = shift(@ARGV);
-            my $fh;
-            try {
-                $fh = IO::File->new(
-                    $ENV{M4_ENCODE_LOCALE}
-                    ? encode( locale_fs => $file )
-                    : $file,
-                    'r'
-                    )
-                    || die "$file: $!";
-                if ( $ENV{M4_ENCODE_LOCALE} ) {
-                    binmode( $fh, ':encoding(locale)' );
-                }
-            }
-            catch {
-                $self->logger_error( '%s: %s', $file, $@ );
-                return;
-            };
-            if ( !Undef->check($fh) ) {
-                $self->_set__nbInputProcessed(
-                    $self->_nbInputProcessed_add(1) );
-                $self->impl_parseIncremental(
-                    do { local $/; <$fh> }
-                );
+            my $uni_file
+                = $ENV{M4_ENCODE_LOCALE} ? decode( locale => $file ) : $file;
+            if ( $uni_file ne '-' ) {
+                my $fh;
                 try {
-                    $fh->close;
+                    $fh = IO::File->new(
+                        $ENV{M4_ENCODE_LOCALE}
+                        ? encode( locale_fs => $uni_file )
+                        : $uni_file,
+                        'r'
+                        )
+                        || die "$uni_file: $!";
+                    if ( $ENV{M4_ENCODE_LOCALE} ) {
+                        binmode( $fh, ':encoding(locale)' );
+                    }
                 }
                 catch {
-                    $self->logger_warn( '%s: %s', $file, $_ );
+                    $self->logger_error( '%s', "$_" );
                     return;
                 };
-                my $old = STDOUT->autoflush(1);
-                print $self->impl_value;
-                STDOUT->autoflush($old);
-                ${ $self->impl_valueRef } = '';
+                if ( !Undef->check($fh) ) {
+                    $self->_set__nbInputProcessed(
+                        $self->_nbInputProcessed_add(1) );
+                    $self->impl_parseIncremental(
+                        do { local $/; <$fh> }
+                    );
+                    try {
+                        $fh->close;
+                    }
+                    catch {
+                        $self->logger_warn( '%s', "$_" );
+                        return;
+                    };
+                    my $old = STDOUT->autoflush(1);
+                    print $self->impl_value;
+                    STDOUT->autoflush($old);
+                    ${ $self->impl_valueRef } = '';
+                }
+            }
+            else {
+                $self->interactive(true);
             }
             #
             # Merge next option values
@@ -313,8 +259,8 @@ EVAL_GRAMMAR
             my %nextOpts = $class->parse_options();
             foreach ( keys %nextOpts ) {
                 #
-                # Look to options. I made sure all ArrayRef have
-                # an 'elements' handle.
+                # Look to options. I made sure all ArrayRef options
+                # have an 'elements' handle named: xxx_elements.
                 #
                 if ( ArrayRef->check( $nextOpts{$_} ) ) {
                     my $elementsMethod = $_ . '_elements';
@@ -381,10 +327,10 @@ EVAL_GRAMMAR
     # --cmdtounix
     # =========================
     option cmdtounix => (
-        is      => 'rw',
-        isa     => Bool,
+        is          => 'rw',
+        isa         => Bool,
         negativable => 1,
-        trigger => 1,
+        trigger     => 1,
         doc =>
             q{Convert any command output from platform's native end-of-line character set to Unix style (LF). Default to a false value. Option is negativable with '--no-' prefix.}
     );
@@ -401,17 +347,19 @@ EVAL_GRAMMAR
     # --changeword-is-character-per-character
     # =======================================
     option changeword_is_character_per_character => (
-        is      => 'rw',
-        isa     => Bool,
+        is          => 'rw',
+        isa         => Bool,
         negativable => 1,
-        trigger => 1,
+        trigger     => 1,
         doc =>
             q{Default behaviour is to construct a word character at a time. I.e. is a regular expression accepts 'foo', it must also accept 'f' and 'fo'. This flag can disable such behaviour. Default to a true value. Option is negativable with '--no-' prefix.}
     );
-    has _changeword_is_character_per_character => ( is => 'rwp', isa => Bool, lazy => 1, builder => 1 );
+    has _changeword_is_character_per_character =>
+        ( is => 'rwp', isa => Bool, lazy => 1, builder => 1 );
 
     method _trigger_changeword_is_character_per_character (Bool $changeword_is_character_per_character, @rest --> Undef) {
-        $self->_set__changeword_is_character_per_character($changeword_is_character_per_character);
+        $self->_set__changeword_is_character_per_character(
+            $changeword_is_character_per_character);
         return;
     }
 
@@ -421,10 +369,10 @@ EVAL_GRAMMAR
     # --inctounix
     # =========================
     option inctounix => (
-        is      => 'rw',
-        isa     => Bool,
+        is          => 'rw',
+        isa         => Bool,
         negativable => 1,
-        trigger => 1,
+        trigger     => 1,
         doc =>
             q{Convert any included file from platform's native end-of-line character set to Unix style (LF). Default to a false value. Option is negativable with '--no-' prefix.}
     );
@@ -449,6 +397,7 @@ EVAL_GRAMMAR
         trigger     => 1,
         handles_via => 'Array',
         handles     => { tokens_priority_elements => 'elements' },
+        default     => sub { return $DEFAULT_TOKENS_PRIORITY },
         doc =>
             "Tokens priority. If setted, it is highly recommended to list all allowed values, that are : \"WORD\", \"MACRO\", \"QUOTEDSTRING\", and \"COMMENT\". The order of appearance on the command-line will be the prefered order when parsing M4 input. Multiple values can be given in the same switch if separated by the comma character ','. Unlisted values will keep their relative order from the default, which is: "
             . join( ',',
@@ -664,7 +613,8 @@ EVAL_GRAMMAR
         format      => 's@',
         autosplit   => ',',
         handles_via => 'Array',
-        handles     => { builtin_need_param_elements => 'elements', },
+        handles     => { builtin_need_param_elements => 'elements' },
+        default     => sub { return $NEED_PARAM_DEFAULT_VALUE },
         doc =>
             "Recognized-only-with-parameters policy. Repeatable option. Multiple values can be given in the same switch if separated by the comma character ','. Says if a macro is recognized only if it is immediately followed by a left parenthesis. Every option value is subject to the value of word_regexp: if it matches word_regexp at the beginning, then the option is considered. Any attempt to set it on the command-line will completely overwrite the default. Default: "
             . join( ',', @{$NEED_PARAM_DEFAULT_VALUE} ) . '.'
@@ -720,7 +670,7 @@ EVAL_GRAMMAR
     # =========================
     # --param-can-be-macro
     # =========================
-    our $PARAMCANBEMACRO_DEFAULT_VALUE = {
+    our $PARAMCANBEMACRO_DEFAULT_VALUE_HASH = {
         define => {
             0 => true,    # To trigger a warning
             1 => true
@@ -733,6 +683,19 @@ EVAL_GRAMMAR
             '*' => true    # To trigger a warning
         },
     };
+    our $PARAMCANBEMACRO_DEFAULT_VALUE = [
+        map {
+            my $macroName = $_;
+            "$macroName=" . join(
+                ':',
+                grep {
+                    $PARAMCANBEMACRO_DEFAULT_VALUE_HASH->{$macroName}->{$_}
+                    } keys
+                    %{ $PARAMCANBEMACRO_DEFAULT_VALUE_HASH->{$macroName} }
+                )
+        } keys %{$PARAMCANBEMACRO_DEFAULT_VALUE_HASH}
+    ];
+
     option param_can_be_macro => (
         is          => 'rw',
         isa         => ArrayRef [Str],
@@ -740,23 +703,11 @@ EVAL_GRAMMAR
         format      => 's@',
         autosplit   => ',',
         handles_via => 'Array',
-        handles     => { param_can_be_macro_elements => 'elements', },
+        handles     => { param_can_be_macro_elements => 'elements' },
+        default     => sub { return $NEED_PARAM_DEFAULT_VALUE },
         doc =>
             "Can-a-macro-parameter-be-an-internal-macro-token policy. Repeatable option. Multiple values can be given in the same switch if separated by the comma character ','. Says if a macro parameter can be an internal token, i.e. a reference to another macro. Every option value is subject to the value of word_regexp: if it matches word_regexp at the beginning, then the option is considered. On the command-line, the format has to be: word-regexp=?numbersOrStarSeparatedByColon?. For example: --policy_paramcanbemacro popdef,ifelse=,define=1,xxx=3:4,yyy=* says that popdef and ifelse do not accept any parameter as macro, but parameter at indice 1 of the define macro can be such internal token, as well as indices 3 and 4 of xxx macro, and any indices of macro yyy. Any attempt to set it on the command-line will completely overwrite the default. Default: "
-            . join(
-            ',',
-            map {
-                my $macroName = $_;
-                "$macroName=" . join(
-                    ':',
-                    grep {
-                        $PARAMCANBEMACRO_DEFAULT_VALUE->{$macroName}->{$_}
-                        } keys
-                        %{ $PARAMCANBEMACRO_DEFAULT_VALUE->{$macroName} }
-                    )
-            } keys %{$PARAMCANBEMACRO_DEFAULT_VALUE}
-            )
-            . '.'
+            . join( ',', @{$PARAMCANBEMACRO_DEFAULT_VALUE} ) . '.'
     );
 
     has _param_can_be_macro => (
@@ -830,80 +781,103 @@ EVAL_GRAMMAR
     }
 
     sub _build__param_can_be_macro {
-        return $PARAMCANBEMACRO_DEFAULT_VALUE;
+        return $PARAMCANBEMACRO_DEFAULT_VALUE_HASH;
     }
 
     # =========================
     # --interactive
     # =========================
     option interactive => (
-        is      => 'rw',
-        isa     => Bool,
+        is          => 'rw',
+        isa         => Bool,
         negativable => 1,
-        short   => 'i',
-        trigger => 1,
-        doc     => q{Read STDIN and parse it line by line, until EOF. Option is negativable with '--no-' prefix.}
+        short       => 'i',
+        trigger     => 1,
+        doc =>
+            q{Read STDIN and parse it line by line, until EOF. Option is negativable with '--no-' prefix.}
     );
 
-    method _trigger_interactive {
+    method _trigger_interactive (Bool $interactive, @rest --> Undef) {
+        if ($interactive) {
             #
             # If interactive mode is triggered via new_with_options()
             # the caller is likely to not have $self yet.
             #
-        while ( defined( $_ = <STDIN> ) ) {
-            $self->impl_parseIncremental($_);
-            my $valueRef = $self->_diversions_get(0)->sref;
+            my $fh;
+            if ( !open( $fh, '<&STDIN' ) ) {
+                $self->logger_error( 'Failed to duplicate STDIN: %s', $! );
+            }
+            else {
+                if ( $ENV{M4_ENCODE_LOCALE} ) {
+                    if ( is_interactive($fh) ) {
+                        binmode( $fh, ':encoding(console_in)' );
+                    }
+                    else {
+                        binmode( $fh, ':encoding(locale)' );
+                    }
+                }
+                while ( defined( $_ = <$fh> ) ) {
+                    $self->impl_parseIncremental($_);
+                    my $valueRef = $self->_diversions_get(0)->sref;
 
-            my $old = STDOUT->autoflush(1);
-            print STDOUT ${$valueRef};
-            STDOUT->autoflush($old);
+                    my $old = STDOUT->autoflush(1);
+                    print STDOUT ${$valueRef};
+                    STDOUT->autoflush($old);
 
-            ${$valueRef} = '';
+                    ${$valueRef} = '';
+                }
+                if ( !close($fh) ) {
+                    $self->logger_warn( 'Failed to close STDIN duplicate: %s',
+                        $! );
+                }
+            }
+            #
+            # EOF: the caller should have called impl_value,
+            # and this will trigger all cleanup stuff,
+            # in particular m4wrap.
+            #
         }
-        #
-        # EOF: the caller should have called impl_value,
-        # and this will trigger all cleanup stuff,
-        # in particular m4wrap.
-        #
+        return;
     }
 
     # =========================
     # --version
     # =========================
     option version => (
-        is      => 'rw',
-        isa     => Bool,
+        is          => 'rw',
+        isa         => Bool,
         negativable => 1,
-        short   => 'v',
-        trigger => 1,
+        short       => 'v',
+        trigger     => 1,
         doc =>
             q{Print the version number of the program on standard output, then immediately exit. Option is negativable with '--no-' prefix.}
     );
 
-    method _trigger_version {
-        my $CURRENTVERSION;
-        {
+    method _trigger_version (Bool $version, @rest --> Undef) {
+        print STDERR "TRIGGER VERSION\n";
+        if ($version) {
+            my $CURRENTVERSION;
            #
            # Because $VERSION is generated by dzil, not available in dev. tree
            #
             no strict 'vars';
-            $CURRENTVERSION = $VERSION;
-        }
-        $CURRENTVERSION ||= 'dev';
+            $CURRENTVERSION = $VERSION || 'dev';
 
-        print "Version $CURRENTVERSION\n";
-        exit(EXIT_SUCCESS);
+            print "Version $CURRENTVERSION\n";
+            exit(EXIT_SUCCESS);
+        }
+        return;
     }
 
     # =========================
     # --prefix-builtins
     # =========================
     option prefix_builtins => (
-        is      => 'rw',
-        isa     => Bool,
+        is          => 'rw',
+        isa         => Bool,
         negativable => 1,
-        short   => 'P',
-        trigger => 1,
+        short       => 'P',
+        trigger     => 1,
         doc =>
             q{Prefix of all builtin macros with 'm4_'. Default: a false value. Option is negativable with '--no-' prefix.}
     );
@@ -985,7 +959,8 @@ EVAL_GRAMMAR
         autosplit   => ',',
         trigger     => 1,
         handles_via => 'Array',
-        handles     => { trace_elements => 'elements', },
+        handles     => { trace_elements => 'elements' },
+        default     => sub { return [] },
         doc =>
             q{Trace mode. Repeatable option. Multiple values can be given in the same switch if separated by the comma character ','. Every option value will set trace on the macro sharing this name. Default is empty.}
     );
@@ -1021,7 +996,8 @@ EVAL_GRAMMAR
         is          => 'rw',
         isa         => ArrayRef [Str],
         handles_via => 'Array',
-        handles     => { define_elements => 'elements', },
+        handles     => { define_elements => 'elements' },
+        default     => sub { return [] },
         format      => 's@',
         short       => 'D',
         trigger     => 1,
@@ -1078,7 +1054,8 @@ EVAL_GRAMMAR
         is          => 'rw',
         isa         => ArrayRef [Str],
         handles_via => 'Array',
-        handles     => { undefine_elements => 'elements', },
+        handles     => { undefine_elements => 'elements' },
+        default     => sub { return [] },
         format      => 's',
         short       => 'U',
         repeatable  => 1,
@@ -1120,11 +1097,14 @@ EVAL_GRAMMAR
     # --prepend-include
     # =========================
     option prepend_include => (
-        is      => 'rw',
-        isa     => ArrayRef [Str],
-        format  => 's@',
-        short   => 'B',
-        trigger => 1,
+        is          => 'rw',
+        isa         => ArrayRef [Str],
+        handles_via => 'Array',
+        handles     => { prepend_include_elements => 'elements' },
+        default     => sub { return [] },
+        format      => 's@',
+        short       => 'B',
+        trigger     => 1,
         doc =>
             q{Include directory. Repeatable option. Will be used in reverse order and before current directory when searching for a file to include. Default is empty.}
     );
@@ -1148,11 +1128,14 @@ EVAL_GRAMMAR
     # --include
     # =========================
     option include => (
-        is      => 'rw',
-        isa     => ArrayRef [Str],
-        format  => 's@',
-        short   => 'I',
-        trigger => 1,
+        is          => 'rw',
+        isa         => ArrayRef [Str],
+        handles_via => 'Array',
+        handles     => { include_elements => 'elements' },
+        default     => sub { return [] },
+        format      => 's@',
+        short       => 'I',
+        trigger     => 1,
         doc =>
             q{Include directory. Repeatable option. Will be used in order and after current directory when searching for a file to include. Default is empty.}
     );
@@ -1176,11 +1159,11 @@ EVAL_GRAMMAR
     # --synclines
     # =========================
     option synclines => (
-        is      => 'rw',
-        isa     => Bool,
+        is          => 'rw',
+        isa         => Bool,
         negativable => 1,
-        short   => 's',
-        trigger => 1,
+        short       => 's',
+        trigger     => 1,
         doc =>
             q{Generate synchronization lines. Although option exist it is not yet supported. Option is negativable with '--no-' prefix.}
     );
@@ -1202,12 +1185,13 @@ EVAL_GRAMMAR
     # --gnu
     # =========================
     option gnu => (
-        is      => 'rw',
-        isa     => Bool,
+        is          => 'rw',
+        isa         => Bool,
         negativable => 1,
-        short   => 'g',
-        trigger => 1,
-        doc     => q{Enable all extensions. Option is negativable with '--no-' prefix.}
+        short       => 'g',
+        trigger     => 1,
+        doc =>
+            q{Enable all extensions. Option is negativable with '--no-' prefix.}
     );
 
     has _no_gnu_extensions => (
@@ -1227,12 +1211,13 @@ EVAL_GRAMMAR
     # --traditional
     # =========================
     option traditional => (
-        is      => 'rw',
-        isa     => Bool,
+        is          => 'rw',
+        isa         => Bool,
         negativable => 1,
-        short   => 'G',
-        trigger => 1,
-        doc     => q{Suppress all extensions. Option is negativable with '--no-' prefix.}
+        short       => 'G',
+        trigger     => 1,
+        doc =>
+            q{Suppress all extensions. Option is negativable with '--no-' prefix.}
     );
 
     method _trigger_traditional (Bool $traditional, @rest --> Undef) {
@@ -1244,8 +1229,8 @@ EVAL_GRAMMAR
     # --debugmode
     # =========================
     our @DEBUG_FLAGS         = qw/a c e f i l p q t x/;
-    our @DEFAULT_DEBUG_FLAGS = qw/a e q/;
-    option debugmode => (
+    our @DEFAULT_DEBUG_FLAGS = qw/V a e q/;
+    option debug => (
         is      => 'rw',
         isa     => Str,
         trigger => 1,
@@ -1272,7 +1257,7 @@ EVAL_GRAMMAR
         }
     );
 
-    method _trigger_debugmode (Str $flags, @rest --> Undef) {
+    method _trigger_debug (Str $flags, @rest --> Undef) {
 
         map { $self->_debug_set( $_, false ) } @DEBUG_FLAGS;
 
@@ -1319,8 +1304,36 @@ EVAL_GRAMMAR
     }
 
     # =========================
+    # --nesting_limit
+    # =========================
+    our $DEFAULT_NESTING_LIMIT = 1024;
+    option nesting_limit => (
+        is      => 'rw',
+        isa     => PositiveOrZeroInt,
+        trigger => 1,
+        format  => 'i',
+        short   => 'L',
+        doc =>
+            q{Should artificially limit the nesting of macro calls to num levels, stopping program execution if this limit is ever exceeded. This option is supported but has no effect. Must be a positive or zero integer. Default is 1024.}
+    );
+
+    has _nesting_limit => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => PositiveOrZeroInt
+    );
+
+    method _trigger_nesting_limit (PositiveOrZeroInt $nesting_limit, @rest --> Undef) {
+        $self->_set__nesting_limit($nesting_limit);
+    }
+
+    method _build__nesting_limit {$DEFAULT_NESTING_LIMIT}
+
+    # =========================
     # --debugfile
     # =========================
+    our $DEFAULT_DEBUGFILE = undef;
     option debugfile => (
         is      => 'rw',
         isa     => Str,
@@ -1342,7 +1355,7 @@ EVAL_GRAMMAR
         $self->_set__debugfile($debugfile);
     }
 
-    method _build__debugfile {undef}
+    method _build__debugfile {$DEFAULT_DEBUGFILE}
 
     # =========================
     # --quote-start
@@ -1561,7 +1574,8 @@ EVAL_GRAMMAR
             $self->_set__word_regexp($regexpString);
             $self->_set__regexp_word($r);
         }
-        $self->_set__regexp_isDefault($regexpString eq $DEFAULT_WORD_REGEXP ? true : false);
+        $self->_set__regexp_isDefault(
+            $regexpString eq $DEFAULT_WORD_REGEXP ? true : false );
 
         return;
     }
@@ -1608,6 +1622,7 @@ EVAL_GRAMMAR
     );
 
     method _trigger_warn_macro_sequence (Str $regexpString, @rest --> Undef) {
+      print STDERR "==> $regexpString\n";
         if ( length($regexpString) <= 0 ) {
             $self->_set__warn_macro_sequence(undef);
             $self->_set__regexp_warn_macro_sequence(undef);
@@ -1673,26 +1688,29 @@ EVAL_GRAMMAR
             my $lexemeLength = $rposFull - $lposFull;
             my $lexemeValue = substr( $input, $lpos, $rpos - $lpos );
 
-            #
-            # There is an internal limitation:
-            # if a regexp matches on characters abcdef,
-            # then it must also match on a, ab, ..., abcde
-            #
-            #
-            # Nevertheless we can bypass this horrible cost in one specific case:
-            # the default value. We know that the default regexp is: [_a-zA-Z][_a-zA-Z0-9]*
-            # i.e. per def when there is a match we /know/ it matches also character per
-            # character.
-            #
-            # This can also be disabled with the option --no-changeword-is-character-per-character
-            #
-            if ( $self->_changeword_is_character_per_character &&
-                 ! $self->_regexp_isDefault &&
-                 #
-                 # No need to check character per character if the length that matched
-                 # (and not the captured group, eventually) is one character exactly
-                 #
-                 $lexemeLength > 1 ) {
+#
+# There is an internal limitation:
+# if a regexp matches on characters abcdef,
+# then it must also match on a, ab, ..., abcde
+#
+#
+# Nevertheless we can bypass this horrible cost in one specific case:
+# the default value. We know that the default regexp is: [_a-zA-Z][_a-zA-Z0-9]*
+# i.e. per def when there is a match we /know/ it matches also character per
+# character.
+#
+# This can also be disabled with the option --no-changeword-is-character-per-character
+#
+            if (   $self->_changeword_is_character_per_character
+                && !$self->_regexp_isDefault
+                &&
+         #
+         # No need to check character per character if the length that matched
+         # (and not the captured group, eventually) is one character exactly
+         #
+                $lexemeLength > 1
+                )
+            {
                 my $lengthFull = $rposFull - $lposFull;
                 foreach ( 1 .. $lengthFull - 1 ) {
                     my $substring = substr( $input, $lposFull, $_ );
@@ -2443,7 +2461,7 @@ EVAL_GRAMMAR
                     @args );
             }
             catch {
-                $self->logger_error( '%s', $_ );
+                $self->logger_error( '%s', "$_" );
                 return;
             };
             return $rc;
@@ -2723,7 +2741,7 @@ EVAL_GRAMMAR
             }
             catch {
                 if ( !$silent ) {
-                    $self->logger_error( '%s: %s', $file, $_ );
+                    $self->logger_error( '%s: %s', $file, "$_" );
                 }
                 return;
             };
@@ -2734,7 +2752,7 @@ EVAL_GRAMMAR
                 }
                 catch {
                     if ( !$silent ) {
-                        $self->logger_warn( '%s: %s', $file, $_ );
+                        $self->logger_warn( '%s: %s', $file, "$_" );
                     }
                     return;
                 };
@@ -2742,7 +2760,7 @@ EVAL_GRAMMAR
                     $fh->close;
                 }
                 catch {
-                    $self->logger_warn( '%s: %s', $file, $_ );
+                    $self->logger_warn( '%s: %s', $file, "$_" );
                     return;
                 };
                 if ( !Undef->check($content) ) {
@@ -2868,7 +2886,7 @@ EVAL_GRAMMAR
                     }
                 }
                 catch {
-                    $self->logger_error($_);
+                    $self->logger_error("$_");
                     return;
                 };
                 if ( Undef->check($fh) ) {
@@ -3292,7 +3310,7 @@ EVAL_GRAMMAR
             $rc = sprintf( $format, @arguments );
         }
         catch {
-            $self->logger_error( 'format: %s', $_ );
+            $self->logger_error( 'format: %s', "$_" );
             return;
         };
         return $rc;
@@ -3435,7 +3453,7 @@ EVAL_GRAMMAR
             # we strip this line if any
             #
             $_ =~ s/^User bailed.*?\n//;
-            $self->logger_error( '%s: %s', $self->impl_quote('eval'), $_ );
+            $self->logger_error( '%s: %s', $self->impl_quote('eval'), "$_" );
             return;
         };
 
@@ -3462,7 +3480,7 @@ EVAL_GRAMMAR
             }
             catch {
                 $self->logger_error( '%s: %s',
-                    $self->impl_quote($macroName), $_ );
+                    $self->impl_quote($macroName), "$_" );
                 return;
             }
             finally {
@@ -3524,7 +3542,7 @@ EVAL_GRAMMAR
             $tmp = File::Temp->new( TEMPLATE => $template );
         }
         catch {
-            $self->logger_error( '%s: %s', $macro, $_ );
+            $self->logger_error( '%s: %s', $macro, "$_" );
             return;
         };
 
@@ -4081,12 +4099,12 @@ STUB
         return $self->__file__(@args);
     }
 
-    method impl_line (@args --> PositiveOrZeroInt) {
-        return $self->__line__(@args);
+    method impl_debugfile (@args --> Str) {
+        return $self->debugfile(@args);
     }
 
-    method impl_debugfile ( --> Undef|Str) {
-        return $self->_debugfile;
+    method impl_line (@args --> PositiveOrZeroInt) {
+        return $self->__line__(@args);
     }
 
     method impl_rc (@args --> Int) {
@@ -4184,6 +4202,14 @@ STUB
     method impl_readFromStdin (--> ConsumerOf[M4Impl]) {
         $self->interactive(true);
         return $self;
+    }
+
+    method impl_debugFile (--> Undef|Str) {
+        return $self->_debugfile;
+    }
+
+    method impl_nestingLimit (--> PositiveOrZeroInt) {
+        return $self->_nesting_limit;
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';

@@ -26,16 +26,16 @@ role MarpaX::Languages::M4::Role::Impl {
     requires 'impl_eoi';
     requires 'impl_raiseException';
     requires 'impl_line';
-    requires 'impl_debugfile';
     requires 'impl_rc';
     requires 'impl_isImplException';
     requires 'impl_macroExecute';
     requires 'impl_macroCallId';
-    requires 'impl_debugfile';
     requires 'impl_reloadState';
     requires 'impl_freezeState';
     requires 'impl_nbInputProcessed';
     requires 'impl_readFromStdin';
+    requires 'impl_debugFile';
+    requires 'impl_nestingLimit';
 
     with 'MarpaX::Languages::M4::Role::Builtin';
     with 'MarpaX::Languages::M4::Role::Logger';

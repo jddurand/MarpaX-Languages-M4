@@ -28,13 +28,13 @@ class MarpaX::Languages::M4 {
     method raiseException (@args)   { $self->impl_raiseException(@args) }
     method file (@args)             { $self->impl_file(@args) }
     method line (@args)             { $self->impl_line(@args) }
-    method debugfile (@args)        { $self->impl_debugfile(@args) }
     method rc (@args)               { $self->impl_rc(@args) }
     method isImplException (@args)  { $self->impl_isImplException(@args) }
     method macroExecute (@args)     { $self->impl_macroExecute(@args) }
     method macroCallId (@args)      { $self->impl_macroCallId(@args) }
     method nbInputProcessed (@args) { $self->impl_nbInputProcessed(@args) }
     method readFromStdin (@args)    { $self->impl_readFromStdin(@args) }
+    method debugFile (@args)        { $self->impl_debugFile(@args) }
 }
 
 =head1 DESCRIPTION
@@ -119,10 +119,6 @@ Get current file name. See NOTES.
 
 Get current line number. See NOTES.
 
-=head2 $self->debugfile(--> Undef|Str)
-
-Get current debug file name.
-
 =head2 $self->rc(--> Int)
 
 Get current parse return code. Should be POSIX::EXIT_SUCCESS() or POSIX::EXIT_FAILURE().
@@ -146,6 +142,10 @@ Return number of input processed so far.
 =head2 $self->readFromStdin(--> ConsumerOf[M4Impl])
 
 Enters interactive mode.
+
+=head2 $self->debugFile(--> Undef|Str)
+
+Return debug file, undef if none.
 
 =head1 NOTES
 

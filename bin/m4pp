@@ -9,6 +9,8 @@ use MarpaX::Languages::M4;
 use Log::Any;
 use Log::Any::Adapter;
 use Log::Any::Adapter::Callback;
+use Throwable::Factory ArgumentDecodeException => undef;
+use Try::Tiny;
 
 # ABSTRACT: M4 implementation in Perl
 
@@ -17,6 +19,101 @@ use Log::Any::Adapter::Callback;
 # AUTHORITY
 
 # PODNAME: m4pp
+
+BEGIN {
+    #
+    # Decode ARGV eventually
+    #
+    if ( defined( $ENV{M4_ARGV_ENCODING} )
+        && length( $ENV{M4_ARGV_ENCODING} ) > 0 )
+    {
+#
+# C.f. http://www.perl.com/pub/2012/04/perlunicookbook-decode-argv-as-local-encoding.html
+#
+        my @NEWARGV;
+        try {
+            @NEWARGV = map {
+                decode( $ENV{M4_ARGV_ENCODING} => $_, Encode::FB_CROAK )
+            } @ARGV;
+        }
+        catch {
+            my $error = join( "\n", @_ );
+            $error =~ s/\s*\z//;
+            ArgumentDecodeException->throw(
+                "Cannot decode command-line arguments: $error. Change or remove M4_ARGV_ENCODING environment variable. Exception is: $_"
+            );
+            return;
+        }
+        finally {
+            if ( !@_ ) {
+                @ARGV = @NEWARGV;
+            }
+        };
+    }
+    #
+    # Getopt::Long appears to be a pain if we want to just reorder
+    # options. So I do it by hand.
+    #
+    my @BUILTIN      = ();
+    my @RELOAD_STATE = ();
+    my @REST         = ();
+    while (@ARGV) {
+        my $arg = $ARGV[0];
+        if ( $arg eq '--man' ) {
+            push( @BUILTIN, $arg );
+            shift(@ARGV);
+        }
+        elsif ( $arg eq '--usage' ) {
+            push( @BUILTIN, $arg );
+            shift(@ARGV);
+        }
+        elsif ( $arg eq '--help' ) {
+            push( @BUILTIN, $arg );
+            shift(@ARGV);
+        }
+        elsif ( $arg eq '--reload-state' || $arg eq '--reload_state' ) {
+            push( @RELOAD_STATE, $arg );
+            shift(@ARGV);
+            if (@ARGV) {
+                push( @RELOAD_STATE, shift(@ARGV) );
+            }
+        }
+        elsif (index( $arg, '--reload-state=' ) == 0
+            || index( $arg, '--reload_state=' ) == 0 )
+        {
+            push( @RELOAD_STATE, $arg );
+            shift(@ARGV);
+        }
+        elsif ( $arg =~ /^\-([^\-]+)/ ) {
+            my $match = substr( $arg, $-[1], $+[1] - $-[1] );
+            if ( $match =~ s/R$// ) {
+                push( @RELOAD_STATE, '-R' );
+                $arg = ( length($match) > 0 ) ? "-$match" : '';
+                if (@ARGV) {
+                    push( @RELOAD_STATE, shift(@ARGV) );
+                }
+            }
+            if ( $match =~ /R=.*/ ) {
+                push( @RELOAD_STATE,
+                    '-' . substr( $match, $-[0], $+[0] - $-[0], '' ) );
+                $arg = ( length($match) > 0 ) ? "-$match" : '';
+            }
+            if ( $match =~ s/h//g ) {
+                push( @BUILTIN, '-h' );
+                $arg = ( length($match) > 0 ) ? "-$match" : '';
+            }
+            if ( length($match) > 0 ) {
+                push( @REST, "-$match" );
+            }
+            shift(@ARGV);
+        }
+        else {
+            push( @REST, $arg );
+            shift(@ARGV);
+        }
+    }
+    @ARGV = ( @BUILTIN, @RELOAD_STATE, @REST );
+}
 
 #
 # Get the numbers associated to levels
@@ -64,7 +161,7 @@ sub _logging_cb {
     my $fhName = 'STDERR';
     my $prefix;
     if ( $level < $logging_levels{warning} ) {
-        my $debugfile = $_m4->impl_debugfile;
+        my $debugfile = $_m4->debugFile;
         if ( defined($debugfile) ) {
             if ( !open( $fh, '>>', $debugfile ) ) {
                 #
@@ -78,16 +175,27 @@ sub _logging_cb {
             }
         }
         my $macroCallId = $MarpaX::Languages::M4::MACROCALLID;
-        $prefix = ($level == $logging_levels{trace}) ? 'm4trace: ' : 'm4debug: ';
+        $prefix
+            = ( $level == $logging_levels{trace} )
+            ? 'm4trace: '
+            : 'm4debug: ';
         if ( defined($macroCallId) ) {
             $prefix .= sprintf( '-%d- ', $macroCallId );
         }
+    }
+    elsif ( $level == $logging_levels{warning} ) {
+        $prefix = 'm4warn: ';
     }
     else {
         $prefix = 'm4error: ';
     }
     if ( $ENV{M4_ENCODE_LOCALE} ) {
-        binmode $fh, ":encoding(console_out)" if ( is_interactive($fh) );
+        if ( is_interactive($fh) ) {
+            binmode( $fh, ':encoding(console_out)' );
+        }
+        else {
+            binmode( $fh, ':encoding(locale)' );
+        }
     }
 
     my $program = $_m4->builtin___program__;
