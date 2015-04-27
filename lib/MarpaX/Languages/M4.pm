@@ -151,9 +151,11 @@ Return debug file, undef if none.
 
 file() and line() methods, nor synchronisation output, are currently not supported. This is on the TODO list for this package.
 
+M4 is a MooX::Role::Logger consumer, using explicitely Log::Any's "f" functions in all its logging methods. This mean that the message, in case you would use something like e.g. Log::Any::Adapter::Callback, is always formatted, with no additional parameter.
+
 =head1 SEE ALSO
 
-L<Marpa::R2>, L<Moops>, L<POSIX>, L<M4 POSIX|http://pubs.opengroup.org/onlinepubs/9699919799/utilities/m4.html>, L<M4 GNU|https://www.gnu.org/software/m4/manual/m4.html>
+L<Marpa::R2>, L<Moops>, L<MooX::Role::Logger>, L<Log::Any>, L<Log::Any::Adapter::Callback>, L<POSIX>, L<M4 POSIX|http://pubs.opengroup.org/onlinepubs/9699919799/utilities/m4.html>, L<M4 GNU|https://www.gnu.org/software/m4/manual/m4.html>
 
 =cut
 

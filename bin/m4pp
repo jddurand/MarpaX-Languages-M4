@@ -141,7 +141,7 @@ print $m4->value;
 exit( $m4->rc );
 
 sub _logging_cb {
-    my ( $method, $self, $format, @params ) = @_;
+    my ( $method, $self, $formattedString, @none ) = @_;
 
     my $level = $logging_levels{$method};
     #
@@ -200,7 +200,7 @@ sub _logging_cb {
 
     my $program = $_m4->builtin___program__;
 
-    printf $fh "$prefix$format\n", @params;
+    print $fh "$prefix$formattedString\n";
     if ( !close($fh) ) {
         warn "Cannot close $fhName, $!";
     }
