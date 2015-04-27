@@ -1229,7 +1229,7 @@ EVAL_GRAMMAR
     # --debugmode
     # =========================
     our @DEBUG_FLAGS         = qw/a c e f i l p q t x/;
-    our @DEFAULT_DEBUG_FLAGS = qw/V a e q/;
+    our @DEFAULT_DEBUG_FLAGS = qw/a e q/;
     option debug => (
         is      => 'rw',
         isa     => Str,
@@ -3663,20 +3663,20 @@ EVAL_GRAMMAR
         #
         # Number of arguments.
         #
-        if ( $newExpansion =~ s/\\\$\\\#/\$nbArgs/g ) {
+        if ( $newExpansion =~ s/\\\$\\\#/\${nbArgs}/g ) {
             $prepareArguments .= "\tmy \$nbArgs = scalar(\@args);\n";
         }
         #
         # Arguments expansion, unquoted.
         #
-        if ( $newExpansion =~ s/\\\$\\\*/\$listArgs/g ) {
+        if ( $newExpansion =~ s/\\\$\\\*/\${listArgs}/g ) {
             $prepareArguments
                 .= "\tmy \$listArgs = join(',', map {\$_ // ''} \@args);\n";
         }
         #
         # Arguments expansion, quoted.
         #
-        if ( $newExpansion =~ s/\\\$\\\@/\$listArgsQuoted/g ) {
+        if ( $newExpansion =~ s/\\\$\\\@/\${listArgsQuoted}/g ) {
             $prepareArguments
                 .= "\tmy \$listArgsQuoted = join(',', map {\$self->impl_quote(\$_)} \@args);\n";
         }
