@@ -1771,17 +1771,17 @@ __! 133 regexp error: input !__
 regexp(`GNUs not Unix', `\(')
 __! 133 regexp error: output !__
 
-__! 134 changeword - word-regexp is not character per character - perl engine: input('--regexp-type', 'perl', '--no-changeword-is-character-per-character') !__
+__! 134 changeword - when word-regexp is not character per character - perl engine: input('--regexp-type', 'perl', '--no-changeword-is-character-per-character') !__
 define(`test', `hi')dnl
 changecom(`/*', `*/')dnl
 changeword(`#<([_a-zA-Z0-9]*)>')#<dnl>
 #<test>
-__! 134 changeword - word-regexp is not character per character - perl engine: output !__
+__! 134 changeword - when word-regexp is not character per character - perl engine: output !__
 hi
-__! 134 changeword - word-regexp is not character per character - GNU Emacs engine: input('--regexp-type', 'GNU', '--no-changeword-is-character-per-character') !__
+__! 134 changeword - when word-regexp is not character per character - GNU Emacs engine: input('--regexp-type', 'GNU', '--no-changeword-is-character-per-character') !__
 define(`test', `hi')dnl
 changecom(`/*', `*/')dnl
 changeword(`#<\([_a-zA-Z0-9]*\)>')#<dnl>
 #<test>
-__! 134 changeword - word-regexp is not character per character - GNU Emacs engine: output !__
+__! 134 changeword - when word-regexp is not character per character - GNU Emacs engine: output !__
 hi
