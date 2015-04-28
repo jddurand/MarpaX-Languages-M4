@@ -35,6 +35,7 @@ class MarpaX::Languages::M4 {
     method nbInputProcessed (@args) { $self->impl_nbInputProcessed(@args) }
     method readFromStdin (@args)    { $self->impl_readFromStdin(@args) }
     method debugFile (@args)        { $self->impl_debugFile(@args) }
+    method defaultWarnMacroSequence (ClassName $class: @args) { $class->impl_defaultWarnMacroSequence(@args) }
 }
 
 =head1 DESCRIPTION
@@ -146,6 +147,10 @@ Enters interactive mode.
 =head2 $self->debugFile(--> Undef|Str)
 
 Return debug file, undef if none.
+
+=head2 $class->defaultWarnMacroSequence(--> Str)
+
+Return default --warn-macro-sequence option value (used by m4pp to handle MooX::Option non support of optional value on the command-line)
 
 =head1 NOTES
 

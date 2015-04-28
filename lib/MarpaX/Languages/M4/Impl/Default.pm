@@ -1604,7 +1604,7 @@ EVAL_GRAMMAR
         trigger => 1,
         format  => 's',
         doc =>
-            "Issue a warning if a macro defined via builtins define or pushdef is matching this regexp. An empty string disables the check. Take care, the option value will have to obey current --regex-type (i.e. perl or GNU Emacs syntax). Default: \"$DEFAULT_WARN_MACRO_SEQUENCE\"."
+            "Issue a warning if a macro defined via builtins define or pushdef is matching this regexp. An empty string disables the check. Wrapper by m4pp so that option value is optional. Take care, the option value will have to obey current --regex-type (i.e. perl or GNU Emacs syntax). Default: \"$DEFAULT_WARN_MACRO_SEQUENCE\"."
     );
 
     has _warn_macro_sequence => (
@@ -1622,7 +1622,6 @@ EVAL_GRAMMAR
     );
 
     method _trigger_warn_macro_sequence (Str $regexpString, @rest --> Undef) {
-      print STDERR "==> $regexpString\n";
         if ( length($regexpString) <= 0 ) {
             $self->_set__warn_macro_sequence(undef);
             $self->_set__regexp_warn_macro_sequence(undef);
@@ -4210,6 +4209,10 @@ STUB
 
     method impl_nestingLimit (--> PositiveOrZeroInt) {
         return $self->_nesting_limit;
+    }
+
+    method impl_defaultWarnMacroSequence (ClassName $class: @args --> Str) {
+        return $DEFAULT_WARN_MACRO_SEQUENCE;
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';
