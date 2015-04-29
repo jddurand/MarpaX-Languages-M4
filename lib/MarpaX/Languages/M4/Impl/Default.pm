@@ -1593,63 +1593,77 @@ EVAL_GRAMMAR
         return $r;
     }
 
-    # =========================
-    # --warn-macro-sequence
-    # =========================
-    our $DEFAULT_WARN_MACRO_SEQUENCE = '\$\({[^}]*}\|[0-9][0-9]+\)';
-    option warn_macro_sequence => (
+    # ============================
+    # --warn-macro-sequence-regexp
+    # ============================
+    our $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_GNU  = '\$\({[^}]*}\|[0-9][0-9]+\)';
+    our $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_PERL = '\$(\{[^\}]*\}|[0-9][0-9]+)';
+    option warn_macro_sequence_regexp => (
         is      => 'rw',
         isa     => Str,
-        default => $DEFAULT_WARN_MACRO_SEQUENCE,
         trigger => 1,
         format  => 's',
         doc =>
-            "Issue a warning if a macro defined via builtins define or pushdef is matching this regexp. An empty string disables the check. Wrapper by m4pp so that option value is optional. Take care, the option value will have to obey current --regex-type (i.e. perl or GNU Emacs syntax). Default: \"$DEFAULT_WARN_MACRO_SEQUENCE\"."
+            "Regexp used to trigger a warning in macro definition when --warn-macro-sequence option is setted. Take care, the option value will have to obey current --regex-type (i.e. perl or GNU Emacs syntax). Perl default: \"$DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_PERL\", GNU default: \"$DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_GNU\"."
     );
 
-    has _warn_macro_sequence => (
+    has _warn_macro_sequence_regexp => (
         is      => 'rwp',
         lazy    => 1,
         builder => 1,
-        isa     => Undef | Str
+        isa     => M4Regexp
     );
 
-    has _regexp_warn_macro_sequence => (
-        is      => 'rwp',
-        lazy    => 1,
-        builder => 1,
-        isa     => Undef | M4Regexp
-    );
+    method _build__warn_macro_sequence_regexp {
+      my $regexpString = ($self->_regexp_type eq 'GNU') ?
+        $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_GNU
+        :
+        $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_PERL
+        ;
+      my $r = MarpaX::Languages::M4::Impl::Regexp->new();
+      $r->regexp_compile( $self, $self->_regexp_type, $regexpString );
+      return $r;
+    }
 
-    method _trigger_warn_macro_sequence (Str $regexpString, @rest --> Undef) {
-        if ( length($regexpString) <= 0 ) {
-            $self->_set__warn_macro_sequence(undef);
-            $self->_set__regexp_warn_macro_sequence(undef);
-            return;
-        }
-
+    method _trigger_warn_macro_sequence_regexp (Str $regexpString, @rest --> Undef) {
         #
         # Check it compiles
         #
         my $r = MarpaX::Languages::M4::Impl::Regexp->new();
         if ( $r->regexp_compile( $self, $self->_regexp_type, $regexpString ) )
         {
-            $self->_set__warn_macro_sequence($regexpString);
-            $self->_set__regexp_warn_macro_sequence($r);
+            $self->_set__warn_macro_sequence_regexp($r);
         }
-
         return;
     }
 
+    # =========================
+    # --warn-macro-sequence
+    # =========================
+    our $DEFAULT_WARN_MACRO_SEQUENCE = false;
+    option warn_macro_sequence => (
+        is      => 'rw',
+        isa     => Bool,
+        default => false,
+        trigger => 1,
+        doc =>
+            "Issue a warning if a macro defined via builtins define or pushdef is matching the regexp setted via --warn-macro-sequence-regexp option value. This is option is negativable. Default: a false value."
+    );
+
+    has _warn_macro_sequence => (
+        is      => 'rwp',
+        lazy    => 1,
+        builder => 1,
+        isa     => Bool
+    );
+
+    method _trigger_warn_macro_sequence (Bool $bool, @rest --> Undef) {
+        $self->_set__warn_macro_sequence($bool);
+        return;
+     }
+
     method _build__warn_macro_sequence {
         return $DEFAULT_WARN_MACRO_SEQUENCE;
-    }
-
-    method _build__regexp_warn_macro_sequence {
-        my $r = MarpaX::Languages::M4::Impl::Regexp->new();
-        $r->regexp_compile( $self, $self->_regexp_type,
-            $self->_warn_macro_sequence );
-        return $r;
     }
 
     # ---------------------------------------------------------------
@@ -3595,8 +3609,8 @@ EVAL_GRAMMAR
                                 #
                                 # Check macro content
                                 #
-        my $r = $self->_regexp_warn_macro_sequence;
-        if ( !Undef->check($r) ) {
+        if ( $self->_warn_macro_sequence ) {
+            my $r = $self->_warn_macro_sequence_regexp;
             my $offset = 0;
             my $len    = length($expansion);
             while ( $offset
@@ -4209,10 +4223,6 @@ STUB
 
     method impl_nestingLimit (--> PositiveOrZeroInt) {
         return $self->_nesting_limit;
-    }
-
-    method impl_defaultWarnMacroSequence (ClassName $class: @args --> Str) {
-        return $DEFAULT_WARN_MACRO_SEQUENCE;
     }
 
     with 'MarpaX::Languages::M4::Role::Impl';

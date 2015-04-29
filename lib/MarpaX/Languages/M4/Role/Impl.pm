@@ -36,7 +36,6 @@ role MarpaX::Languages::M4::Role::Impl {
     requires 'impl_readFromStdin';
     requires 'impl_debugFile';
     requires 'impl_nestingLimit';
-    requires 'impl_defaultWarnMacroSequence';
 
     with 'MarpaX::Languages::M4::Role::Builtin';
     with 'MarpaX::Languages::M4::Role::Logger';

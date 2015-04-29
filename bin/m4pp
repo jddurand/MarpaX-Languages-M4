@@ -57,6 +57,7 @@ BEGIN {
     my @BUILTIN      = ();
     my @RELOAD_STATE = ();
     my @REST         = ();
+
     while (@ARGV) {
         my $arg = $ARGV[0];
         if ( $arg eq '--man' ) {
@@ -78,34 +79,10 @@ BEGIN {
                 push( @RELOAD_STATE, shift(@ARGV) );
             }
         }
-        elsif (index( $arg, '--reload-state=' ) == 0
-            || index( $arg, '--reload_state=' ) == 0 )
+        elsif (index( $arg, '--reload-state=' ) == 0 )
         {
             push( @RELOAD_STATE, $arg );
             shift(@ARGV);
-        }
-        #
-        # MooX::Options does not support optional argument value
-        # but we want to handle --warn-macro-sequence[=regexp]
-        #
-        elsif (index( $arg, '--warn-macro-sequence' ) == 0
-            || index( $arg, '--warn_macro-sequence' ) == 0
-            || index( $arg, '--warn-macro_sequence' ) == 0
-            || index( $arg, '--warn_macro_sequence' ) == 0 )
-        {
-            push( @REST, $arg );
-            shift(@ARGV);
-            if (@ARGV) {
-                my $nextArg = $ARGV[0];
-                if ( index( $nextArg, '-' ) == 0 ) {
-             #
-             # --warn-macro-sequence is not followed by a non-option: force it
-             # to its default value
-             #
-                    push( @REST,
-                        MarpaX::Languages::M4->defaultWarnMacroSequence() );
-                }
-            }
         }
         elsif ( $arg =~ /^\-([^\-]+)/ ) {
             my $match = substr( $arg, $-[1], $+[1] - $-[1] );
