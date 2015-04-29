@@ -211,6 +211,9 @@ EVAL_GRAMMAR
             # Process this non-option
             #
             my $file = shift(@ARGV);
+            if ( Undef->check($file) ) {
+                next;
+            }
             my $uni_file
                 = $ENV{M4_ENCODE_LOCALE} ? decode( locale => $file ) : $file;
             if ( $uni_file ne '-' ) {
@@ -1596,8 +1599,10 @@ EVAL_GRAMMAR
     # ============================
     # --warn-macro-sequence-regexp
     # ============================
-    our $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_GNU  = '\$\({[^}]*}\|[0-9][0-9]+\)';
-    our $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_PERL = '\$(\{[^\}]*\}|[0-9][0-9]+)';
+    our $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_GNU
+        = '\$\({[^}]*}\|[0-9][0-9]+\)';
+    our $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_PERL
+        = '\$(\{[^\}]*\}|[0-9][0-9]+)';
     option warn_macro_sequence_regexp => (
         is      => 'rw',
         isa     => Str,
@@ -1615,20 +1620,19 @@ EVAL_GRAMMAR
     );
 
     method _build__warn_macro_sequence_regexp {
-      my $regexpString = ($self->_regexp_type eq 'GNU') ?
-        $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_GNU
-        :
-        $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_PERL
-        ;
-      my $r = MarpaX::Languages::M4::Impl::Regexp->new();
-      $r->regexp_compile( $self, $self->_regexp_type, $regexpString );
-      return $r;
+        my $regexpString
+            = ( $self->_regexp_type eq 'GNU' )
+            ? $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_GNU
+            : $DEFAULT_WARN_MACRO_SEQUENCE_REGEXP_PERL;
+        my $r = MarpaX::Languages::M4::Impl::Regexp->new();
+        $r->regexp_compile( $self, $self->_regexp_type, $regexpString );
+        return $r;
     }
 
     method _trigger_warn_macro_sequence_regexp (Str $regexpString, @rest --> Undef) {
-        #
-        # Check it compiles
-        #
+                                                 #
+                                                 # Check it compiles
+                                                 #
         my $r = MarpaX::Languages::M4::Impl::Regexp->new();
         if ( $r->regexp_compile( $self, $self->_regexp_type, $regexpString ) )
         {
@@ -1660,7 +1664,7 @@ EVAL_GRAMMAR
     method _trigger_warn_macro_sequence (Bool $bool, @rest --> Undef) {
         $self->_set__warn_macro_sequence($bool);
         return;
-     }
+    }
 
     method _build__warn_macro_sequence {
         return $DEFAULT_WARN_MACRO_SEQUENCE;
@@ -3610,7 +3614,7 @@ EVAL_GRAMMAR
                                 # Check macro content
                                 #
         if ( $self->_warn_macro_sequence ) {
-            my $r = $self->_warn_macro_sequence_regexp;
+            my $r      = $self->_warn_macro_sequence_regexp;
             my $offset = 0;
             my $len    = length($expansion);
             while ( $offset
