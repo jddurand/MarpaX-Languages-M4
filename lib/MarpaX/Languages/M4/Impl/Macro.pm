@@ -95,19 +95,13 @@ class MarpaX::Languages::M4::Impl::Macro {
             name       => $name,
             stub       => $self->stub,
             needParams => $self->needParams,
-            expansion  => $self->expansion,     # But c.f. below
+            expansion  => $self->expansion,
             #
             # No need of clone: the hash is ro once created
             #
             paramCanBeMacro => $self->paramCanBeMacro,
             postMatchLength => $self->postMatchLength
         );
-        if ( $self->macro_isBuiltin ) {
-            #
-            # Avoid circular links
-            #
-            $macro->expansion($macro);
-        }
 
         return $macro;
     }
