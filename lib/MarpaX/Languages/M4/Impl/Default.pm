@@ -909,7 +909,6 @@ EVAL_GRAMMAR
         is         => 'rw',
         isa        => PositiveInt,
         repeatable => 1,
-        repeatable => 1,
         short      => 'E',
         trigger    => 1,
         doc =>
