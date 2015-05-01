@@ -17,6 +17,7 @@ role MarpaX::Languages::M4::Role::Macro {
     requires 'macro_paramCanBeMacro';
     requires 'macro_postMatchLengthExecute';
     requires 'macro_isBuiltin';
+    requires 'macro_clone';
 }
 
 1;

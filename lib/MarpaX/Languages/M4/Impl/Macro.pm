@@ -72,7 +72,7 @@ class MarpaX::Languages::M4::Impl::Macro {
     }
 
     method macro_isBuiltin (--> Bool) {
-        return ( $self->expansion == $self ) ? true : false;
+        return M4Macro->check( $self->expansion );
     }
 
     method macro_paramCanBeMacro (PositiveOrZeroInt $paramPos --> Bool) {
@@ -88,6 +88,30 @@ class MarpaX::Languages::M4::Impl::Macro {
         else {
             return false;
         }
+    }
+
+    method macro_clone (Str $name --> M4Macro) {
+        my $macro = __PACKAGE__->new(
+            name       => $name,
+            stub       => $self->stub,
+            needParams => $self->needParams,
+            #
+            # No need of clone: the hash is ro once created
+            #
+            paramCanBeMacro => $self->paramCanBeMacro,
+            postMatchLength => $self->postMatchLength
+        );
+        if ( $macro->macro_isBuiltin ) {
+            #
+            # Avoid circular links
+            #
+            $macro->expansion($macro);
+        }
+        else {
+            $macro->expansion( $self->expansion );
+        }
+
+        return $macro;
     }
 
     with 'MarpaX::Languages::M4::Role::Macro';
