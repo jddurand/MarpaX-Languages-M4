@@ -3828,24 +3828,16 @@ STUB
                             #
                             # Expansion is either Str or M4Macro
                             #
-                            if ( Str->check($expansion) ) {
-                                $fh->print(
-                                    sprintf( "T%d,%d\n",
-                                        length($name), length($expansion) )
-                                );
-                                $fh->print($name);
-                                $fh->print($expansion);
-                                $fh->print("\n");
+                            if ( $_->macro_isBuiltin ) {
+                                my $builtinName = $expansion->macro_name;
+                                my $F           = sprintf( "F%d,%d",
+                                    length($name), length($builtinName) );
+                                $fh->print("$F\n$name$builtinName\n");
                             }
                             else {
-                                $fh->print(
-                                    sprintf( "F%d,%d\n",
-                                        length($name),
-                                        length( $expansion->macro_name ) )
-                                );
-                                $fh->print($name);
-                                $fh->print( $expansion->macro_name );
-                                $fh->print("\n");
+                                my $T = sprintf( "T%d,%d",
+                                    length($name), length($expansion) );
+                                $fh->print("$T\n$name$expansion\n");
                             }
                         }
                     }
