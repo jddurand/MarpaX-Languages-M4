@@ -235,11 +235,13 @@ EVAL_GRAMMAR
                     return;
                 };
                 if ( !Undef->check($fh) ) {
+                    $self->logger_debug( 'input read from %s', $uni_file );
                     $self->_set__nbInputProcessed(
                         $self->_nbInputProcessed_add(1) );
                     $self->impl_parseIncremental(
                         do { local $/; <$fh> }
                     );
+                    $self->logger_debug( '%s: input exhausted', $uni_file );
                     try {
                         $fh->close;
                     }
@@ -819,6 +821,7 @@ EVAL_GRAMMAR
                         binmode( $fh, ':encoding(locale)' );
                     }
                 }
+                $self->logger_debug('input read from stdin');
                 while ( defined( $_ = <$fh> ) ) {
                     $self->impl_parseIncremental($_);
                     my $valueRef = $self->_diversions_get(0)->sref;
@@ -829,6 +832,7 @@ EVAL_GRAMMAR
 
                     ${$valueRef} = '';
                 }
+                $self->logger_debug('input exhausted');
                 if ( !close($fh) ) {
                     $self->logger_warn( 'Failed to close STDIN duplicate: %s',
                         $! );
@@ -2296,7 +2300,7 @@ EVAL_GRAMMAR
             );
         }
         else {
-            $macro = $defn;
+            $macro = $defn->macro_clone($name);
         }
         if ( !$self->_macros_exists($name) ) {
             my $macros = MarpaX::Languages::M4::Impl::Macros->new();
@@ -4000,8 +4004,10 @@ STUB
                                 }
                             }
                             elsif ( $operation eq 'F' ) {
-                                $self->builtin_pushdef( $string[0],
-                                    $self->builtin_defn( $string[1] ) );
+                                if ( $self->_builtins_exists( $string[1] ) ) {
+                                    $self->builtin_pushdef( $string[0],
+                                        $self->_builtins_get( $string[1] ) );
+                                }
                             }
                             elsif ( $operation eq 'T' ) {
                                 $self->builtin_pushdef( $string[0],
