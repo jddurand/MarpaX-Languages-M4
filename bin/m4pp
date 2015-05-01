@@ -180,7 +180,7 @@ sub _logging_cb {
             ? 'm4trace: '
             : 'm4debug: ';
         if ( defined($macroCallId) ) {
-            $prefix .= sprintf( '-%d- ', $macroCallId );
+            $prefix .= sprintf( 'id %d: ', $macroCallId );
         }
     }
     elsif ( $level == $logging_levels{warning} ) {
