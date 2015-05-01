@@ -1763,7 +1763,7 @@ foo(`bar')
 __! 131 warn-macro-sequence: output !__
 
 bar ${1} bar
-__! 132 warn-macro-sequence and -E twice: input('-E', '-E') !__
+__! 132 warn-macro-sequence and -E twice: input('--warn_macro_sequence', '-E', '-E') !__
 define(`foo', `$001 ${1} $1')
 foo(`bar')
 __! 132 warn-macro-sequence and -E twice: output !__
