@@ -79,8 +79,7 @@ BEGIN {
                 push( @RELOAD_STATE, shift(@ARGV) );
             }
         }
-        elsif (index( $arg, '--reload-state=' ) == 0 )
-        {
+        elsif ( index( $arg, '--reload-state=' ) == 0 ) {
             push( @RELOAD_STATE, $arg );
             shift(@ARGV);
         }
@@ -167,7 +166,6 @@ sub _logging_cb {
                 #
                 # Hmmm...
                 #
-                warn "Cannot open $debugfile, $!";
                 $fh = \*STDERR;
             }
             else {
@@ -201,8 +199,11 @@ sub _logging_cb {
     my $program = $_m4->builtin___program__;
 
     print $fh "$prefix$formattedString\n";
-    if ( !close($fh) ) {
-        warn "Cannot close $fhName, $!";
+    if ( $fh != \*STDERR ) {
+        #
+        # Stay silent
+        #
+        close($fh);
     }
 }
 
