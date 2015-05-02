@@ -25,9 +25,12 @@ role MarpaX::Languages::M4::Role::Impl {
     requires 'impl_setEoi';
     requires 'impl_eoi';
     requires 'impl_raiseException';
+    requires 'impl_file';
     requires 'impl_line';
     requires 'impl_rc';
     requires 'impl_isImplException';
+    requires 'impl_macroExecuteHeader';
+    requires 'impl_macroExecuteNoHeader';
     requires 'impl_macroExecute';
     requires 'impl_macroCallId';
     requires 'impl_reloadState';

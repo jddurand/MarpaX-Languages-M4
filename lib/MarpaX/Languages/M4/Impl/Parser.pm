@@ -110,22 +110,23 @@ COMMA ~ ',' _WS_any
     };
 
     has _parse_level => (
-        is      => 'rwp',
-        isa     => PositiveOrZeroInt,
+        is  => 'rwp',
+        isa => PositiveOrZeroInt,
+
         # trigger => 1,
         default => 0
     );
 
     method _trigger__parse_level (PositiveOrZeroInt $parse_level, @rest) {
-        #
-        # GNU testing of nesting_limit is another implementation, this
-        # has no meaning for us. So, even if supported, this option does
-        # nothing: the trigger is NOT enabled.
-        #
+            #
+            # GNU testing of nesting_limit is another implementation, this
+            # has no meaning for us. So, even if supported, this option does
+            # nothing: the trigger is NOT enabled.
+            #
         my $nesting_limit = $self->impl_nestingLimit;
         if ( $nesting_limit > 0 && $parse_level > $nesting_limit ) {
-            $self->impl_raiseException( sprintf('Nesting limit of %d exceeded',
-                $nesting_limit ));
+            $self->impl_raiseException(
+                sprintf( 'Nesting limit of %d exceeded', $nesting_limit ) );
         }
     }
 
@@ -368,6 +369,8 @@ COMMA ~ ',' _WS_any
                     )
                     )
                 {
+                    my $macroCallId
+                        = $self->impl_macroExecuteHeader($thisMacro);
                     #
                     # Collect macro arguments
                     #
@@ -392,7 +395,8 @@ COMMA ~ ',' _WS_any
                     # that a macro never croaks.
                     #
                     $lexemeValue
-                        = $self->impl_macroExecute( $thisMacro, @args );
+                        = $self->impl_macroExecuteNoHeader( $thisMacro,
+                        $macroCallId, @args );
                     #
                     # Eventual postmatch length
                     #

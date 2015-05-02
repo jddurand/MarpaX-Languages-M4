@@ -29,7 +29,7 @@ class MarpaX::Languages::M4::Impl::Macro {
     );
     has expansion => (
         is       => 'rw',
-        isa      => Str | M4Macro,
+        isa      => Undef | Str,
         required => 1
     );
     has needParams => (
@@ -63,7 +63,7 @@ class MarpaX::Languages::M4::Impl::Macro {
         return $self->name;
     }
 
-    method macro_expansion (--> Str | M4Macro) {
+    method macro_expansion (--> Undef | Str) {
         return $self->expansion;
     }
 
@@ -72,7 +72,7 @@ class MarpaX::Languages::M4::Impl::Macro {
     }
 
     method macro_isBuiltin (--> Bool) {
-        return M4Macro->check( $self->expansion );
+        return Undef->check( $self->expansion );
     }
 
     method macro_paramCanBeMacro (PositiveOrZeroInt $paramPos --> Bool) {
@@ -95,7 +95,10 @@ class MarpaX::Languages::M4::Impl::Macro {
             name       => $name,
             stub       => $self->stub,
             needParams => $self->needParams,
-            expansion  => $self->expansion,
+            #
+            # Cloning a builtin does not create a builtin
+            #
+            expansion => $self->expansion || '',
             #
             # No need of clone: the hash is ro once created
             #

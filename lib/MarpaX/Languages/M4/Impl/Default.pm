@@ -54,6 +54,7 @@ class MarpaX::Languages::M4::Impl::Default {
     use IO::CaptureOutput qw/capture_exec/;
     use IO::Handle;
     use IO::File;
+    use IO::Interactive qw/is_interactive/;
     use IO::Scalar;
     use MarpaX::Languages::M4::Impl::Default::BaseConversion;
     use MarpaX::Languages::M4::Impl::Default::Eval;
@@ -235,12 +236,16 @@ EVAL_GRAMMAR
                     return;
                 };
                 if ( !Undef->check($fh) ) {
-                    $self->logger_debug( 'input read from %s', $uni_file );
                     $self->_set__nbInputProcessed(
-                        $self->_nbInputProcessed_add(1) );
-                    $self->impl_parseIncremental(
-                        do { local $/; <$fh> }
-                    );
+                        $self->_nbInputProcessed + 1 );
+
+                    $self->_set___file__( $self->impl_quote($uni_file) );
+                    $self->_set___line__(0);
+
+                    $self->logger_debug( 'input read from %s', $uni_file );
+                    $self->_set__eof(true);
+                    my $input = do { local $/; <$fh> };
+                    $self->impl_parseIncremental($input);
                     $self->logger_debug( '%s: input exhausted', $uni_file );
                     try {
                         $fh->close;
@@ -249,10 +254,6 @@ EVAL_GRAMMAR
                         $self->logger_warn( '%s', "$_" );
                         return;
                     };
-                    my $old = STDOUT->autoflush(1);
-                    print $self->impl_value;
-                    STDOUT->autoflush($old);
-                    ${ $self->impl_valueRef } = '';
                 }
             }
             else {
@@ -802,6 +803,17 @@ EVAL_GRAMMAR
             q{Read STDIN and parse it line by line, until EOF. Option is negativable with '--no-' prefix.}
     );
 
+    method _dumpCurrent (--> Undef) {
+        my $valueRef = $self->_diversions_get(0)->sref;
+
+        my $old = STDOUT->autoflush(1);
+        print STDOUT ${$valueRef};
+        STDOUT->autoflush($old);
+
+        ${$valueRef} = '';
+        return;
+    }
+
     method _trigger_interactive (Bool $interactive, @rest --> Undef) {
         if ($interactive) {
             #
@@ -821,16 +833,26 @@ EVAL_GRAMMAR
                         binmode( $fh, ':encoding(locale)' );
                     }
                 }
+                $self->_set___file__( $self->impl_quote('stdin') );
+                $self->_set___line__(0);
+
+                $self->_set__nbInputProcessed( $self->_nbInputProcessed + 1 );
+
                 $self->logger_debug('input read from stdin');
-                while ( defined( $_ = <$fh> ) ) {
-                    $self->impl_parseIncremental($_);
-                    my $valueRef = $self->_diversions_get(0)->sref;
-
-                    my $old = STDOUT->autoflush(1);
-                    print STDOUT ${$valueRef};
-                    STDOUT->autoflush($old);
-
-                    ${$valueRef} = '';
+                $self->_set__eof(false);
+                if ( is_interactive($fh) ) {
+                    $self->_dumpCurrent();
+                }
+                while ( !$self->_eof ) {
+                    my $input;
+                    if ( !defined( $input = <$fh> ) ) {
+                        $self->_set__eof(true);
+                        last;
+                    }
+                    $self->impl_parseIncremental($input);
+                    if ( is_interactive($fh) ) {
+                        $self->_dumpCurrent();
+                    }
                 }
                 $self->logger_debug('input exhausted');
                 if ( !close($fh) ) {
@@ -838,11 +860,6 @@ EVAL_GRAMMAR
                         $! );
                 }
             }
-            #
-            # EOF: the caller should have called impl_value,
-            # and this will trigger all cleanup stuff,
-            # in particular m4wrap.
-            #
         }
         return;
     }
@@ -861,7 +878,6 @@ EVAL_GRAMMAR
     );
 
     method _trigger_version (Bool $version, @rest --> Undef) {
-        print STDERR "TRIGGER VERSION\n";
         if ($version) {
             my $CURRENTVERSION;
            #
@@ -1775,7 +1791,7 @@ EVAL_GRAMMAR
                 #
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
-                if ( $self->_eoi ) {
+                if ( $self->_eof ) {
                     $self->impl_raiseException('EOF in comment');
                 }
             }
@@ -1824,7 +1840,7 @@ EVAL_GRAMMAR
                 #
                 # If we are here, it is an error if End-Of-Input is flagged
                 #
-                if ( $self->_eoi ) {
+                if ( $self->_eof ) {
                     $self->impl_raiseException('EOF in string');
                 }
             }
@@ -1957,11 +1973,11 @@ EVAL_GRAMMAR
     # ---------------------------------------------------------------
     has _lastSysExitCode => ( is => 'rw', isa => Int, default => 0 );
 
-    has __file__ => ( is => 'rw', isa => Str, default => '' );
-    has __line__ => ( is => 'rw', isa => PositiveOrZeroInt, default => 0 );
+    has __file__ => ( is => 'rwp', isa => Str, default => '' );
+    has __line__ => ( is => 'rwp', isa => PositiveOrZeroInt, default => 0 );
 
     # Saying directly $0 failed in taint mode
-    has __program__ => ( is => 'rw', isa => Str, default => sub {$0} );
+    has __program__ => ( is => 'rwp', isa => Str, default => sub {$0} );
 
     has _value => (
         is      => 'rwp',
@@ -1997,6 +2013,7 @@ EVAL_GRAMMAR
             dnl
             changequote changecom changeword
             m4wrap
+            m4exit
             include sinclude
             divert undivert divnum
             len index
@@ -2020,8 +2037,11 @@ EVAL_GRAMMAR
             }
             my $stubName = "builtin_$_";
             $ref{$_} = MarpaX::Languages::M4::Impl::Macro->new(
-                name      => $_,
-                expansion => 'TO BE REPLACED',
+                name => $_,
+                #
+                # Builtins have no extension
+                #
+                expansion => undef,
                 #
                 # I learned it the hard way: NEVER call meta in Moo,
                 # this will load Moose
@@ -2029,10 +2049,6 @@ EVAL_GRAMMAR
                 # stub      => $self->meta->get_method("builtin_$_")->body
                 stub => \&$stubName
             );
-            #
-            # The expansion of a builtin is the builtin itself
-            #
-            $ref{$_}->expansion( $ref{$_} );
             if ( $self->_builtin_need_param_exists($_) ) {
                 $ref{$_}->needParams( $self->_builtin_need_param_get($_) );
             }
@@ -2048,7 +2064,7 @@ EVAL_GRAMMAR
                         if ( $input =~ /\G.*?\n/s ) {
                             return $+[0] - $-[0];
                         }
-                        elsif ( $self->_eoi && $input =~ /\G[^\n]*\z/ ) {
+                        elsif ( $self->_eof && $input =~ /\G[^\n]*\z/ ) {
                             $self->logger_warn( '%s: %s',
                                 'dnl', 'EOF without a newline' );
                             return $+[0] - $-[0];
@@ -2110,8 +2126,8 @@ EVAL_GRAMMAR
     # ----------------------------------------------------
     # Triggers
     # ----------------------------------------------------
-    method _trigger__eof (Bool $eof, @rest --> Undef) {
-        if ($eof) {
+    method _trigger__eoi (Bool $eoi, @rest --> Undef) {
+        if ($eoi) {
             #
             # First, m4wrap stuff is rescanned.
             # and each of them appears like an
@@ -2193,13 +2209,13 @@ EVAL_GRAMMAR
     has _eof => (
         is      => 'rwp',
         isa     => Bool,
-        trigger => 1,
         default => false
     );
 
     has _eoi => (
         is      => 'rwp',
         isa     => Bool,
+        trigger => 1,
         default => false
     );
 
@@ -2384,7 +2400,7 @@ EVAL_GRAMMAR
             );
         }
         else {
-            $macro = $defn;
+            $macro = $defn->macro_clone($name);
         }
         if ( !$self->_macros_exists($name) ) {
             my $macros = MarpaX::Languages::M4::Impl::Macros->new();
@@ -2689,6 +2705,40 @@ EVAL_GRAMMAR
 
         my $text = join( ' ', grep { !Undef->check($_) } @args );
         $self->_m4wrap_push($text);
+
+        return '';
+    }
+
+    method builtin_m4exit (Undef|Str $code?, @ignored --> Str) {
+
+        $self->_checkIgnored( 'm4exit', @ignored );
+
+        if ( !Undef->check($code) ) {
+            if ( !PositiveOrZeroInt->check($code) ) {
+                $self->logger_error(
+                    '%s: %s: does not look like a positive or zero integer',
+                    'm4exit', $code );
+                $code = EXIT_FAILURE;
+            }
+        }
+
+        #
+        # Remove all wrapped text, diversions and mark end of input
+        #
+        $self->_set___m4wrap( [] );
+        foreach ( $self->_diversions_keys ) {
+            my $number = $_;
+            if ( Int->check($number) && $number == 0 ) {
+                #
+                # Diversion 0 is special -;
+                #
+                next;
+            }
+            $self->_remove_diversion($number);
+        }
+
+        $self->_set__rc($code);
+        $self->impl_setEoi;
 
         return '';
     }
@@ -3930,6 +3980,9 @@ STUB
                             $self->impl_raiseException(
                                 'premature end of frozen file');
                         }
+                        if ( $number[$i] <= 0 ) {
+                            $string[$i] = '';
+                        }
                         $current_line += $string[$i] =~ tr/\n//;
                     };
 
@@ -3996,9 +4049,14 @@ STUB
                             }
                             elsif ( $operation eq 'F' ) {
                                 if ( $self->_builtins_exists( $string[1] ) ) {
+                                    my $macro
+                                        = $self->_builtins_get( $string[1] );
                                     $self->builtin_pushdef( $string[0],
-                                        $self->_builtins_get( $string[1] ) );
+                                        $macro );
                                 }
+                                #
+                                # Failure is silent
+                                #
                             }
                             elsif ( $operation eq 'T' ) {
                                 $self->builtin_pushdef( $string[0],
@@ -4080,7 +4138,7 @@ STUB
             $self->logger_error('No more input is accepted');
             return '';
         }
-        $self->impl_setEoi;
+        $self->_set__eof(true);
         return $self->impl_parseIncremental($input)->impl_value;
     }
 
@@ -4091,14 +4149,16 @@ STUB
     }
 
     method impl_valueRef (--> Ref['SCALAR']) {
-            #
-            # If not already done, say user input is finished
-            #
+                                  #
+                                  # If not already done, say input is over
+                                  #
         $self->impl_setEoi;
         #
-        # Trigger EOF
+        # Something left over ?
         #
-        $self->_set__eof(true);
+        if ( $self->_unparsed ) {
+            $self->impl_parseIncremental('');
+        }
         #
         # Return a reference to the value
         #
@@ -4109,20 +4169,20 @@ STUB
         return ${ $self->impl_valueRef };
     }
 
-    method impl_file (@args --> Str) {
-        return $self->__file__(@args);
+    method impl_file (--> Str) {
+        return $self->__file__;
     }
 
-    method impl_debugfile (@args --> Str) {
-        return $self->debugfile(@args);
+    method impl_debugfile (--> Str) {
+        return $self->debugfile;
     }
 
-    method impl_line (@args --> PositiveOrZeroInt) {
-        return $self->__line__(@args);
+    method impl_line (--> PositiveOrZeroInt) {
+        return $self->__line__;
     }
 
-    method impl_rc (@args --> Int) {
-        return $self->_rc(@args);
+    method impl_rc (--> Int) {
+        return $self->_rc;
     }
 
     method _printable (Str|M4Macro $input, Bool $noQuote? --> Str) {
@@ -4138,18 +4198,34 @@ STUB
     }
 
     method impl_macroExecute (ConsumerOf[M4Macro] $macro, @args --> Str|M4Macro) {
-                               #
-                               # Increment call id
-                               #
+        return $self->impl_macroExecuteNoHeader( $macro,
+            $self->impl_macroExecuteHeader($macro), @args );
+    }
+
+    method impl_macroExecuteHeader (ConsumerOf[M4Macro] $macro --> PositiveOrZeroInt) {
+                                     #
+                                     # Increment call id
+                                     #
         $self->_set__macroCallId( $self->_macroCallId + 1 );
         #
-        # Execute the macro
+        # Log the macro
         #
         local $MarpaX::Languages::M4::MACRO       = $macro;
         local $MarpaX::Languages::M4::MACROCALLID = $self->_macroCallId;
         my $printableMacroName = $self->_printable( $macro->name, true );
 
         $self->logger_debug( '%s ...', $printableMacroName );
+
+        return $MarpaX::Languages::M4::MACROCALLID;
+    }
+
+    method impl_macroExecuteNoHeader (ConsumerOf[M4Macro] $macro, PositiveOrZeroInt $macroCallId, @args --> Str|M4Macro) {
+                                       #
+                                       # Execute the macro
+                                       #
+        local $MarpaX::Languages::M4::MACRO       = $macro;
+        local $MarpaX::Languages::M4::MACROCALLID = $macroCallId;
+        my $printableMacroName = $self->_printable( $macro->name, true );
 
         if (@args) {
             my $printableArguments
@@ -4205,7 +4281,6 @@ STUB
         is          => 'rwp',
         isa         => PositiveOrZeroInt,
         handles_via => 'Number',
-        handles     => { _nbInputProcessed_add => 'add' },
         default     => 0
     );
 
