@@ -46,7 +46,12 @@ class MarpaX::Languages::M4::Impl::Macro {
         handles_via => 'Hash',
         handles     => {
             _paramCanBeMacro_get    => 'get',
-            _paramCanBeMacro_exists => 'exists'
+            _paramCanBeMacro_exists => 'exists',
+            #
+            # We do not hold references in values, so shallow_clone
+            # is a real clone
+            #
+            _paramCanBeMacro_clone => 'shallow_clone'
         }
     );
     has postMatchLength => (
@@ -96,13 +101,13 @@ class MarpaX::Languages::M4::Impl::Macro {
             stub       => $self->stub,
             needParams => $self->needParams,
             #
-            # Cloning a builtin does not create a builtin
+            # Cloning a builtin is a builtin
             #
-            expansion => $self->expansion || '',
+            expansion => $self->expansion,
             #
             # No need of clone: the hash is ro once created
             #
-            paramCanBeMacro => $self->paramCanBeMacro,
+            paramCanBeMacro => $self->_paramCanBeMacro_clone,
             postMatchLength => $self->postMatchLength
         );
 

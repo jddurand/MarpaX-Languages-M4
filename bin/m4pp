@@ -158,8 +158,26 @@ sub _logging_cb {
     my $fh;
     open( $fh, '>>&STDERR' );
     my $fhName = 'STDERR';
-    my $prefix;
+    my $prefix = '';
     if ( $level < $logging_levels{warning} ) {
+
+        $prefix
+            = ( $level == $logging_levels{trace} )
+            ? 'm4trace: '
+            : 'm4debug: ';
+
+        if ( $_m4->canLog('f') ) {
+            $prefix .= $_m4->unquote( $_m4->file );
+            if ( $_m4->canLog('l') && $_m4->line > 0 ) {
+                $prefix .= ':' . $_m4->line;
+            }
+            $prefix .= ' ';
+        }
+        else {
+            if ( $_m4->canLog('l') && $_m4->line > 0 ) {
+                $prefix .= $_m4->line . ' ';
+            }
+        }
         my $debugfile = $_m4->debugFile;
         if ( defined($debugfile) ) {
             if ( !open( $fh, '>>', $debugfile ) ) {
@@ -173,11 +191,7 @@ sub _logging_cb {
             }
         }
         my $macroCallId = $MarpaX::Languages::M4::MACROCALLID;
-        $prefix
-            = ( $level == $logging_levels{trace} )
-            ? 'm4trace: '
-            : 'm4debug: ';
-        if ( defined($macroCallId) ) {
+        if ( $_m4->canLog('x') && defined($macroCallId) ) {
             $prefix .= sprintf( 'id %d: ', $macroCallId );
         }
     }

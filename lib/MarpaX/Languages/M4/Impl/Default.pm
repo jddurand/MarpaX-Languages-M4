@@ -215,50 +215,7 @@ EVAL_GRAMMAR
             if ( Undef->check($file) ) {
                 next;
             }
-            my $uni_file
-                = $ENV{M4_ENCODE_LOCALE} ? decode( locale => $file ) : $file;
-            if ( $uni_file ne '-' ) {
-                my $fh;
-                try {
-                    $fh = IO::File->new(
-                        $ENV{M4_ENCODE_LOCALE}
-                        ? encode( locale_fs => $uni_file )
-                        : $uni_file,
-                        'r'
-                        )
-                        || die "$uni_file: $!";
-                    if ( $ENV{M4_ENCODE_LOCALE} ) {
-                        binmode( $fh, ':encoding(locale)' );
-                    }
-                }
-                catch {
-                    $self->logger_error( '%s', "$_" );
-                    return;
-                };
-                if ( !Undef->check($fh) ) {
-                    $self->_set__nbInputProcessed(
-                        $self->_nbInputProcessed + 1 );
-
-                    $self->_set___file__( $self->impl_quote($uni_file) );
-                    $self->_set___line__(0);
-
-                    $self->logger_debug( 'input read from %s', $uni_file );
-                    $self->_set__eof(true);
-                    my $input = do { local $/; <$fh> };
-                    $self->impl_parseIncremental($input);
-                    $self->logger_debug( '%s: input exhausted', $uni_file );
-                    try {
-                        $fh->close;
-                    }
-                    catch {
-                        $self->logger_warn( '%s', "$_" );
-                        return;
-                    };
-                }
-            }
-            else {
-                $self->interactive(true);
-            }
+            $self->impl_parseIncrementalFile($file);
             #
             # Merge next option values
             #
@@ -380,7 +337,7 @@ EVAL_GRAMMAR
         negativable => 1,
         trigger     => 1,
         doc =>
-            q{Convert any included file from platform's native end-of-line character set to Unix style (LF). Default to a false value. Option is negativable with '--no-' prefix.}
+            q{Convert any input (M4's include, stdin, file) from platform's native end-of-line character set to Unix style (LF). Default to a false value. Option is negativable with '--no-' prefix.}
     );
     has _inctounix => ( is => 'rwp', isa => Bool, lazy => 1, builder => 1 );
 
@@ -816,50 +773,7 @@ EVAL_GRAMMAR
 
     method _trigger_interactive (Bool $interactive, @rest --> Undef) {
         if ($interactive) {
-            #
-            # If interactive mode is triggered via new_with_options()
-            # the caller is likely to not have $self yet.
-            #
-            my $fh;
-            if ( !open( $fh, '<&STDIN' ) ) {
-                $self->logger_error( 'Failed to duplicate STDIN: %s', $! );
-            }
-            else {
-                if ( $ENV{M4_ENCODE_LOCALE} ) {
-                    if ( is_interactive($fh) ) {
-                        binmode( $fh, ':encoding(console_in)' );
-                    }
-                    else {
-                        binmode( $fh, ':encoding(locale)' );
-                    }
-                }
-                $self->_set___file__( $self->impl_quote('stdin') );
-                $self->_set___line__(0);
-
-                $self->_set__nbInputProcessed( $self->_nbInputProcessed + 1 );
-
-                $self->logger_debug('input read from stdin');
-                $self->_set__eof(false);
-                if ( is_interactive($fh) ) {
-                    $self->_dumpCurrent();
-                }
-                while ( !$self->_eof ) {
-                    my $input;
-                    if ( !defined( $input = <$fh> ) ) {
-                        $self->_set__eof(true);
-                        last;
-                    }
-                    $self->impl_parseIncremental($input);
-                    if ( is_interactive($fh) ) {
-                        $self->_dumpCurrent();
-                    }
-                }
-                $self->logger_debug('input exhausted');
-                if ( !close($fh) ) {
-                    $self->logger_warn( 'Failed to close STDIN duplicate: %s',
-                        $! );
-                }
-            }
+            $self->impl_parseIncrementalFile('-');
         }
         return;
     }
@@ -1931,23 +1845,19 @@ EVAL_GRAMMAR
         return;
     }
 
-    method _canDebug (--> Bool) {
-            #
-            # Get the localized value of $MarpaX::Languages::M4::MACRO
-            #
-        my $macro = $MarpaX::Languages::M4::MACRO;
-        if ( Undef->check($macro) ) {
-            #
-            # This will handle all calls to debug outside
-            # of a macro call, which should never
-            # happen unless in development mode
-            #
-            return true;
-        }
-        #
-        # A macro is debugged if 't' is setted,
-        # or if it is explicitely traced
-        #
+    method _canDebug (Str $what --> Bool) {
+                       #
+                       # A macro is debugged if 't' is setted,
+                       # or if it is explicitely traced
+                       #
+        return $self->_debug_get($what);
+    }
+
+    method _canTrace (ConsumerOf[M4Macro] $macro --> Bool) {
+                       #
+                       # A macro is debugged if 't' is setted,
+                       # or if it is explicitely traced
+                       #
         if ( !$self->_debug_get('t') && !$self->_trace_get( $macro->name ) ) {
             return false;
         }
@@ -1956,15 +1866,17 @@ EVAL_GRAMMAR
     }
 
     method logger_debug (@args --> Undef) {
-            #
-            # Localize anyway, because there can be an error within
-            # new_with_options() -;
-            #
         local $MarpaX::Languages::M4::SELF = $self;
-        if ( !$self->_canDebug ) {
-            return;
-        }
         $self->_logger->debugf(@args);
+        return;
+    }
+
+    #
+    # _canTrace is called upper
+    #
+    method logger_trace (@args --> Undef) {
+        local $MarpaX::Languages::M4::SELF = $self;
+        $self->_logger->tracef(@args);
         return;
     }
 
@@ -2459,7 +2371,12 @@ EVAL_GRAMMAR
                     $args[$_] = '';
                 }
             }
-            return $self->impl_macroExecute( $macro, @args );
+            #
+            # macro executed by indir is not traced
+            #
+            return $macro->macro_execute( $self, @args );
+
+            # return $self->impl_macroExecute( $macro, @args );
         }
         else {
             $self->logger_error( 'indir: undefined macro %s',
@@ -2743,9 +2660,11 @@ EVAL_GRAMMAR
         return '';
     }
 
-    method _includeFile (Bool $silent, Str $file? --> Str) {
+    method _includeFile (Bool $silent, Str $wantedFile, Bool $contentOnly? --> Str) {
 
-        if ( length($file) <= 0 ) {
+        $contentOnly //= false;
+
+        if ( length($wantedFile) <= 0 ) {
             if ( !$silent ) {
                 #
                 # Fake a ENOENT
@@ -2753,11 +2672,11 @@ EVAL_GRAMMAR
                 if ( exists &Errno::ENOENT ) {
                     $! = &Errno::ENOENT;
                     $self->logger_error( 'cannot open %s: %s',
-                        $self->impl_quote($file), $! );
+                        $self->impl_quote($wantedFile), $! );
                 }
                 else {
                     $self->logger_error( 'cannot open %s',
-                        $self->impl_quote($file) );
+                        $self->impl_quote($wantedFile) );
                 }
             }
             return '';
@@ -2773,73 +2692,55 @@ EVAL_GRAMMAR
             : ()
         );
 
-        my @candidates;
-        if ( File::Spec->file_name_is_absolute($file) ) {
-            @candidates = ($file);
+        my $file;
+        if ( File::Spec->file_name_is_absolute($wantedFile) ) {
+            $file = $wantedFile;
         }
         else {
             use filetest 'access';
-            @candidates = grep { -r $_ }
-                map { File::Spec->catfile( $_, $file ) } @includes;
+            foreach (
+                grep { -r $_ }
+                map { File::Spec->catfile( $_, $wantedFile ) } @includes
+                )
+            {
+                $file = $_;
+                last;
+            }
         }
 
-        if ( !@candidates ) {
+        if ( !$file ) {
             #
             # It is guaranteed that #includes have at least one element.
             # Therefore, $! should be setted
             #
             if ( !$silent ) {
                 $self->logger_error( 'cannot open %s: %s',
-                    $self->impl_quote($file), $! );
+                    $self->impl_quote($wantedFile), $! );
             }
             return '';
         }
 
-        foreach my $file (@candidates) {
-            my $fh;
-            try {
-                $fh = IO::File->new(
-                    $ENV{M4_ENCODE_LOCALE}
-                    ? encode( locale_fs => $file )
-                    : $file,
-                    'r'
-                    )
-                    || die "$file: $!";
-                if ( $ENV{M4_ENCODE_LOCALE} ) {
-                    binmode( $fh, ':encoding(locale)' );
-                }
+        if ( $self->_canDebug('p') ) {
+            $self->logger_debug(
+                'path search for %s found %s',
+                $self->impl_quote($wantedFile),
+                $self->impl_quote($file)
+            );
+        }
+
+        if ( !$contentOnly ) {
+            my $previousFile = $self->__file__;
+            my $previousLine = $self->__line__;
+            $self->impl_parseIncrementalFile( $file, $silent );
+            if ( $self->_canDebug('i') ) {
+                $self->logger_debug(
+                    'input reverted to %s, line %d',
+                    $self->impl_quote($previousFile),
+                    $previousLine
+                );
             }
-            catch {
-                if ( !$silent ) {
-                    $self->logger_error( '%s: %s', $file, "$_" );
-                }
-                return;
-            };
-            if ( !Undef->check($fh) ) {
-                my $content;
-                try {
-                    $content = do { local $/; <$fh>; };
-                }
-                catch {
-                    if ( !$silent ) {
-                        $self->logger_warn( '%s: %s', $file, "$_" );
-                    }
-                    return;
-                };
-                try {
-                    $fh->close;
-                }
-                catch {
-                    $self->logger_warn( '%s: %s', $file, "$_" );
-                    return;
-                };
-                if ( !Undef->check($content) ) {
-                    if ( $self->_inctounix ) {
-                        $content =~ s/\R/\n/g;
-                    }
-                    return $content;
-                }
-            }
+            $self->_set___file__($previousFile);
+            $self->_set___line__($previousLine);
         }
 
         return '';
@@ -3908,18 +3809,19 @@ STUB
         if ( !$self->_stateReloaded ) {
             if ( length( $self->reload_state ) > 0 ) {
                 try {
-                    my $file    = $self->reload_state;
-                    my $content = $self->_includeFile( false, $file );
-                    my $fh      = IO::Scalar->new( \$content );
-               #
-               # Process frozened file character per character. This is a copy
-               # of m4-1.4.17 algorithm
-               #
+                    my $content;
+
+                    my $file = $self->reload_state;
+                    $self->impl_parseIncrementalFile( $file, false, false,
+                        \$content );
+                    my $fh = IO::Scalar->new( \$content );
+                    #
+                    # This is a copy of m4-1.4.17 algorithm
+                    #
                     my $character;
                     my $operation;
                     my $advance_line = true;
                     my $current_line = 0;
-                    my @allocated    = ( undef, undef );
                     my @number       = ( undef, undef );
                     my @string       = ( undef, undef );
 
@@ -3970,26 +3872,15 @@ STUB
                     my $GET_STRING = sub {
                         my ( $self, $i ) = @_;
 
-                        if ( $number[$i] + 1 > $allocated[$i] ) {
-                            $allocated[$i]++;
-                            $string[$i] = ' ' x $allocated[$i];
-                        }
+                        $string[$i] = '';
                         if ( $number[$i] > 0
                             && !$fh->read( $string[$i], $number[$i] ) )
                         {
                             $self->impl_raiseException(
                                 'premature end of frozen file');
                         }
-                        if ( $number[$i] <= 0 ) {
-                            $string[$i] = '';
-                        }
                         $current_line += $string[$i] =~ tr/\n//;
                     };
-
-                    $allocated[0] = 100;
-                    $string[0]    = ' ' x $allocated[0];
-                    $allocated[1] = 100;
-                    $string[1]    = ' ' x $allocated[1];
 
                     $self->$GET_DIRECTIVE();
                     $self->$VALIDATE('V');
@@ -4087,15 +3978,161 @@ STUB
         return true;
     }
 
+    method impl_parseIncrementalFile (Str $file, Bool $silent?, Bool $parse?, Ref['SCALAR'] $contentp? --> ConsumerOf[M4Impl]) {
+        $silent //= false;
+        $parse  //= true;
+
+        my $uni_file
+            = $ENV{M4_ENCODE_LOCALE} ? decode( locale => $file ) : $file;
+
+        if ( $uni_file ne '-' ) {
+            my $fh;
+            try {
+                $fh = IO::File->new(
+                    $ENV{M4_ENCODE_LOCALE}
+                    ? encode( locale_fs => $uni_file )
+                    : $uni_file,
+                    'r'
+                    )
+                    || die $!;
+                if ( $ENV{M4_ENCODE_LOCALE} ) {
+                    binmode( $fh, ':encoding(locale)' );
+                }
+            }
+            catch {
+                if ( !$silent ) {
+                    $self->logger_error( '%s: %s', $file, "$_" );
+                }
+                return;
+            };
+
+            if ( !Undef->check($fh) ) {
+                $self->_set__nbInputProcessed( $self->_nbInputProcessed + 1 );
+
+                $self->_set___file__( $self->impl_quote($file) );
+                $self->_set___line__(0);
+
+                if ( $self->_canDebug('i') ) {
+                    $self->logger_debug( 'input read from %s', $file );
+                }
+                $self->_set__eof(true);
+                my $content;
+                try {
+                    $content = do { local $/; <$fh>; };
+                }
+                catch {
+                    if ( !$silent ) {
+                        $self->logger_warn( '%s: %s', $file, "$_" );
+                    }
+                    return;
+                };
+                try {
+                    $fh->close;
+                }
+                catch {
+                    if ( !$silent ) {
+                        $self->logger_warn( '%s: %s', $file, "$_" );
+                    }
+                    return;
+                };
+                if ( !Undef->check($content) ) {
+                    if ( $self->_inctounix ) {
+                        $content =~ s/\R/\n/g;
+                    }
+                }
+                if ( !Undef->check($contentp) ) {
+                    ${$contentp} = $content;
+                }
+                if ($parse) {
+                    $self->impl_parseIncremental($content);
+                }
+                if ( $self->_canDebug('i') ) {
+                    $self->logger_debug( '%s: input exhausted', $file );
+                }
+                try {
+                    $fh->close;
+                }
+                catch {
+                    if ( !$silent ) {
+                        $self->logger_warn( '%s', "$_" );
+                    }
+                    return;
+                };
+            }
+        }
+        else {
+            my $fh;
+            if ( !open( $fh, '<&STDIN' ) ) {
+                if ( !$silent ) {
+                    $self->logger_error( 'Failed to duplicate STDIN: %s',
+                        $! );
+                }
+            }
+            else {
+                if ( $ENV{M4_ENCODE_LOCALE} ) {
+                    if ( is_interactive($fh) ) {
+                        binmode( $fh, ':encoding(console_in)' );
+                    }
+                    else {
+                        binmode( $fh, ':encoding(locale)' );
+                    }
+                }
+                $self->_set___file__( $self->impl_quote('stdin') );
+                $self->_set___line__(0);
+
+                $self->_set__nbInputProcessed( $self->_nbInputProcessed + 1 );
+
+                if ( $self->_canDebug('i') ) {
+                    $self->logger_debug('input read from stdin');
+                }
+                $self->_set__eof(false);
+                if ( $parse && is_interactive($fh) ) {
+                    $self->_dumpCurrent();
+                }
+                while ( !$self->_eof ) {
+                    my $content;
+                    if ( !defined( $content = <$fh> ) ) {
+                        $self->_set__eof(true);
+                        last;
+                    }
+                    if ( $self->_inctounix ) {
+                        $content =~ s/\R/\n/g;
+                    }
+                    if ( !Undef->check($contentp) ) {
+                        ${$contentp} .= $content;
+                    }
+                    if ($parse) {
+                        $self->impl_parseIncremental($content);
+                        if ( is_interactive($fh) ) {
+                            $self->_dumpCurrent();
+                        }
+                    }
+                }
+                if ( $self->_canDebug('i') ) {
+                    $self->logger_debug('input exhausted');
+                }
+                if ( !close($fh) ) {
+                    if ( !$silent ) {
+                        $self->logger_warn(
+                            'Failed to close STDIN duplicate: %s', $! );
+                    }
+                }
+            }
+        }
+
+        return $self;
+    }
+
     method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
+        $self->_set__unparsed(
+            $self->parser_parse( $self->_unparsed . $input ) );
         try {
             #
             # This throw an exception and will log when necessary
             #
-            $self->_set__unparsed(
-                $self->parser_parse( $self->_unparsed . $input ) );
-        }
-        catch {
+            #$self->_set__unparsed(
+            #    $self->parser_parse( $self->_unparsed . $input ) );
+            } catch {
             #
             # Every ImplException must be preceeded by
             # a call to $self->logger_error.
@@ -4112,7 +4149,7 @@ STUB
             #
             $self->_set__unparsed($input);
             return;
-        };
+            };
         return $self;
     }
 
@@ -4173,8 +4210,16 @@ STUB
         return $self->__file__;
     }
 
+    method impl_program (--> Str) {
+        return $self->__program__;
+    }
+
     method impl_debugfile (--> Str) {
         return $self->debugfile;
+    }
+
+    method impl_canLog (Str $what --> Bool) {
+        return $self->_canDebug($what);
     }
 
     method impl_line (--> PositiveOrZeroInt) {
@@ -4198,65 +4243,89 @@ STUB
     }
 
     method impl_macroExecute (ConsumerOf[M4Macro] $macro, @args --> Str|M4Macro) {
-        return $self->impl_macroExecuteNoHeader( $macro,
-            $self->impl_macroExecuteHeader($macro), @args );
+                               #
+                               # m4wrap is not traced
+                               # include is not traced
+                               # sinclude is not traced
+                               #
+        if (   $macro->stub == \&builtin_m4wrap
+            || $macro->stub == \&builtin_include
+            || $macro->stub == \&builtin_sinclude )
+        {
+            return $macro->macro_execute( $self, @args );
+        }
+        else {
+            my $canTrace = $self->_canTrace($macro);
+            return $self->impl_macroExecuteNoHeader( $macro,
+                $self->impl_macroExecuteHeader( $macro, $canTrace ),
+                $canTrace, @args );
+        }
     }
 
-    method impl_macroExecuteHeader (ConsumerOf[M4Macro] $macro --> PositiveOrZeroInt) {
-                                     #
-                                     # Increment call id
-                                     #
-        $self->_set__macroCallId( $self->_macroCallId + 1 );
+    method impl_macroExecuteHeader (ConsumerOf[M4Macro] $macro, Bool $canTrace --> PositiveOrZeroInt) {
+        local $MarpaX::Languages::M4::MACRO = $macro;
+        local $MarpaX::Languages::M4::MACROCALLID
+            = $self->_set__macroCallId( $self->_macroCallId + 1 );
         #
         # Log the macro
+        # We avoid these unnecessary calls by calling ourself _canTrace
         #
-        local $MarpaX::Languages::M4::MACRO       = $macro;
-        local $MarpaX::Languages::M4::MACROCALLID = $self->_macroCallId;
-        my $printableMacroName = $self->_printable( $macro->name, true );
+        if ($canTrace) {
+            my $printableMacroName = $self->_printable( $macro->name, true );
 
-        $self->logger_debug( '%s ...', $printableMacroName );
+            $self->logger_trace( '%s ...', $printableMacroName );
+        }
 
         return $MarpaX::Languages::M4::MACROCALLID;
     }
 
-    method impl_macroExecuteNoHeader (ConsumerOf[M4Macro] $macro, PositiveOrZeroInt $macroCallId, @args --> Str|M4Macro) {
+    method impl_macroExecuteNoHeader (ConsumerOf[M4Macro] $macro, PositiveOrZeroInt $macroCallId, Bool $canTrace, @args --> Str|M4Macro) {
                                        #
                                        # Execute the macro
                                        #
         local $MarpaX::Languages::M4::MACRO       = $macro;
         local $MarpaX::Languages::M4::MACROCALLID = $macroCallId;
-        my $printableMacroName = $self->_printable( $macro->name, true );
+        my $printableMacroName;
 
-        if (@args) {
-            my $printableArguments
-                = join( ', ', map { $self->_printable($_) } @args );
-            $self->logger_debug( '%s(%s) -> ???',
-                $printableMacroName, $printableArguments );
-        }
-        else {
-            $self->logger_debug( '%s -> ???', $printableMacroName );
+        if ( $canTrace && ( $self->_canDebug('a') || $self->_canDebug('c') ) )
+        {
+            $printableMacroName = $self->_printable( $macro->name, true );
+
+            if (@args) {
+                my $printableArguments
+                    = join( ', ', map { $self->_printable($_) } @args );
+                $self->logger_trace( '%s(%s) -> ???',
+                    $printableMacroName, $printableArguments );
+            }
+            else {
+                $self->logger_trace( '%s -> ???', $printableMacroName );
+            }
         }
 
         my $rc = $macro->macro_execute( $self, @args );
 
-        if ( length($rc) > 0 ) {
-            if (@args) {
-                $self->logger_debug( '%s(...) -> %s',
-                    $printableMacroName, $self->_printable($rc) );
+        if ( $canTrace && ( $self->_canDebug('e') || $self->_canDebug('c') ) )
+        {
+            if ( length($rc) > 0 ) {
+                if (@args) {
+                    $self->logger_trace( '%s(...) -> %s',
+                        $printableMacroName, $self->_printable($rc) );
+                }
+                else {
+                    $self->logger_trace( '%s -> %s', $printableMacroName,
+                        $self->_printable($rc) );
+                }
             }
             else {
-                $self->logger_debug( '%s -> %s', $printableMacroName,
-                    $self->_printable($rc) );
+                if (@args) {
+                    $self->logger_trace( '%s(...)', $printableMacroName );
+                }
+                else {
+                    $self->logger_trace( '%s', $printableMacroName );
+                }
             }
         }
-        else {
-            if (@args) {
-                $self->logger_debug( '%s(...)', $printableMacroName );
-            }
-            else {
-                $self->logger_debug( '%s', $printableMacroName );
-            }
-        }
+
         return $rc;
     }
 

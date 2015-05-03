@@ -271,11 +271,14 @@ COMMA ~ ',' _WS_any
                 elsif ( $_ eq 'LPAREN' ) {
                     if (   exists( $expected{LPAREN} )
                         && $canCollectArguments
-                        && substr( ${$inputRef}, $rc{pos}, 1 ) eq '(' )
+                        && do { pos( ${$inputRef} ) = $rc{pos}; 1 }
+                        && ${$inputRef} =~ /\G\(\s*/
+                        )
                     {
                         $lexeme       = 'LPAREN';
-                        $lexemeValue  = '(';
-                        $lexemeLength = 1;
+                        $lexemeLength = $+[0] - $-[0];
+                        $lexemeValue
+                            = substr( ${$inputRef}, $-[0], $lexemeLength );
                         last;
                     }
                 }
@@ -369,8 +372,10 @@ COMMA ~ ',' _WS_any
                     )
                     )
                 {
+                    my $canTrace = $self->_canTrace($thisMacro);
                     my $macroCallId
-                        = $self->impl_macroExecuteHeader($thisMacro);
+                        = $self->impl_macroExecuteHeader( $thisMacro,
+                        $canTrace );
                     #
                     # Collect macro arguments
                     #
@@ -396,7 +401,7 @@ COMMA ~ ',' _WS_any
                     #
                     $lexemeValue
                         = $self->impl_macroExecuteNoHeader( $thisMacro,
-                        $macroCallId, @args );
+                        $macroCallId, $canTrace, @args );
                     #
                     # Eventual postmatch length
                     #

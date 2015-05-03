@@ -20,11 +20,13 @@ role MarpaX::Languages::M4::Role::Impl {
     requires 'impl_value';
     requires 'impl_valueRef';
     requires 'impl_parseIncremental';
+    requires 'impl_parseIncrementalFile';
     requires 'impl_parse';
     requires 'impl_unparsed';
     requires 'impl_setEoi';
     requires 'impl_eoi';
     requires 'impl_raiseException';
+    requires 'impl_program';
     requires 'impl_file';
     requires 'impl_line';
     requires 'impl_rc';
@@ -37,6 +39,7 @@ role MarpaX::Languages::M4::Role::Impl {
     requires 'impl_freezeState';
     requires 'impl_nbInputProcessed';
     requires 'impl_readFromStdin';
+    requires 'impl_canLog';
     requires 'impl_debugFile';
     requires 'impl_nestingLimit';
 

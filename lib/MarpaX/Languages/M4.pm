@@ -34,6 +34,7 @@ class MarpaX::Languages::M4 {
     method macroCallId (@args)      { $self->impl_macroCallId(@args) }
     method nbInputProcessed (@args) { $self->impl_nbInputProcessed(@args) }
     method readFromStdin (@args)    { $self->impl_readFromStdin(@args) }
+    method canLog (@args)           { $self->impl_canLog(@args) }
     method debugFile (@args)        { $self->impl_debugFile(@args) }
     method defaultWarnMacroSequence (ClassName $class: @args) { $class->impl_defaultWarnMacroSequence(@args) }
 }
