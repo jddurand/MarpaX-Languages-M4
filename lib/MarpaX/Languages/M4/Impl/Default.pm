@@ -2249,39 +2249,35 @@ EVAL_GRAMMAR
     # defn can only concatenate text macros
     #
     method builtin_defn (Str @names --> Str|M4Macro) {
-        my @rc      = ();
-        my $nbMacro = 0;
-        my $nbStr   = 0;
+        my @macros = ();
+
         foreach (@names) {
             if ( $self->_macros_exists($_) ) {
-                push( @rc, $self->_getMacro($_)->macro_expansion );
+                push( @macros, $self->_getMacro($_) );
             }
         }
+
         my $rc = '';
-        foreach ( 0 .. $#rc ) {
-            if ( M4Macro->check( $rc[$_] ) ) {
-                if ( $rc[$_]->macro_isBuiltin ) {
-                    if (   ( $_ == 0 && $#rc > 0 )
-                        || ( $_ > 0 ) )
-                    {
-                        $self->logger_warn(
-                            '%s: cannot concatenate builtin %s',
-                            'defn',
-                            $self->impl_quote( $rc[$_]->macro_name ) );
-                    }
-                    else {
-           #
-           # Per def this is ok only if @rc has one element, that is a builtin
-           #
-                        $rc = $rc[$_];
-                    }
+        foreach ( 0 .. $#macros ) {
+            if ( $macros[$_]->macro_isBuiltin ) {
+                if (   ( $_ == 0 && $#macros > 0 )
+                    || ( $_ > 0 ) )
+                {
+                    $self->logger_warn( '%s: cannot concatenate builtin %s',
+                        'defn',
+                        $self->impl_quote( $macros[$_]->macro_name ) );
                 }
                 else {
-                    $rc .= $self->impl_quote( $rc[$_]->macro_expansion );
+                    #
+                    # Per def this is ok only
+                    # if @macros has one element,
+                    # and this is a builtin
+                    #
+                    $rc = $macros[$_];
                 }
             }
             else {
-                $rc .= $self->impl_quote( $rc[$_] );
+                $rc .= $self->impl_quote( $macros[$_]->macro_expansion );
             }
         }
         return $rc;
@@ -2660,9 +2656,7 @@ EVAL_GRAMMAR
         return '';
     }
 
-    method _includeFile (Bool $silent, Str $wantedFile, Bool $contentOnly? --> Str) {
-
-        $contentOnly //= false;
+    method _includeFile (Bool $silent, Str $wantedFile --> Str) {
 
         if ( length($wantedFile) <= 0 ) {
             if ( !$silent ) {
@@ -2728,22 +2722,21 @@ EVAL_GRAMMAR
             );
         }
 
-        if ( !$contentOnly ) {
-            my $previousFile = $self->__file__;
-            my $previousLine = $self->__line__;
-            $self->impl_parseIncrementalFile( $file, $silent );
-            if ( $self->_canDebug('i') ) {
-                $self->logger_debug(
-                    'input reverted to %s, line %d',
-                    $self->impl_quote($previousFile),
-                    $previousLine
-                );
-            }
-            $self->_set___file__($previousFile);
-            $self->_set___line__($previousLine);
+        my $content      = '';
+        my $previousFile = $self->__file__;
+        my $previousLine = $self->__line__;
+        $self->impl_parseIncrementalFile( $file, $silent, false, \$content );
+        if ( $self->_canDebug('i') ) {
+            $self->logger_debug(
+                'input reverted to %s, line %d',
+                $self->impl_quote($previousFile),
+                $previousLine
+            );
         }
+        $self->_set___file__($previousFile);
+        $self->_set___line__($previousLine);
 
-        return '';
+        return $content;
     }
 
     method builtin_include (Undef|Str $file, @ignored --> Str) {
@@ -4092,7 +4085,6 @@ STUB
                 while ( !$self->_eof ) {
                     my $content;
                     if ( !defined( $content = <$fh> ) ) {
-                        $self->_set__eof(true);
                         last;
                     }
                     if ( $self->_inctounix ) {
@@ -4107,7 +4099,9 @@ STUB
                             $self->_dumpCurrent();
                         }
                     }
+                    $self->_set__eof(false);
                 }
+                $self->_set__eof(true);
                 if ( $self->_canDebug('i') ) {
                     $self->logger_debug('input exhausted');
                 }
@@ -4124,15 +4118,14 @@ STUB
     }
 
     method impl_parseIncremental (Str $input --> ConsumerOf[M4Impl]) {
-        $self->_set__unparsed(
-            $self->parser_parse( $self->_unparsed . $input ) );
         try {
             #
-            # This throw an exception and will log when necessary
+            # This can throw an exception
             #
-            #$self->_set__unparsed(
-            #    $self->parser_parse( $self->_unparsed . $input ) );
-            } catch {
+            $self->_set__unparsed(
+                $self->parser_parse( $self->_unparsed . $input ) );
+        }
+        catch {
             #
             # Every ImplException must be preceeded by
             # a call to $self->logger_error.
@@ -4149,7 +4142,7 @@ STUB
             #
             $self->_set__unparsed($input);
             return;
-            };
+        };
         return $self;
     }
 
