@@ -3551,7 +3551,7 @@ EVAL_GRAMMAR
     #
     # $0 is replaced by $name
     # arguments are in the form $1, $2, etc...
-    # mapped to $args[0], $args[1], etc...
+    # mapped to $_[1], $_[2], etc...
     # $# is the number of arguments
     # $* is all arguments separated by comma
     # $@ is all quoted arguments separated by comma
@@ -3605,7 +3605,7 @@ EVAL_GRAMMAR
         $newExpansion =~ s/\\\$([0-9]+)/
           {
            #
-           # Writen like this to how that this is a BLOCK on the right-side of eval
+           # Writen like this to show that this is a BLOCK on the right-side of eval
            #
            my $dollarOne = substr($newExpansion, $-[1], $+[1] - $-[1]);
            if ($dollarOne > $maxArgumentIndice) {
@@ -3613,47 +3613,45 @@ EVAL_GRAMMAR
            }
            if ($dollarOne == 0) {
              # "\$0";
-             quotemeta($name);
+             "\" . \"" . quotemeta($name) . "\" . \"";
            } else {
-             my $indice = $dollarOne - 1;
-             $wantedArgumentIndice{$indice}++;
-             "\$args\[$indice\]";
+             $wantedArgumentIndice{$dollarOne}++;
+             "\" . " . "\$_\[$dollarOne\]" . " . \"";
            }
           }/eg;
-        my $prepareArguments = "\n\tmy (\$self, \@args) = \@_;\n";
-        $prepareArguments .= "\n";
+        my $prepareArguments = "\n";
         #
         # We use unused argument indices from now on.
         #
         # Number of arguments.
         #
-        if ( $newExpansion =~ s/\\\$\\\#/\${nbArgs}/g ) {
-            $prepareArguments .= "\tmy \$nbArgs = scalar(\@args);\n";
+        if ( $newExpansion =~ s/\\\$\\\#/" . \$nbArgs . "/g ) {
+            $prepareArguments .= "\tmy \$nbArgs = \$#_;  # \$_[0] is \$self\n";
         }
         #
         # Arguments expansion, unquoted.
         #
-        if ( $newExpansion =~ s/\\\$\\\*/\${listArgs}/g ) {
+        if ( $newExpansion =~ s/\\\$\\\*/" . \$listArgs . "/g ) {
             $prepareArguments
-                .= "\tmy \$listArgs = join(',', map {\$_ // ''} \@args);\n";
+                .= "\tmy \$listArgs = join(',', map {\$_[\$_] // ''} (1..\$#_));\n";
         }
         #
         # Arguments expansion, quoted.
         #
-        if ( $newExpansion =~ s/\\\$\\\@/\${listArgsQuoted}/g ) {
+        if ( $newExpansion =~ s/\\\$\\\@/" . \$listArgsQuoted . "/g ) {
             $prepareArguments
-                .= "\tmy \$listArgsQuoted = join(',', map {\$self->impl_quote(\$_)} \@args);\n";
+                .= "\tmy \$listArgsQuoted = join(',', map {\$_[0]->impl_quote(\$_[\$_])} (1..\$#_));\n";
         }
         #
         # Take care: a macro can very well try to access
         # something outside of @args
         # We do this only NOW, because the //= will eventually
-        # increase @args
+        # increase @_
         #
         if (%wantedArgumentIndice) {
             $prepareArguments .= "\n";
             foreach ( sort { $a <=> $b } keys %wantedArgumentIndice ) {
-                $prepareArguments .= "\t\$args[$_] //= '';\n";
+                $prepareArguments .= "\t\$_[$_] //= '';\n";
             }
         }
         my $stub;
@@ -3664,7 +3662,7 @@ EVAL_GRAMMAR
         my $stubSource = <<"STUB";
 sub {
 $prepareArguments
-\treturn \"$newExpansion\";
+\treturn "$newExpansion";
 }
 STUB
         my $codeRef = eval "$stubSource";
