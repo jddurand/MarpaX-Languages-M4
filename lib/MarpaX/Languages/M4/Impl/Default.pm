@@ -1736,11 +1736,13 @@ EVAL_GRAMMAR
         my $quoteEndLength   = $self->_quoteEndLength;
         if ( $quoteStartLength > 0 && $quoteEndLength > 0 ) {
 
-            if ( index( $input, $quoteStart, $pos ) == $pos ) {
+            if ( substr( $input, $pos, $quoteStartLength ) eq $quoteStart ) {
                 my $nested  = 0;
                 my $lastPos = $pos + $quoteStartLength;
                 while ( $lastPos <= $maxPos ) {
-                    if ( index( $input, $quoteEnd, $lastPos ) == $lastPos ) {
+                    if (substr( $input, $lastPos, $quoteEndLength ) eq
+                        $quoteEnd )
+                    {
                         $lastPos += $quoteEndLength;
                         if ( $nested == 0 ) {
                             ${$lexemeLengthRef} = $lastPos - $pos;
@@ -1753,7 +1755,8 @@ EVAL_GRAMMAR
                         }
                     }
                     elsif (
-                        index( $input, $quoteStart, $lastPos ) == $lastPos )
+                        substr( $input, $lastPos, $quoteStartLength ) eq
+                        $quoteStart )
                     {
                         $lastPos += $quoteStartLength;
                         $nested++;
