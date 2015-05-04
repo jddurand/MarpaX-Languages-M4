@@ -1502,16 +1502,23 @@ EVAL_GRAMMAR
             $regexpString = $DEFAULT_WORD_REGEXP;
         }
         #
-        # Check it compiles
+        # Check it compiles.
+        # If $regexpString is $DEFAULT_WORD_REGEXP we force the perl
+        # mode because:
+        # - regexp is the same between perl and re::engine::GNU
+        # - perl version is (much faster)
         #
+        my $regexp_type
+            = ( $regexpString eq $DEFAULT_WORD_REGEXP )
+            ? 'perl'
+            : $self->_regexp_type;
         my $r = MarpaX::Languages::M4::Impl::Regexp->new();
-        if ( $r->regexp_compile( $self, $self->_regexp_type, $regexpString ) )
-        {
+        if ( $r->regexp_compile( $self, $regexp_type, $regexpString ) ) {
             $self->_set__word_regexp($regexpString);
             $self->_set__regexp_word($r);
         }
         $self->_set__regexp_isDefault(
-            $regexpString eq $DEFAULT_WORD_REGEXP ? true : false );
+            ( $regexpString eq $DEFAULT_WORD_REGEXP ) ? true : false );
 
         return;
     }
@@ -1525,7 +1532,11 @@ EVAL_GRAMMAR
 
     method _build__regexp_word (@args) {
         my $r = MarpaX::Languages::M4::Impl::Regexp->new();
-        $r->regexp_compile( $self, $self->_regexp_type, $self->_word_regexp );
+        my $regexp_type
+            = ( $self->_word_regexp eq $DEFAULT_WORD_REGEXP )
+            ? 'perl'
+            : $self->_regexp_type;
+        $r->regexp_compile( $self, $regexp_type, $self->_word_regexp );
         return $r;
     }
 
@@ -3626,7 +3637,8 @@ EVAL_GRAMMAR
         # Number of arguments.
         #
         if ( $newExpansion =~ s/\\\$\\\#/" . \$nbArgs . "/g ) {
-            $prepareArguments .= "\tmy \$nbArgs = \$#_;  # \$_[0] is \$self\n";
+            $prepareArguments
+                .= "\tmy \$nbArgs = \$#_;  # \$_[0] is \$self\n";
         }
         #
         # Arguments expansion, unquoted.
