@@ -1699,10 +1699,10 @@ EVAL_GRAMMAR
         my $commentEndLength   = $self->_commentEndLength;
         if ( $commentStartLength > 0 && $commentEndLength > 0 ) {
 
-            if ( index( $input, $comStart, $pos ) == $pos ) {
+            if ( substr( $input, $pos, $commentStartLength ) eq $comStart ) {
                 my $lastPos = $pos + $commentStartLength;
                 while ( $lastPos <= $maxPos ) {
-                    if ( index( $input, $comEnd, $lastPos ) == $lastPos ) {
+                    if ( substr( $input, $lastPos, $commentEndLength ) eq $comEnd ) {
                         $lastPos += $commentEndLength;
                         ${$lexemeLengthRef} = $lastPos - $pos;
                         ${$lexemeValueRef}
