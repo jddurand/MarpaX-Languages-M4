@@ -3410,16 +3410,42 @@ EVAL_GRAMMAR
         # Eval
         #
         my $rc = '';
+        #
+        # For $r->value() optimisations: outside of the try {} block
+        # otherwise state optimisation seems to be off
+        #
+        state $registrations = undef;
         try {
             local $MarpaX::Languages::M4::Impl::Default::INTEGER_BITS
                 = $self->_integer_bits;
             local $MarpaX::Languages::M4::Impl::Default::SELF = $self;
-            my $valuep = $EVAL_G->parse(
-                \$expression,
-                {   semantics_package =>
-                        'MarpaX::Languages::M4::Impl::Default::Eval',
-                }
-            );
+            #
+            # Calling parse method will always resolve the actions to the same value...
+            # As we do in Parser, use our Marpa hack to avoid such repetition
+            #
+            my $r = Marpa::R2::Scanless::R->new(
+                                                {   grammar => $EVAL_G,
+                                                    semantics_package => 'MarpaX::Languages::M4::Impl::Default::Eval'
+                                                    # trace_terminals => 1,
+                                                    # trace_values => 1
+                                                }
+                                               );
+            $r->read(\$expression);
+            my $ambiguous_status = $r->ambiguous;
+            if ($ambiguous_status) {
+              Marpa::R2::exception( "Eval is ambiguous (ambiguous status is" . $ambiguous_status . "): $expression\n");
+            }
+
+            if (defined($registrations)) {
+              $r->registrations($registrations);
+            }
+            my $valuep = $r->value;
+            if (! defined($registrations)) {
+              $registrations = $r->registrations();
+            }
+            if (! defined($valuep)) {
+              Marpa::R2::exception( "No eval parse value: $expression\n");
+            }
             $rc = MarpaX::Languages::M4::Impl::Default::BaseConversion
                 ->bitvector_to_base( $radix, ${$valuep}, $width );
         }

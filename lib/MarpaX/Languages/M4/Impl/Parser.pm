@@ -109,6 +109,64 @@ COMMA ~ ',' _WS_any
         );
     };
 
+    BEGIN {
+      #
+      # Marpa internal optimisation: we do not want the closures to be rechecked every time
+      # we call $r->value(). This is a static information, although determined at run-time
+      # the first time $r->value() is called on a recognizer.
+      #
+      no warnings 'redefine';
+
+      sub Marpa::R2::Recognizer::registrations {
+        my $recce = shift;
+        if (@_) {
+          my $hash = shift;
+          if (! defined($hash) ||
+              ref($hash) ne 'HASH' ||
+              grep {! exists($hash->{$_})} qw/
+                                               NULL_VALUES
+                                               REGISTRATIONS
+                                               CLOSURE_BY_SYMBOL_ID
+                                               CLOSURE_BY_RULE_ID
+                                               RESOLVE_PACKAGE
+                                               RESOLVE_PACKAGE_SOURCE
+                                               PER_PARSE_CONSTRUCTOR
+                                             /) {
+            Marpa::R2::exception(
+                                 "Attempt to reuse registrations failed:\n",
+                                 "  Registration data is not a hash containing all necessary keys:\n",
+                                 "  Got : " . ((ref($hash) eq 'HASH') ? join(', ', sort keys %{$hash}) : '') . "\n",
+                                 "  Want: CLOSURE_BY_RULE_ID, CLOSURE_BY_SYMBOL_ID, NULL_VALUES, PER_PARSE_CONSTRUCTOR, REGISTRATIONS, RESOLVE_PACKAGE, RESOLVE_PACKAGE_SOURCE\n"
+                                );
+          }
+          $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES] = $hash->{NULL_VALUES};
+          $recce->[Marpa::R2::Internal::Recognizer::REGISTRATIONS] = $hash->{REGISTRATIONS};
+          $recce->[Marpa::R2::Internal::Recognizer::CLOSURE_BY_SYMBOL_ID] = $hash->{CLOSURE_BY_SYMBOL_ID};
+          $recce->[Marpa::R2::Internal::Recognizer::CLOSURE_BY_RULE_ID] = $hash->{CLOSURE_BY_RULE_ID};
+          $recce->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE] = $hash->{RESOLVE_PACKAGE};
+          $recce->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE_SOURCE] = $hash->{RESOLVE_PACKAGE_SOURCE};
+          $recce->[Marpa::R2::Internal::Recognizer::PER_PARSE_CONSTRUCTOR] = $hash->{PER_PARSE_CONSTRUCTOR};
+        }
+        return {
+                NULL_VALUES => $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES],
+                REGISTRATIONS => $recce->[Marpa::R2::Internal::Recognizer::REGISTRATIONS],
+                CLOSURE_BY_SYMBOL_ID => $recce->[Marpa::R2::Internal::Recognizer::CLOSURE_BY_SYMBOL_ID],
+                CLOSURE_BY_RULE_ID => $recce->[Marpa::R2::Internal::Recognizer::CLOSURE_BY_RULE_ID],
+                RESOLVE_PACKAGE => $recce->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE],
+                RESOLVE_PACKAGE_SOURCE => $recce->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE_SOURCE],
+                PER_PARSE_CONSTRUCTOR => $recce->[Marpa::R2::Internal::Recognizer::PER_PARSE_CONSTRUCTOR]
+               };
+      } ## end sub registrations
+
+      sub Marpa::R2::Scanless::R::registrations {
+        my $slr = shift;
+        my $thick_g1_recce =
+          $slr->[Marpa::R2::Internal::Scanless::R::THICK_G1_RECCE];
+        return $thick_g1_recce->registrations(@_);
+      } ## end sub Marpa::R2::Scanless::R::registrations
+
+    }
+
     has _parse_level => (
         is  => 'rwp',
         isa => PositiveOrZeroInt,
@@ -500,7 +558,18 @@ COMMA ~ ',' _WS_any
             # is of concern for a macro that called us.
             #
             local $MarpaX::Languages::M4::Impl::Parser::macro = $macro;
+            #
+            # For $r->value() optimisations
+            #
+            state $registrations = undef;
+
+            if (defined($registrations)) {
+              $r->registrations($registrations);
+            }
             my $valueRef = $r->value;
+            if (! defined($registrations)) {
+              $registrations = $r->registrations();
+            }
             if ( Undef->check($valueRef) || Undef->check( ${$valueRef} ) ) {
                 goto return_error;
             }
