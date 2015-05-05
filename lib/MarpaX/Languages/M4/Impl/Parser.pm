@@ -234,8 +234,7 @@ COMMA ~ ',' _WS_any
         #
         my $r = Marpa::R2::Scanless::R->new(
             {   grammar => $g,
-                semantics_package =>
-                    sprintf( '%s::%s', __PACKAGE__, 'Actions' ),
+                semantics_package => 'MarpaX::Languages::M4::Impl::Parser::Actions',
                 exhaustion => 'event',
 
                 # trace_terminals => 1,
