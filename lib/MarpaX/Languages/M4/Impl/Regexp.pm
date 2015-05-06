@@ -134,13 +134,23 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 # Execute perl engine
                 #
                 if ( $string =~ m/$regexp/gc ) {
-                    my @lpos = ();
-                    my @rpos = ();
-                    map { ( $lpos[$_], $rpos[$_] ) = ( $-[$_], $+[$_] ) }
-                        ( 0 .. $#- );
-                    $self->_set_regexp_lpos( \@lpos );
-                    $self->_set_regexp_rpos( \@rpos );
-                    $rc = $self->regexp_lpos_get(0);
+                    #
+                    # From profiling point of view this is one of the deepests
+                    # method, affecting everything. So we want to have no
+                    # penalty whatsoever.
+                    #
+                    # my @lpos = ();
+                    # my @rpos = ();
+                    # map { ( $lpos[$_], $rpos[$_] ) = ( $-[$_], $+[$_] ) }
+                    #     ( 0 .. $#- );
+                    #
+                    # $self->_set_regexp_lpos( \@lpos );
+                    # $self->_set_regexp_rpos( \@rpos );
+                    # $rc = $self->regexp_lpos_get(0);
+
+                    $self->{regexp_lpos} = [ @- ];
+                    $self->{regexp_rpos} = [ @+ ];
+                    $rc = $-[0];
                 }
             }
             else {
@@ -149,13 +159,21 @@ class MarpaX::Languages::M4::Impl::Regexp {
                 # Execute re::engine::GNU engine
                 #
                 if ( $string =~ m/$regexp/gc ) {
-                    my @lpos = ();
-                    my @rpos = ();
-                    map { ( $lpos[$_], $rpos[$_] ) = ( $-[$_], $+[$_] ) }
-                        ( 0 .. $#- );
-                    $self->_set_regexp_lpos( \@lpos );
-                    $self->_set_regexp_rpos( \@rpos );
-                    $rc = $self->regexp_lpos_get(0);
+                    #
+                    # Same remark as before
+                    #
+                    # my @lpos = ();
+                    # my @rpos = ();
+                    # map { ( $lpos[$_], $rpos[$_] ) = ( $-[$_], $+[$_] ) }
+                    #     ( 0 .. $#- );
+                    #
+                    # $self->_set_regexp_lpos( \@lpos );
+                    # $self->_set_regexp_rpos( \@rpos );
+                    # $rc = $self->regexp_lpos_get(0);
+
+                    $self->{regexp_lpos} = [ @- ];
+                    $self->{regexp_rpos} = [ @+ ];
+                    $rc = $-[0];
                 }
                 no re::engine::GNU;
             }
