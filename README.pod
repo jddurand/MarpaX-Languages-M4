@@ -8,7 +8,7 @@ MarpaX::Languages::M4 - M4 pre-processor
 
 =head1 VERSION
 
-version 0.016
+version 0.017
 
 =head1 SYNOPSIS
 
@@ -92,10 +92,6 @@ Get current file name. See NOTES.
 
 Get current line number. See NOTES.
 
-=head2 $self->debugfile(--> Undef|Str)
-
-Get current debug file name.
-
 =head2 $self->rc(--> Int)
 
 Get current parse return code. Should be POSIX::EXIT_SUCCESS() or POSIX::EXIT_FAILURE().
@@ -120,13 +116,23 @@ Return number of input processed so far.
 
 Enters interactive mode.
 
+=head2 $self->debugFile(--> Undef|Str)
+
+Return debug file, undef if none.
+
+=head2 $class->defaultWarnMacroSequence(--> Str)
+
+Return default --warn-macro-sequence option value (used by m4pp to handle MooX::Option non support of optional value on the command-line)
+
 =head1 NOTES
 
 file() and line() methods, nor synchronisation output, are currently not supported. This is on the TODO list for this package.
 
+M4 is a MooX::Role::Logger consumer, using explicitely Log::Any's "f" functions in all its logging methods. This mean that the message, in case you would use something like e.g. Log::Any::Adapter::Callback, is always formatted, with no additional parameter.
+
 =head1 SEE ALSO
 
-L<Marpa::R2>, L<Moops>, L<POSIX>, L<M4 POSIX|http://pubs.opengroup.org/onlinepubs/9699919799/utilities/m4.html>, L<M4 GNU|https://www.gnu.org/software/m4/manual/m4.html>
+L<Marpa::R2>, L<Moops>, L<MooX::Role::Logger>, L<Log::Any>, L<Log::Any::Adapter::Callback>, L<POSIX>, L<M4 POSIX|http://pubs.opengroup.org/onlinepubs/9699919799/utilities/m4.html>, L<M4 GNU|https://www.gnu.org/software/m4/manual/m4.html>
 
 =head1 AUTHOR
 
