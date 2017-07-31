@@ -754,7 +754,7 @@ EVAL_GRAMMAR
         is          => 'rw',
         isa         => Bool,
         negativable => 1,
-        short       => 'i',
+        # short       => 'i',
         trigger     => 1,
         doc =>
             q{Read STDIN and parse it line by line, until EOF. Option is negativable with '--no-' prefix.}
@@ -891,7 +891,7 @@ EVAL_GRAMMAR
         isa         => ArrayRef [Str],
         default     => sub { [] },
         format      => 's@',
-        short       => 't',
+        # short       => 't',
         autosplit   => ',',
         trigger     => 1,
         handles_via => 'Array',
@@ -1098,7 +1098,7 @@ EVAL_GRAMMAR
         is          => 'rw',
         isa         => Bool,
         negativable => 1,
-        short       => 's',
+        # short       => 's',
         trigger     => 1,
         doc =>
             q{Generate synchronization lines. Although option exist it is not yet supported. Option is negativable with '--no-' prefix.}
