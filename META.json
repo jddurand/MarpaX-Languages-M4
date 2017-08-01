@@ -55,6 +55,7 @@
          "requires" : {
             "Bit::Vector" : "0",
             "Carp" : "0",
+            "Data::Record" : "0",
             "Encode" : "0",
             "Encode::Locale" : "0",
             "Env::Path" : "0",
@@ -76,6 +77,7 @@
             "Moops" : "0",
             "POSIX" : "0",
             "Perl::OSType" : "0",
+            "Regexp::Common" : "0",
             "Scalar::Util" : "0",
             "Throwable::Factory" : "0",
             "Try::Tiny" : "0",
@@ -111,83 +113,83 @@
    "provides" : {
       "MarpaX::Languages::M4" : {
          "file" : "lib/MarpaX/Languages/M4.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Impl::Default" : {
          "file" : "lib/MarpaX/Languages/M4/Impl/Default.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Impl::Default::BaseConversion" : {
          "file" : "lib/MarpaX/Languages/M4/Impl/Default/BaseConversion.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Impl::Default::Eval" : {
          "file" : "lib/MarpaX/Languages/M4/Impl/Default/Eval.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Impl::Input" : {
          "file" : "lib/MarpaX/Languages/M4/Impl/Input.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Impl::Macro" : {
          "file" : "lib/MarpaX/Languages/M4/Impl/Macro.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Impl::Macros" : {
          "file" : "lib/MarpaX/Languages/M4/Impl/Macros.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Impl::Parser" : {
          "file" : "lib/MarpaX/Languages/M4/Impl/Parser.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Impl::Parser::Actions" : {
          "file" : "lib/MarpaX/Languages/M4/Impl/Parser/Actions.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Impl::Regexp" : {
          "file" : "lib/MarpaX/Languages/M4/Impl/Regexp.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Impl::Value" : {
          "file" : "lib/MarpaX/Languages/M4/Impl/Value.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Role::Builtin" : {
          "file" : "lib/MarpaX/Languages/M4/Role/Builtin.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Role::Impl" : {
          "file" : "lib/MarpaX/Languages/M4/Role/Impl.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Role::Input" : {
          "file" : "lib/MarpaX/Languages/M4/Role/Input.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Role::Logger" : {
          "file" : "lib/MarpaX/Languages/M4/Role/Logger.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Role::Macro" : {
          "file" : "lib/MarpaX/Languages/M4/Role/Macro.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Role::Macros" : {
          "file" : "lib/MarpaX/Languages/M4/Role/Macros.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Role::Parser" : {
          "file" : "lib/MarpaX/Languages/M4/Role/Parser.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Role::Regexp" : {
          "file" : "lib/MarpaX/Languages/M4/Role/Regexp.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       },
       "MarpaX::Languages::M4::Role::Value" : {
          "file" : "lib/MarpaX/Languages/M4/Role/Value.pm",
-         "version" : "0.018"
+         "version" : "0.019"
       }
    },
    "release_status" : "stable",
@@ -203,7 +205,7 @@
          "web" : "https://github.com/jddurand/marpax-languages-m4"
       }
    },
-   "version" : "0.018",
+   "version" : "0.019",
    "x_authority" : "cpan:JDDPAUSE",
    "x_serialization_backend" : "Cpanel::JSON::XS version 3.0237"
 }
