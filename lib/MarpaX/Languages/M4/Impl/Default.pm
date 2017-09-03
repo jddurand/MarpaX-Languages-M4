@@ -70,7 +70,7 @@ class MarpaX::Languages::M4::Impl::Default {
     use MooX::HandlesVia;
     use Scalar::Util qw/blessed/;
     use Throwable::Factory ImplException => undef;
-    use MooX::Options protect_argv => 0, flavour => [qw/require_order/];
+    use MooX::Options 4.103 protect_argv => 0, flavour => [qw/require_order/];
     use MooX::Role::Logger;
     use POSIX qw/EXIT_SUCCESS EXIT_FAILURE/;
     use Perl::OSType ':all';
